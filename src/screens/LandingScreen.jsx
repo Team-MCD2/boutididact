@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Store, Mail, Lock, ChevronRight, Rocket, Check, ArrowLeft, Zap, Clock, Inbox } from 'lucide-react';
+import { Store, Mail, Lock, ChevronRight, Rocket, Check, ArrowLeft, Zap, Clock, Inbox, Trash2, AlertTriangle } from 'lucide-react';
 
 const API = import.meta.env.VITE_API_URL || '';
 
@@ -16,6 +16,8 @@ export default function LandingScreen({ initialMode = 'hero', prefillShopName = 
   const [mode, setMode] = useState(initialMode);
   const [form, setForm] = useState({ name: '', email: '', password: '' });
   const [loginForm, setLoginForm] = useState({ shopName: prefillShopName, password: '' });
+  const [deleteForm, setDeleteForm] = useState({ shopName: '', password: '', confirm: '' });
+  const [deleteSuccess, setDeleteSuccess] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
 
@@ -62,6 +64,48 @@ export default function LandingScreen({ initialMode = 'hero', prefillShopName = 
       }
     } catch (e) {
       setErrorMsg('Erreur réseau. Vérifiez la configuration de VITE_API_URL.');
+      setSubmitting(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    setErrorMsg('');
+    if (!deleteForm.shopName.trim() || !deleteForm.password) {
+      setErrorMsg('Veuillez renseigner vos identifiants.');
+      return;
+    }
+    if (deleteForm.confirm.trim().toUpperCase() !== 'SUPPRIMER') {
+      setErrorMsg('Tapez SUPPRIMER pour confirmer la suppression définitive.');
+      return;
+    }
+    setSubmitting(true);
+    try {
+      const res = await fetch(`${API}/api/saas/delete-account`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          shopName: deleteForm.shopName.trim(),
+          password: deleteForm.password,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.ok) {
+        setErrorMsg(data.message || 'Suppression impossible.');
+        setSubmitting(false);
+        return;
+      }
+      // Vider toutes les données locales rattachées à cette borne
+      try {
+        localStorage.removeItem('boutididact_settings');
+        localStorage.removeItem('boutididact_admin_pin');
+        localStorage.removeItem('ai_products');
+        localStorage.removeItem('ai_categories');
+        sessionStorage.clear();
+      } catch (e) { /* ignore */ }
+      setDeleteSuccess(true);
+      setSubmitting(false);
+    } catch (e) {
+      setErrorMsg('Erreur réseau lors de la suppression.');
       setSubmitting(false);
     }
   };
@@ -145,6 +189,18 @@ export default function LandingScreen({ initialMode = 'hero', prefillShopName = 
                 Déjà client
               </button>
             </div>
+
+            <button
+              onClick={() => {
+                setErrorMsg('');
+                setDeleteSuccess(false);
+                setDeleteForm({ shopName: '', password: '', confirm: '' });
+                setMode('delete');
+              }}
+              className="mt-10 inline-flex items-center gap-2 text-slate-500 hover:text-red-400 text-sm font-bold transition-colors"
+            >
+              <Trash2 size={14} /> Supprimer ma boutique BOUTIDIDACT
+            </button>
           </motion.div>
         )}
 
@@ -275,6 +331,81 @@ export default function LandingScreen({ initialMode = 'hero', prefillShopName = 
                       className="w-full py-5 bg-indigo-600 text-white rounded-2xl font-black text-lg transition-all hover:bg-indigo-700 active:scale-[0.98] disabled:opacity-50 mt-4"
                     >
                       {submitting ? 'Connexion...' : 'Se connecter'}
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          </motion.div>
+        )}
+
+        {mode === 'delete' && (
+          <motion.div
+            key="delete"
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -20 }}
+            className="w-full max-w-2xl relative z-10"
+          >
+            <button
+              onClick={() => { setErrorMsg(''); setDeleteSuccess(false); setMode('hero'); }}
+              className="absolute -top-16 left-0 flex items-center gap-2 text-slate-400 hover:text-white font-bold transition-colors"
+            >
+              <ArrowLeft size={20} />
+              Retour
+            </button>
+
+            <div className="bg-slate-900/50 backdrop-blur-xl border border-red-500/30 rounded-[3rem] p-8 md:p-12 shadow-2xl">
+              {deleteSuccess ? (
+                <div className="text-center space-y-6">
+                  <div className="w-20 h-20 mx-auto bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 rounded-3xl flex items-center justify-center">
+                    <Check size={40} />
+                  </div>
+                  <h2 className="text-3xl font-black text-white">Boutique supprimée</h2>
+                  <p className="text-slate-400">
+                    Votre boutique et votre abonnement BOUTIDIDACT ont été définitivement supprimés.
+                  </p>
+                  <button
+                    onClick={() => { setErrorMsg(''); setDeleteSuccess(false); setMode('hero'); }}
+                    className="w-full py-5 bg-white text-slate-950 rounded-2xl font-black text-lg transition-all hover:scale-[1.02] active:scale-[0.98]"
+                  >
+                    Retour à l'accueil
+                  </button>
+                </div>
+              ) : (
+                <div className="space-y-6">
+                  <div className="text-center">
+                    <div className="w-16 h-16 mx-auto bg-red-500/10 border border-red-500/30 text-red-400 rounded-3xl flex items-center justify-center mb-4">
+                      <AlertTriangle size={32} />
+                    </div>
+                    <h2 className="text-3xl font-black text-white">Supprimer ma boutique</h2>
+                    <p className="text-slate-400 mt-2">
+                      Cette action est <strong className="text-red-400">définitive</strong>. L'abonnement Stripe sera annulé et toutes les données locales seront effacées.
+                    </p>
+                  </div>
+
+                  <div className="space-y-4">
+                    <DarkInput
+                      icon={<Store size={20} />} placeholder="Nom de votre boutique"
+                      value={deleteForm.shopName} onChange={v => setDeleteForm({ ...deleteForm, shopName: v })}
+                    />
+                    <DarkInput
+                      icon={<Lock size={20} />} placeholder="Mot de passe" type="password"
+                      value={deleteForm.password} onChange={v => setDeleteForm({ ...deleteForm, password: v })}
+                    />
+                    <DarkInput
+                      icon={<AlertTriangle size={20} />} placeholder='Tapez "SUPPRIMER" pour confirmer'
+                      value={deleteForm.confirm} onChange={v => setDeleteForm({ ...deleteForm, confirm: v })}
+                    />
+
+                    {errorMsg && <ErrorBox message={errorMsg} />}
+
+                    <button
+                      onClick={handleDelete}
+                      disabled={submitting}
+                      className="w-full py-5 bg-red-600 hover:bg-red-700 text-white rounded-2xl font-black text-lg transition-all active:scale-[0.98] disabled:opacity-50 mt-4 flex items-center justify-center gap-3"
+                    >
+                      {submitting ? 'Suppression...' : (<><Trash2 size={20} /> Supprimer définitivement</>)}
                     </button>
                   </div>
                 </div>
