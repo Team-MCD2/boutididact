@@ -16,7 +16,7 @@ export default function LandingScreen({ initialMode = 'hero', prefillShopName = 
   const [mode, setMode] = useState(initialMode);
   const [form, setForm] = useState({ name: '', email: '', password: '' });
   const [loginForm, setLoginForm] = useState({ shopName: prefillShopName, password: '' });
-  const [deleteForm, setDeleteForm] = useState({ shopName: '', password: '', confirm: '' });
+  const [deleteForm, setDeleteForm] = useState({ shopName: '', email: '' });
   const [deleteSuccess, setDeleteSuccess] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
@@ -70,12 +70,8 @@ export default function LandingScreen({ initialMode = 'hero', prefillShopName = 
 
   const handleDelete = async () => {
     setErrorMsg('');
-    if (!deleteForm.shopName.trim() || !deleteForm.password) {
-      setErrorMsg('Veuillez renseigner vos identifiants.');
-      return;
-    }
-    if (deleteForm.confirm.trim().toUpperCase() !== 'SUPPRIMER') {
-      setErrorMsg('Tapez SUPPRIMER pour confirmer la suppression définitive.');
+    if (!deleteForm.shopName.trim() || !deleteForm.email.trim()) {
+      setErrorMsg('Renseignez le nom de la boutique et l\'email associé.');
       return;
     }
     setSubmitting(true);
@@ -85,7 +81,7 @@ export default function LandingScreen({ initialMode = 'hero', prefillShopName = 
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           shopName: deleteForm.shopName.trim(),
-          password: deleteForm.password,
+          email: deleteForm.email.trim(),
         }),
       });
       const data = await res.json();
@@ -194,7 +190,7 @@ export default function LandingScreen({ initialMode = 'hero', prefillShopName = 
               onClick={() => {
                 setErrorMsg('');
                 setDeleteSuccess(false);
-                setDeleteForm({ shopName: '', password: '', confirm: '' });
+                setDeleteForm({ shopName: '', email: '' });
                 setMode('delete');
               }}
               className="mt-10 inline-flex items-center gap-2 text-slate-500 hover:text-red-400 text-sm font-bold transition-colors"
@@ -390,12 +386,8 @@ export default function LandingScreen({ initialMode = 'hero', prefillShopName = 
                       value={deleteForm.shopName} onChange={v => setDeleteForm({ ...deleteForm, shopName: v })}
                     />
                     <DarkInput
-                      icon={<Lock size={20} />} placeholder="Mot de passe" type="password"
-                      value={deleteForm.password} onChange={v => setDeleteForm({ ...deleteForm, password: v })}
-                    />
-                    <DarkInput
-                      icon={<AlertTriangle size={20} />} placeholder='Tapez "SUPPRIMER" pour confirmer'
-                      value={deleteForm.confirm} onChange={v => setDeleteForm({ ...deleteForm, confirm: v })}
+                      icon={<Mail size={20} />} placeholder="Email associé à la boutique" type="email"
+                      value={deleteForm.email} onChange={v => setDeleteForm({ ...deleteForm, email: v })}
                     />
 
                     {errorMsg && <ErrorBox message={errorMsg} />}
