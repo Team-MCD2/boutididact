@@ -16,7 +16,7 @@ import useSupplements from './hooks/useSupplements';
 import useIdleTimeout from './hooks/useIdleTimeout';
 import { checkout } from './services/api';
 
-import LandingScreen from './screens/LandingScreen';
+import LandingScreen from './screens/LandingScreen.jsx';
 
 const STATES = {
   IDLE: 'idle',
