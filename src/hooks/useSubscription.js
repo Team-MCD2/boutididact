@@ -19,9 +19,6 @@ export default function useSubscription() {
         if (data.isPremium) {
           localStorage.setItem(STORAGE_KEY, 'true');
           setIsPremium(true);
-        } else {
-          localStorage.setItem(STORAGE_KEY, 'false');
-          setIsPremium(false);
         }
       } catch (e) {
         console.error('Erreur sync status:', e);

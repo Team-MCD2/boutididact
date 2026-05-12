@@ -47,6 +47,7 @@ export default function App() {
     if (params.get('payment') === 'success') {
       // Le paiement est passé, on autorise l'accès à la configuration
       localStorage.setItem('boutididact_setup_complete', 'true');
+      localStorage.setItem('boutididact_is_premium', 'true');
       setSetupComplete(true);
       setAdminOpen(true); // Ouvrir direct l'admin pour la config API
     }
