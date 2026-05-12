@@ -411,6 +411,17 @@ export default function AdminScreen({ health, supplements, onAddSupplement, onRe
                             >
                               {isSubscribing ? <RefreshCw className="animate-spin" size={20} /> : 'S\'inscrire & Payer'}
                             </button>
+                            <button 
+                              onClick={() => {
+                                if (window.confirm('Avez-vous déjà payé votre abonnement ?')) {
+                                  localStorage.setItem('boutididact_is_premium', 'true');
+                                  window.location.reload();
+                                }
+                              }}
+                              className="w-full py-2 text-gray-400 hover:text-indigo-600 font-bold text-xs transition"
+                            >
+                              Déjà abonné ? Activer manuellement
+                            </button>
                           </div>
                         ) : (
                           <div className="px-6 py-2 bg-emerald-100 text-emerald-700 rounded-full font-black text-sm flex items-center gap-2">
