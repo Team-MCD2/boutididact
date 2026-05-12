@@ -150,6 +150,17 @@ export default function App() {
         })),
       };
       const data = await checkout(payload);
+      // Persiste les nouveaux IDs Hiboutik dans le catalogue local (évite re-création à chaque vente)
+      if (data?.idMapping && Object.keys(data.idMapping).length > 0) {
+        try {
+          const stored = JSON.parse(localStorage.getItem('ai_products') || '[]');
+          const updated = stored.map(p => (
+            data.idMapping[p.id] != null ? { ...p, id: data.idMapping[p.id] } : p
+          ));
+          localStorage.setItem('ai_products', JSON.stringify(updated));
+          catalog.reload();
+        } catch (e) { /* ignore */ }
+      }
       setResult(data);
       setScreen(STATES.SUCCESS);
     } catch (e) {
