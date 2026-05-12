@@ -149,9 +149,8 @@ export default function LandingScreen({ onSubscribe, isSubscribing }) {
                       value={form.email} onChange={v => setForm({...form, email: v})}
                     />
                     <DarkInput 
-                      icon={<Lock size={20}/>} placeholder="Mot de passe (4 chiffres)" type="password"
+                      icon={<Lock size={20}/>} placeholder="Mot de passe" type="password"
                       value={form.password} onChange={v => setForm({...form, password: v})}
-                      maxLength={4}
                     />
                     
                     <button 
