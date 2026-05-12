@@ -84,10 +84,6 @@ export default function LandingScreen({ onSubscribe, isSubscribing }) {
                 <ChevronRight size={22} />
               </>
             )}
-          </button>
-
-          </button>
-
           <button 
             onClick={() => {
               localStorage.setItem('boutididact_setup_complete', 'true');
