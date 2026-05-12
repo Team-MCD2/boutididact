@@ -252,7 +252,9 @@ export default function AdminScreen({
               <p className="text-center text-gray-600 mb-4 font-bold">
                 {promptNewPin
                   ? 'Saisissez votre nouveau code (différent de 0000)'
-                  : 'Saisissez votre code d\'accès (0000 par défaut)'}
+                  : getAdminPin() === '0000'
+                    ? 'Saisissez votre code d\'accès (0000 par défaut)'
+                    : 'Saisissez votre code d\'accès'}
               </p>
               <div className="flex justify-center gap-3 my-6" aria-label="PIN">
                 {[0, 1, 2, 3].map((i) => (
@@ -424,33 +426,137 @@ export default function AdminScreen({
       </motion.div>
 
       {extractedData && (
-        <div className="fixed inset-0 z-[80] bg-black/60 flex items-center justify-center p-6">
-          <div className="bg-white rounded-3xl p-8 max-w-lg w-full text-center">
-            <h3 className="text-xl font-black mb-3">Produits détectés ({extractedData.products.length})</h3>
-            <p className="text-gray-500 text-sm mb-5">Confirmez l'ajout au catalogue local.</p>
-            <div className="flex gap-3">
-              <button
-                onClick={() => setExtractedData(null)}
-                className="flex-1 py-3 rounded-xl bg-gray-100 font-bold"
-              >Annuler</button>
-              <button
-                onClick={() => {
-                  const existingP = JSON.parse(localStorage.getItem('ai_products') || '[]');
-                  const existingC = JSON.parse(localStorage.getItem('ai_categories') || '[]');
-                  const merged = [...existingP, ...extractedData.products];
-                  const mergedC = Array.from(new Map([...existingC, ...extractedData.categories].map(c => [c.id, c])).values());
-                  localStorage.setItem('ai_products', JSON.stringify(merged));
-                  localStorage.setItem('ai_categories', JSON.stringify(mergedC));
-                  setExtractedData(null);
-                  onReload();
-                }}
-                className="flex-1 py-3 rounded-xl bg-fuchsia-600 text-white font-bold"
-              >Ajouter</button>
-            </div>
-          </div>
-        </div>
+        <ExtractedPreviewModal
+          data={extractedData}
+          onCancel={() => setExtractedData(null)}
+          onConfirm={(finalProducts) => {
+            const usedCatIds = new Set(finalProducts.map(p => p.categoryId));
+            const finalCategories = extractedData.categories.filter(c => usedCatIds.has(c.id));
+            const existingP = JSON.parse(localStorage.getItem('ai_products') || '[]');
+            const existingC = JSON.parse(localStorage.getItem('ai_categories') || '[]');
+            const merged = [...existingP, ...finalProducts];
+            const mergedC = Array.from(new Map([...existingC, ...finalCategories].map(c => [c.id, c])).values());
+            localStorage.setItem('ai_products', JSON.stringify(merged));
+            localStorage.setItem('ai_categories', JSON.stringify(mergedC));
+            setExtractedData(null);
+            onReload();
+          }}
+        />
       )}
     </motion.div>
+  );
+}
+
+function ExtractedPreviewModal({ data, onCancel, onConfirm }) {
+  const initialSet = new Set(data.products.map(p => p.id));
+  const [keptIds, setKeptIds] = useState(initialSet);
+  const [edits, setEdits] = useState({}); // { [id]: { name?, price? } }
+
+  const toggle = (id) => {
+    setKeptIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+
+  const setField = (id, field, value) => {
+    setEdits(prev => ({ ...prev, [id]: { ...(prev[id] || {}), [field]: value } }));
+  };
+
+  const grouped = data.products.reduce((acc, p) => {
+    const cat = data.categories.find(c => c.id === p.categoryId);
+    const key = cat?.name || 'Divers';
+    (acc[key] = acc[key] || []).push(p);
+    return acc;
+  }, {});
+
+  const finalList = data.products
+    .filter(p => keptIds.has(p.id))
+    .map(p => ({
+      ...p,
+      name: edits[p.id]?.name ?? p.name,
+      price: Math.max(0, Number(edits[p.id]?.price ?? p.price) || 0),
+    }));
+
+  return (
+    <div className="fixed inset-0 z-[80] bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
+      <div className="bg-white rounded-3xl w-full max-w-2xl flex flex-col max-h-[90vh] overflow-hidden shadow-2xl">
+        <div className="px-6 py-5 border-b border-gray-100">
+          <h3 className="text-xl font-black text-gray-900">
+            Produits détectés <span className="text-fuchsia-600">({keptIds.size}/{data.products.length})</span>
+          </h3>
+          <p className="text-sm text-gray-500 mt-1">
+            Vérifiez chaque produit, modifiez si nécessaire, décochez ceux à exclure puis confirmez.
+          </p>
+        </div>
+
+        <div className="flex-1 overflow-y-auto px-6 py-4 space-y-6 custom-scrollbar">
+          {Object.entries(grouped).map(([catName, items]) => (
+            <div key={catName}>
+              <h4 className="text-[11px] font-black text-gray-400 uppercase tracking-widest mb-2 sticky top-0 bg-white py-1">{catName}</h4>
+              <div className="space-y-2">
+                {items.map(p => {
+                  const kept = keptIds.has(p.id);
+                  return (
+                    <div
+                      key={p.id}
+                      className={`rounded-2xl border p-3 transition ${kept ? 'border-gray-200 bg-white' : 'border-gray-100 bg-gray-50 opacity-50'}`}
+                    >
+                      <div className="flex items-center gap-3">
+                        <input
+                          type="checkbox"
+                          checked={kept}
+                          onChange={() => toggle(p.id)}
+                          className="w-5 h-5 accent-fuchsia-600 shrink-0"
+                        />
+                        <input
+                          type="text"
+                          value={edits[p.id]?.name ?? p.name}
+                          onChange={e => setField(p.id, 'name', e.target.value)}
+                          disabled={!kept}
+                          className="flex-1 px-3 py-2 rounded-xl border border-gray-200 bg-white font-bold text-gray-800 outline-none focus:ring-2 focus:ring-fuchsia-100 focus:border-fuchsia-400 disabled:opacity-50"
+                        />
+                        <div className="flex items-center gap-1 shrink-0">
+                          <input
+                            type="number"
+                            step="0.1"
+                            value={edits[p.id]?.price ?? p.price}
+                            onChange={e => setField(p.id, 'price', e.target.value)}
+                            disabled={!kept}
+                            className="w-20 px-3 py-2 rounded-xl border border-gray-200 bg-white font-bold text-right text-gray-800 outline-none focus:ring-2 focus:ring-fuchsia-100 focus:border-fuchsia-400 disabled:opacity-50"
+                          />
+                          <span className="text-gray-400 font-bold">€</span>
+                        </div>
+                      </div>
+                      {p.desc && (
+                        <p className="ml-8 mt-1.5 text-xs text-gray-500 italic">{p.desc}</p>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          ))}
+
+          {data.products.length === 0 && (
+            <p className="text-center text-gray-500 py-8">Aucun produit détecté sur l'image.</p>
+          )}
+        </div>
+
+        <div className="px-6 py-4 border-t border-gray-100 flex gap-3 bg-gray-50">
+          <button
+            onClick={onCancel}
+            className="flex-1 py-3 rounded-2xl bg-white border border-gray-200 font-black text-gray-700 hover:bg-gray-100"
+          >Annuler</button>
+          <button
+            onClick={() => onConfirm(finalList)}
+            disabled={keptIds.size === 0}
+            className="flex-1 py-3 rounded-2xl bg-fuchsia-600 text-white font-black hover:bg-fuchsia-700 disabled:opacity-40"
+          >Ajouter {keptIds.size} produit{keptIds.size > 1 ? 's' : ''}</button>
+        </div>
+      </div>
+    </div>
   );
 }
 
