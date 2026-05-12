@@ -83,7 +83,8 @@ export default function LandingScreen({ onSubscribe, isSubscribing }) {
                 {mode === 'welcome' ? 'Commencer l\'aventure' : 'Valider & Passer au paiement'}
                 <ChevronRight size={22} />
               </>
-            )}
+          </button>
+
           <button 
             onClick={() => {
               localStorage.setItem('boutididact_setup_complete', 'true');
