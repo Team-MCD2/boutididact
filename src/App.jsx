@@ -72,7 +72,7 @@ export default function App() {
       if (data.url) window.location.href = data.url;
       else alert('Erreur: ' + (data.message || 'Impossible de créer la session.'));
     } catch (e) {
-      alert('Erreur réseau.');
+      alert('Erreur réseau. Vérifiez que VITE_API_URL est correct et commence par https:// dans Vercel.');
     } finally {
       setIsSubscribing(false);
     }

@@ -86,17 +86,17 @@ export default function LandingScreen({ onSubscribe, isSubscribing }) {
             )}
           </button>
 
-          {mode === 'welcome' && (
-            <button 
-              onClick={() => {
-                localStorage.setItem('boutididact_setup_complete', 'true');
-                window.location.reload();
-              }}
-              className="w-full mt-4 py-3 text-gray-400 hover:text-indigo-600 font-bold text-sm transition"
-            >
-              Déjà client ? Se connecter
-            </button>
-          )}
+          </button>
+
+          <button 
+            onClick={() => {
+              localStorage.setItem('boutididact_setup_complete', 'true');
+              window.location.reload();
+            }}
+            className="w-full mt-6 py-3 text-gray-400 hover:text-indigo-600 font-bold text-sm transition"
+          >
+            Déjà client ? Se connecter
+          </button>
         </motion.div>
       </motion.div>
     </div>
