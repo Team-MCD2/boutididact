@@ -132,17 +132,19 @@ export default function MenuScreen({
           </div>
 
           <div className="flex items-center gap-3">
-            {source === 'fallback' && (
-              <span className="px-4 py-2 rounded-full bg-amber-100 text-amber-800 text-sm font-bold border border-amber-200">
-                Mode démo
+            {source === 'offline' && (
+              <span className="px-4 py-2 rounded-full bg-red-100 text-red-800 text-sm font-bold border border-red-200">
+                Non connecté
               </span>
             )}
-            <div className="flex items-center gap-2 bg-emerald-50 border border-emerald-200 px-4 py-2 rounded-full">
-              <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
-              <span className="font-bold text-emerald-700 text-sm">
-                {source === 'hiboutik' ? 'Hiboutik en ligne' : 'Système prêt'}
-              </span>
-            </div>
+            {source === 'hiboutik' && (
+              <div className="flex items-center gap-2 bg-emerald-50 border border-emerald-200 px-4 py-2 rounded-full">
+                <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
+                <span className="font-bold text-emerald-700 text-sm">
+                  Système en ligne
+                </span>
+              </div>
+            )}
             <button
               onClick={onAdmin}
               className="w-12 h-12 rounded-2xl bg-white border border-gray-200 hover:bg-gray-50 flex items-center justify-center text-gray-400 hover:text-gray-700 transition"

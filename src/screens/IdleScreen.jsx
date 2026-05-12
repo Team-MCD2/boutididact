@@ -4,7 +4,7 @@ import { Hand, Sparkles } from 'lucide-react';
 import logoUrl from '../assets/logo.svg';
 
 export default function IdleScreen({ onStart, health }) {
-  const online = health?.ok;
+  const online = Boolean(health?.hiboutik?.reachable);
   return (
     <motion.div
       initial={{ opacity: 0 }}
@@ -77,10 +77,10 @@ export default function IdleScreen({ onStart, health }) {
         {/* Indicateur état */}
         <div className="absolute bottom-8 right-8 flex items-center gap-3 bg-white/10 backdrop-blur-md px-5 py-3 rounded-full border border-white/20">
           <span
-            className={`w-3 h-3 rounded-full ${online ? 'bg-emerald-400 animate-pulse' : 'bg-amber-300'}`}
+            className={`w-3 h-3 rounded-full ${online ? 'bg-emerald-400 animate-pulse' : 'bg-red-400'}`}
           />
           <span className="text-sm font-semibold">
-            {online ? 'Système en ligne' : 'Mode dégradé'}
+            {online ? 'Système en ligne' : 'Non connecté'}
           </span>
         </div>
       </div>

@@ -1,6 +1,5 @@
 import { useEffect, useReducer, useCallback } from 'react';
 import { getHiboutikProducts, getHiboutikCategories, getHealth } from '../services/api';
-import { FALLBACK_PRODUCTS, FALLBACK_CATEGORIES } from '../data/fallbackProducts';
 
 const EMOJIS = ['🍔', '🧀', '🥓', '🍗', '🍟', '🧅', '🥤', '🧃', '💧', '🍮', '🍰', '🍨', '🌮', '🌯', '🥗', '🍕'];
 const emojiFor = (id) => EMOJIS[Math.abs(Number(id) || 0) % EMOJIS.length];
@@ -32,49 +31,30 @@ function reducer(state, action) {
       return { ...state, health: action.payload };
     case 'error':
       return { ...state, loading: false, error: action.error };
+    case 'idle':
+      return { ...state, loading: false };
     default:
       return state;
   }
 }
 
 const getAIProducts = () => {
-  const saved = localStorage.getItem('ai_products');
-  return saved ? JSON.parse(saved) : [];
+  try { return JSON.parse(localStorage.getItem('ai_products') || '[]'); } catch { return []; }
 };
-
 const getAICategories = () => {
-  const saved = localStorage.getItem('ai_categories');
-  return saved ? JSON.parse(saved) : [];
+  try { return JSON.parse(localStorage.getItem('ai_categories') || '[]'); } catch { return []; }
 };
 
 async function fetchCatalog() {
   let health = null;
-  let isPremiumUser = false;
   try {
-    const [hRes, sRes] = await Promise.all([
-      getHealth(),
-      fetch(`${import.meta.env.VITE_API_URL}/api/saas/status`).then(r => r.json())
-    ]);
-    health = hRes;
-    isPremiumUser = sRes.isPremium;
+    health = await getHealth();
   } catch {
     /* ignore */
   }
 
-  const aiProducts = isPremiumUser ? getAIProducts() : [];
-  const aiCategories = isPremiumUser ? getAICategories() : [];
-
-  const fallbackPayload = {
-    source: 'fallback',
-    products: FALLBACK_PRODUCTS,
-    categories: FALLBACK_CATEGORIES,
-    health,
-  };
-
-  if (aiProducts.length > 0) {
-    fallbackPayload.products = [...FALLBACK_PRODUCTS, ...aiProducts];
-    fallbackPayload.categories = Array.from(new Map([...FALLBACK_CATEGORIES, ...aiCategories].map(c => [c.id, c])).values());
-  }
+  const aiProducts = getAIProducts();
+  const aiCategories = getAICategories();
 
   try {
     const [pRes, cRes] = await Promise.all([
@@ -102,18 +82,27 @@ async function fetchCatalog() {
       categories = Array.from(new Map([...categories, ...aiCategories].map(c => [c.id, c])).values());
     }
 
-    if (!products.length) return fallbackPayload;
     return { source: 'hiboutik', products, categories, health };
   } catch (e) {
-    console.warn('[catalog] fallback :', e.message);
-    return fallbackPayload;
+    console.warn('[catalog] Hiboutik indisponible :', e.message);
+    // Pas de fallback démo : on renvoie ce que l'utilisateur a localement (IA), sinon vide.
+    return {
+      source: aiProducts.length ? 'local' : 'offline',
+      products: aiProducts,
+      categories: aiCategories,
+      health,
+    };
   }
 }
 
-export default function useCatalog() {
+export default function useCatalog({ enabled = true } = {}) {
   const [state, dispatch] = useReducer(reducer, initial);
 
   const reload = useCallback(async () => {
+    if (!enabled) {
+      dispatch({ type: 'idle' });
+      return;
+    }
     dispatch({ type: 'loading' });
     try {
       const payload = await fetchCatalog();
@@ -121,9 +110,13 @@ export default function useCatalog() {
     } catch (e) {
       dispatch({ type: 'error', error: e });
     }
-  }, []);
+  }, [enabled]);
 
   useEffect(() => {
+    if (!enabled) {
+      dispatch({ type: 'idle' });
+      return;
+    }
     let alive = true;
     (async () => {
       const payload = await fetchCatalog();
@@ -132,7 +125,7 @@ export default function useCatalog() {
     return () => {
       alive = false;
     };
-  }, []);
+  }, [enabled]);
 
   return { ...state, reload };
 }

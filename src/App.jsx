@@ -9,14 +9,13 @@ import SuccessScreen from './screens/SuccessScreen';
 import ErrorScreen from './screens/ErrorScreen';
 import AdminScreen from './screens/AdminScreen';
 import LoadingScreen from './components/LoadingScreen';
+import LandingScreen from './screens/LandingScreen.jsx';
 
 import useCatalog from './hooks/useCatalog';
 import useCart from './hooks/useCart';
 import useSupplements from './hooks/useSupplements';
 import useIdleTimeout from './hooks/useIdleTimeout';
 import { checkout } from './services/api';
-
-import LandingScreen from './screens/LandingScreen.jsx';
 
 const STATES = {
   IDLE: 'idle',
@@ -28,56 +27,93 @@ const STATES = {
 };
 
 const IDLE_MS = Number(import.meta.env.VITE_IDLE_TIMEOUT_MS || 60000);
+const API = import.meta.env.VITE_API_URL || '';
+
+const SESSION_KEY = 'boutididact_session';
+
+const isSetupComplete = () => {
+  try {
+    const s = JSON.parse(localStorage.getItem('boutididact_settings') || '{}');
+    return Boolean(s.hiboutikAccount && s.hiboutikUser && s.hiboutikApiKey);
+  } catch {
+    return false;
+  }
+};
 
 export default function App() {
-  const [setupComplete, setSetupComplete] = useState(() => {
-    return localStorage.getItem('boutididact_setup_complete') === 'true';
+  // Auth session (boutique connectée)
+  const [session, setSession] = useState(() => {
+    try { return JSON.parse(sessionStorage.getItem(SESSION_KEY) || 'null'); } catch { return null; }
   });
-  const [isSubscribing, setIsSubscribing] = useState(false);
+  const [setupComplete, setSetupComplete] = useState(isSetupComplete);
 
+  // Mode initial du LandingScreen (en cas de retour Stripe)
+  const [landingInitialMode, setLandingInitialMode] = useState('hero');
+  const [landingPrefillName, setLandingPrefillName] = useState('');
+
+  // Kiosque
   const [screen, setScreen] = useState(STATES.IDLE);
   const [paymentMethod, setPaymentMethod] = useState('card');
   const [result, setResult] = useState(null);
   const [error, setError] = useState(null);
   const [adminOpen, setAdminOpen] = useState(false);
 
-  // Détection du retour de paiement
+  // ---- Retour Stripe ----
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
-    if (params.get('payment') === 'success') {
-      // Le paiement est passé, on autorise l'accès à la configuration
-      localStorage.setItem('boutididact_setup_complete', 'true');
-      localStorage.setItem('boutididact_is_premium', 'true');
-      setSetupComplete(true);
-      setAdminOpen(true); // Ouvrir direct l'admin pour la config API
+    const payment = params.get('payment');
+    const sessionId = params.get('session_id');
+    if (payment === 'success' && sessionId) {
+      (async () => {
+        try {
+          const res = await fetch(`${API}/api/saas/verify-subscription?session_id=${sessionId}`);
+          const data = await res.json();
+          if (data.status === 'paid') {
+            setLandingPrefillName(data.shop?.name || '');
+            setLandingInitialMode('waiting');
+          }
+        } catch (e) {
+          console.error('verify-subscription:', e);
+        } finally {
+          const url = new URL(window.location.href);
+          url.searchParams.delete('payment');
+          url.searchParams.delete('session_id');
+          window.history.replaceState({}, document.title, url.pathname + url.search);
+        }
+      })();
+    } else if (payment === 'cancelled') {
+      const url = new URL(window.location.href);
+      url.searchParams.delete('payment');
+      window.history.replaceState({}, document.title, url.pathname + url.search);
     }
   }, []);
 
-  const catalog = useCatalog();
+  // ---- Force ouverture admin si connecté mais pas configuré ----
+  useEffect(() => {
+    if (session && !setupComplete) {
+      setAdminOpen(true);
+    }
+  }, [session, setupComplete]);
+
+  const handleLoginSuccess = useCallback((shop) => {
+    const sess = { shopName: shop?.name, email: shop?.email, loggedAt: Date.now() };
+    sessionStorage.setItem(SESSION_KEY, JSON.stringify(sess));
+    setSession(sess);
+    setSetupComplete(isSetupComplete());
+  }, []);
+
+  const handleLogout = useCallback(() => {
+    sessionStorage.removeItem(SESSION_KEY);
+    setSession(null);
+    setAdminOpen(false);
+    setScreen(STATES.IDLE);
+    setLandingInitialMode('hero');
+    setLandingPrefillName('');
+  }, []);
+
+  const catalog = useCatalog({ enabled: !!session && setupComplete });
   const cart = useCart();
   const supplementsState = useSupplements();
-
-  const handleSubscribe = async (form) => {
-    setIsSubscribing(true);
-    try {
-      const res = await fetch(`${import.meta.env.VITE_API_URL}/api/saas/stripe-checkout`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          boutiqueName: form.name, 
-          boutiqueEmail: form.email,
-          boutiquePassword: form.password // This will be passed to metadata
-        })
-      });
-      const data = await res.json();
-      if (data.url) window.location.href = data.url;
-      else alert('Erreur: ' + (data.message || 'Impossible de créer la session.'));
-    } catch (e) {
-      alert('Erreur réseau. Vérifiez que VITE_API_URL est correct et commence par https:// dans Vercel.');
-    } finally {
-      setIsSubscribing(false);
-    }
-  };
 
   const goIdle = useCallback(() => {
     cart.clear();
@@ -86,9 +122,6 @@ export default function App() {
     setScreen(STATES.IDLE);
   }, [cart]);
 
-  // ... (rest of useEffect and functions)
-  
-  // Inactivité : retour idle uniquement depuis MENU/PAYMENT/ERROR
   const idleEnabled = [STATES.MENU, STATES.PAYMENT, STATES.ERROR].includes(screen);
   useIdleTimeout({ enabled: idleEnabled, delay: IDLE_MS, onIdle: goIdle });
 
@@ -116,7 +149,6 @@ export default function App() {
           taxRate: Number(it.taxRate || 0),
         })),
       };
-      if (catalog.source === 'fallback') payload.skipHiboutik = true;
       const data = await checkout(payload);
       setResult(data);
       setScreen(STATES.SUCCESS);
@@ -132,8 +164,41 @@ export default function App() {
     }
   };
 
+  // ---- Rendus selon état d'auth ----
+  if (!session) {
+    return (
+      <LandingScreen
+        initialMode={landingInitialMode}
+        prefillShopName={landingPrefillName}
+        onLoginSuccess={handleLoginSuccess}
+      />
+    );
+  }
+
+  // Connecté mais pas encore de paramètres Hiboutik : on force l'admin
   if (!setupComplete) {
-    return <LandingScreen onSubscribe={handleSubscribe} isSubscribing={isSubscribing} />;
+    return (
+      <>
+        <LoadingScreen message="Configuration initiale requise..." />
+        {adminOpen && (
+          <AdminScreen
+            key="admin-setup"
+            health={catalog.health}
+            session={session}
+            forceSettings
+            supplements={supplementsState.supplements}
+            onAddSupplement={supplementsState.add}
+            onRemoveSupplement={supplementsState.remove}
+            onClose={() => { /* on bloque la fermeture tant que pas configuré */ }}
+            onReload={() => {
+              setSetupComplete(isSetupComplete());
+              catalog.reload();
+            }}
+            onLogout={handleLogout}
+          />
+        )}
+      </>
+    );
   }
 
   return (
@@ -198,14 +263,17 @@ export default function App() {
           <AdminScreen
             key="admin"
             health={catalog.health}
+            session={session}
             supplements={supplementsState.supplements}
             onAddSupplement={supplementsState.add}
             onRemoveSupplement={supplementsState.remove}
             onClose={() => setAdminOpen(false)}
             onReload={() => {
+              setSetupComplete(isSetupComplete());
               catalog.reload();
               setAdminOpen(false);
             }}
+            onLogout={handleLogout}
           />
         )}
       </AnimatePresence>
