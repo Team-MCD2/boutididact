@@ -266,6 +266,11 @@ export default function AdminScreen({ health, supplements, onAddSupplement, onRe
         setError('Le code doit faire au moins 4 chiffres');
         return;
       }
+      if (pin === '0000') {
+        setError('Le nouveau code doit être différent de 0000');
+        setPin('');
+        return;
+      }
       localStorage.setItem('boutididact_admin_pin', pin);
       setSettings(prev => ({ ...prev, adminPin: pin }));
       setUnlocked(true);
@@ -318,7 +323,7 @@ export default function AdminScreen({ health, supplements, onAddSupplement, onRe
           {!unlocked ? (
             <div className="p-8 overflow-y-auto custom-scrollbar">
               <p className="text-center text-gray-600 mb-4 font-bold">
-                {promptNewPin ? 'Saisissez votre nouveau code' : 'Veuillez saisir votre code d\'accès'}
+                {promptNewPin ? 'Saisissez votre nouveau code (différent de 0000)' : 'Saisissez votre code d\'accès (0000 par défaut)'}
               </p>
               <div className="flex justify-center gap-3 my-6" aria-label="PIN">
                 {[0, 1, 2, 3, 4, 5].slice(0, Math.max(4, pin.length || 4)).map((i) => (
