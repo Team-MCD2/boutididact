@@ -37,6 +37,7 @@ export default function MenuScreen({
   products,
   categories,
   cart,
+  supplements,
   onAdd,
   onUpdate,
   onClear,
@@ -48,6 +49,38 @@ export default function MenuScreen({
   const [activeCat, setActiveCat] = useState('all');
   const [query, setQuery] = useState('');
   const [confirmClear, setConfirmClear] = useState(false);
+  const [selectedProduct, setSelectedProduct] = useState(null);
+  const [chosenSupps, setChosenSupps] = useState([]);
+
+  const handleProductClick = (p) => {
+    if (supplements.length > 0) {
+      setSelectedProduct(p);
+      setChosenSupps([]);
+    } else {
+      onAdd(p);
+    }
+  };
+
+  const toggleSupp = (s) => {
+    if (chosenSupps.some(x => x.id === s.id)) {
+      setChosenSupps(chosenSupps.filter(x => x.id !== s.id));
+    } else {
+      setChosenSupps([...chosenSupps, s]);
+    }
+  };
+
+  const confirmAddProduct = () => {
+    if (!selectedProduct) return;
+    const finalItem = {
+      ...selectedProduct,
+      id: `${selectedProduct.id}${chosenSupps.length ? '-' + chosenSupps.map(s => s.id).sort().join('-') : ''}`,
+      productId: selectedProduct.id,
+      name: `${selectedProduct.name}${chosenSupps.length ? ' + ' + chosenSupps.map(s => s.name).join(' + ') : ''}`,
+      price: Number(selectedProduct.price) + chosenSupps.reduce((sum, s) => sum + Number(s.price), 0),
+    };
+    onAdd(finalItem);
+    setSelectedProduct(null);
+  };
 
   const allCategories = useMemo(
     () => [{ id: 'all', name: 'Tout' }, ...(categories || [])],
@@ -173,7 +206,7 @@ export default function MenuScreen({
                       animate={{ opacity: 1, scale: 1 }}
                       exit={{ opacity: 0, scale: 0.9 }}
                       whileTap={{ scale: 0.97 }}
-                      onClick={() => onAdd(p)}
+                      onClick={() => handleProductClick(p)}
                       className="relative bg-white rounded-3xl p-6 text-left border border-gray-100 hover:border-indigo-200 hover:shadow-xl hover:shadow-indigo-500/10 transition-all flex flex-col min-h-[220px] group overflow-hidden"
                     >
                       <div className="absolute top-0 right-0 w-28 h-28 bg-indigo-50 rounded-bl-full -z-0 group-hover:scale-110 transition" />
@@ -373,6 +406,67 @@ export default function MenuScreen({
                   className="py-4 rounded-2xl bg-red-500 hover:bg-red-600 text-white font-bold active:scale-95 transition"
                 >
                   Tout vider
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* ========== Dialog suppléments ========== */}
+      <AnimatePresence>
+        {selectedProduct && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[55] bg-black/40 backdrop-blur-sm flex items-center justify-center p-6"
+            onClick={() => setSelectedProduct(null)}
+          >
+            <motion.div
+              initial={{ scale: 0.9, y: 20 }}
+              animate={{ scale: 1, y: 0 }}
+              exit={{ scale: 0.9, y: 20 }}
+              onClick={(e) => e.stopPropagation()}
+              className="bg-white rounded-3xl shadow-2xl max-w-md w-full overflow-hidden flex flex-col max-h-[85vh]"
+            >
+              <div className="p-6 border-b border-gray-100 flex items-center justify-between bg-white z-10">
+                <h3 className="text-2xl font-black text-gray-900 truncate pr-4 leading-tight">
+                  {selectedProduct.name}
+                </h3>
+                <button 
+                  onClick={() => setSelectedProduct(null)} 
+                  className="w-10 h-10 shrink-0 bg-gray-100 hover:bg-gray-200 rounded-full text-gray-500 flex items-center justify-center transition"
+                >
+                  <XCircle size={22} />
+                </button>
+              </div>
+              <div className="p-6 overflow-y-auto flex-1 bg-gray-50/50">
+                <h4 className="text-xs font-black text-gray-400 uppercase tracking-widest mb-4">Personnaliser (Optionnel)</h4>
+                <div className="space-y-3">
+                  {supplements.map(s => {
+                    const active = chosenSupps.some(x => x.id === s.id);
+                    return (
+                      <button
+                        key={s.id}
+                        onClick={() => toggleSupp(s)}
+                        className={`w-full p-4 rounded-2xl border-2 flex items-center justify-between transition-all active:scale-95 ${active ? 'border-indigo-500 bg-indigo-50 shadow-md shadow-indigo-500/10' : 'border-gray-200 hover:border-gray-300 bg-white'}`}
+                      >
+                        <span className={`font-bold ${active ? 'text-indigo-700' : 'text-gray-700'}`}>{s.name}</span>
+                        <span className={`font-black ${active ? 'text-indigo-700' : 'text-gray-500'}`}>+{Number(s.price).toFixed(2)} €</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+              <div className="p-6 bg-white border-t border-gray-100 z-10 shadow-[0_-10px_40px_rgba(0,0,0,0.04)]">
+                <button
+                  onClick={confirmAddProduct}
+                  className="w-full py-4 rounded-2xl bg-gradient-to-r from-indigo-500 to-indigo-600 hover:shadow-xl hover:shadow-indigo-500/30 text-white font-black text-lg transition active:scale-95 flex items-center justify-center gap-3"
+                >
+                  <span>Ajouter</span>
+                  <span className="w-1 h-1 rounded-full bg-white/50" />
+                  <span>{(Number(selectedProduct.price) + chosenSupps.reduce((sum, s) => sum + Number(s.price), 0)).toFixed(2)} €</span>
                 </button>
               </div>
             </motion.div>

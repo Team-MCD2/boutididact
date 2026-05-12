@@ -37,13 +37,32 @@ function reducer(state, action) {
   }
 }
 
+const getAIProducts = () => {
+  const saved = localStorage.getItem('ai_products');
+  return saved ? JSON.parse(saved) : [];
+};
+
+const getAICategories = () => {
+  const saved = localStorage.getItem('ai_categories');
+  return saved ? JSON.parse(saved) : [];
+};
+
 async function fetchCatalog() {
   let health = null;
+  let isPremiumUser = false;
   try {
-    health = await getHealth();
+    const [hRes, sRes] = await Promise.all([
+      getHealth(),
+      fetch(`${import.meta.env.VITE_API_URL}/api/saas/status`).then(r => r.json())
+    ]);
+    health = hRes;
+    isPremiumUser = sRes.isPremium;
   } catch {
     /* ignore */
   }
+
+  const aiProducts = isPremiumUser ? getAIProducts() : [];
+  const aiCategories = isPremiumUser ? getAICategories() : [];
 
   const fallbackPayload = {
     source: 'fallback',
@@ -52,12 +71,17 @@ async function fetchCatalog() {
     health,
   };
 
+  if (aiProducts.length > 0) {
+    fallbackPayload.products = [...FALLBACK_PRODUCTS, ...aiProducts];
+    fallbackPayload.categories = Array.from(new Map([...FALLBACK_CATEGORIES, ...aiCategories].map(c => [c.id, c])).values());
+  }
+
   try {
     const [pRes, cRes] = await Promise.all([
       getHiboutikProducts(),
       getHiboutikCategories(),
     ]);
-    const products = (pRes.items || []).map((p) => ({
+    let products = (pRes.items || []).map((p) => ({
       id: p.id,
       productId: p.id,
       categoryId: p.categoryId,
@@ -68,10 +92,16 @@ async function fetchCatalog() {
       emoji: emojiFor(p.id),
       desc: '',
     }));
-    const categories = (cRes.items || []).map((c) => ({
+    let categories = (cRes.items || []).map((c) => ({
       id: c.id,
       name: c.name,
     }));
+
+    if (aiProducts.length > 0) {
+      products = [...products, ...aiProducts];
+      categories = Array.from(new Map([...categories, ...aiCategories].map(c => [c.id, c])).values());
+    }
+
     if (!products.length) return fallbackPayload;
     return { source: 'hiboutik', products, categories, health };
   } catch (e) {

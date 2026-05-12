@@ -8,9 +8,11 @@ import ProcessingScreen from './screens/ProcessingScreen';
 import SuccessScreen from './screens/SuccessScreen';
 import ErrorScreen from './screens/ErrorScreen';
 import AdminScreen from './screens/AdminScreen';
+import LoadingScreen from './components/LoadingScreen';
 
 import useCatalog from './hooks/useCatalog';
 import useCart from './hooks/useCart';
+import useSupplements from './hooks/useSupplements';
 import useIdleTimeout from './hooks/useIdleTimeout';
 import { checkout } from './services/api';
 
@@ -34,6 +36,7 @@ export default function App() {
 
   const catalog = useCatalog();
   const cart = useCart();
+  const supplementsState = useSupplements();
 
   const goIdle = useCallback(() => {
     cart.clear();
@@ -110,6 +113,7 @@ export default function App() {
           categories={catalog.categories}
           source={catalog.source}
           cart={cart}
+          supplements={supplementsState.supplements}
           onAdd={cart.add}
           onUpdate={cart.update}
           onClear={cart.clear}
@@ -153,6 +157,9 @@ export default function App() {
           <AdminScreen
             key="admin"
             health={catalog.health}
+            supplements={supplementsState.supplements}
+            onAddSupplement={supplementsState.add}
+            onRemoveSupplement={supplementsState.remove}
             onClose={() => setAdminOpen(false)}
             onReload={() => {
               catalog.reload();
@@ -163,7 +170,7 @@ export default function App() {
       </AnimatePresence>
 
       {/* Splash de chargement initial */}
-      {catalog.loading && screen === STATES.IDLE && null}
+      {catalog.loading && <LoadingScreen message="Initialisation du système..." />}
     </>
   );
 }
