@@ -178,26 +178,21 @@ export default function App() {
   // Connecté mais pas encore de paramètres Hiboutik : on force l'admin
   if (!setupComplete) {
     return (
-      <>
-        <LoadingScreen message="Configuration initiale requise..." />
-        {adminOpen && (
-          <AdminScreen
-            key="admin-setup"
-            health={catalog.health}
-            session={session}
-            forceSettings
-            supplements={supplementsState.supplements}
-            onAddSupplement={supplementsState.add}
-            onRemoveSupplement={supplementsState.remove}
-            onClose={() => { /* on bloque la fermeture tant que pas configuré */ }}
-            onReload={() => {
-              setSetupComplete(isSetupComplete());
-              catalog.reload();
-            }}
-            onLogout={handleLogout}
-          />
-        )}
-      </>
+      <AdminScreen
+        key="admin-setup"
+        health={catalog.health}
+        session={session}
+        forceSettings
+        supplements={supplementsState.supplements}
+        onAddSupplement={supplementsState.add}
+        onRemoveSupplement={supplementsState.remove}
+        onClose={() => { /* on bloque la fermeture tant que pas configuré */ }}
+        onReload={() => {
+          setSetupComplete(isSetupComplete());
+          catalog.reload();
+        }}
+        onLogout={handleLogout}
+      />
     );
   }
 
