@@ -283,7 +283,7 @@ export default function AdminScreen({ health, supplements, onAddSupplement, onRe
   const press = (k) => {
     if (k === 'C') return setPin('');
     if (k === '<') return setPin((p) => p.slice(0, -1));
-    if (pin.length >= 6) return;
+    if (pin.length >= 4) return;
     setPin((p) => p + k);
   };
 
@@ -535,8 +535,8 @@ export default function AdminScreen({ health, supplements, onAddSupplement, onRe
                         <SettingInput label="Nom du commerce" value={settings.shopName} onChange={v => setSettings({...settings, shopName: v})} />
                         <SettingInput label="Adresse" value={settings.shopAddress} onChange={v => setSettings({...settings, shopAddress: v})} />
                         <div className="grid grid-cols-2 gap-4">
-                          <SettingInput label="SIRET" value={settings.shopSiret} onChange={v => setSettings({...settings, shopSiret: v})} />
-                          <SettingInput label="TVA" value={settings.shopTva} onChange={v => setSettings({...settings, shopTva: v})} />
+                          <SettingInput label="SIRET" value={settings.shopSiret} onChange={v => setSettings({...settings, shopSiret: v})} maxLength={14} />
+                          <SettingInput label="TVA" value={settings.shopTva} onChange={v => setSettings({...settings, shopTva: v})} maxLength={13} />
                         </div>
                       </div>
                     </Section>
@@ -550,7 +550,7 @@ export default function AdminScreen({ health, supplements, onAddSupplement, onRe
 
                     <Section title="Sécurité">
                       <div className="bg-gray-50 p-6 rounded-2xl">
-                        <SettingInput label="Code PIN Administrateur" value={settings.adminPin} onChange={v => setSettings({...settings, adminPin: v})} placeholder="0000" />
+                        <SettingInput label="Code PIN Administrateur" value={settings.adminPin} onChange={v => setSettings({...settings, adminPin: v})} placeholder="0000" maxLength={4} />
                       </div>
                     </Section>
 
@@ -585,12 +585,19 @@ function TabButton({ active, onClick, label, icon }) {
   );
 }
 
-function SettingInput({ label, value, onChange, placeholder, type = 'text' }) {
+function SettingInput({ label, value, onChange, placeholder, type = 'text', maxLength }) {
   return (
     <div className="space-y-1.5">
       <label className="text-[10px] font-black text-gray-400 uppercase tracking-wider ml-1">{label}</label>
       <input 
-        type={type} value={value} onChange={e => onChange(e.target.value)} placeholder={placeholder}
+        type={type} value={value} 
+        onChange={e => {
+          const val = e.target.value;
+          if (maxLength && val.length > maxLength) return;
+          onChange(val);
+        }} 
+        placeholder={placeholder}
+        maxLength={maxLength}
         className="w-full px-4 py-2.5 rounded-xl border border-gray-200 bg-white outline-none focus:ring-2 focus:ring-indigo-100 font-bold text-gray-700"
       />
     </div>

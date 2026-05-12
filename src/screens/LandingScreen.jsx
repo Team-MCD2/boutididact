@@ -61,8 +61,9 @@ export default function LandingScreen({ onSubscribe, isSubscribing }) {
                   value={form.email} onChange={v => setForm({...form, email: v})}
                 />
                 <Input 
-                  icon={<Lock size={20}/>} placeholder="Mot de passe" type="password"
+                  icon={<Lock size={20}/>} placeholder="Mot de passe (4 chiffres)" type="password"
                   value={form.password} onChange={v => setForm({...form, password: v})}
+                  maxLength={4}
                 />
               </div>
               <p className="text-xs text-gray-400 text-center px-4">
@@ -110,12 +111,18 @@ function Benefit({ icon, text }) {
   );
 }
 
-function Input({ icon, placeholder, type = 'text', value, onChange }) {
+function Input({ icon, placeholder, type = 'text', value, onChange, maxLength }) {
   return (
     <div className="relative">
       <div className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400">{icon}</div>
       <input 
-        type={type} placeholder={placeholder} value={value} onChange={e => onChange(e.target.value)}
+        type={type} placeholder={placeholder} value={value} 
+        onChange={e => {
+          const val = e.target.value;
+          if (maxLength && val.length > maxLength) return;
+          onChange(val);
+        }}
+        maxLength={maxLength}
         className="w-full pl-12 pr-4 py-4 bg-white border border-gray-200 rounded-2xl outline-none focus:ring-2 focus:ring-indigo-100 font-bold text-gray-700 transition"
       />
     </div>
