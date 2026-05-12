@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Lock, X, RefreshCw, Maximize2, Power, Store, Printer, Database, Trash2, Wand2, Upload } from 'lucide-react';
+import { Lock, X, RefreshCw, Maximize2, Power, Store, Printer, Database, Trash2, Wand2, Upload, Plus, Search, Edit3, Save, FolderTree } from 'lucide-react';
 
 const API = import.meta.env.VITE_API_URL || '';
 
@@ -18,8 +18,10 @@ export default function AdminScreen({
   onRemoveSupplement,
   onClose,
   onReload,
+  onCatalogChange,
   onLogout,
 }) {
+  const refreshCatalog = onCatalogChange || onReload;
   const [pin, setPin] = useState('');
   // Lors du premier setup (pas de creds Hiboutik), on saute le PIN pour permettre la config initiale.
   const [unlocked, setUnlocked] = useState(forceSettings);
@@ -108,6 +110,55 @@ export default function AdminScreen({
       setLocalCategories([]);
       onReload();
     }
+  };
+
+  const persistProducts = (products) => {
+    localStorage.setItem('ai_products', JSON.stringify(products));
+    setLocalProducts(products);
+    refreshCatalog?.();
+  };
+  const persistCategories = (categories) => {
+    localStorage.setItem('ai_categories', JSON.stringify(categories));
+    setLocalCategories(categories);
+    refreshCatalog?.();
+  };
+
+  const upsertProduct = (product) => {
+    const idx = localProducts.findIndex(p => p.id === product.id);
+    let next;
+    if (idx >= 0) {
+      next = [...localProducts];
+      next[idx] = product;
+    } else {
+      next = [...localProducts, product];
+    }
+    persistProducts(next);
+  };
+
+  const deleteProduct = (id) => {
+    if (!window.confirm('Supprimer ce produit ?')) return;
+    persistProducts(localProducts.filter(p => p.id !== id));
+  };
+
+  const upsertCategory = (cat) => {
+    const idx = localCategories.findIndex(c => c.id === cat.id);
+    let next;
+    if (idx >= 0) {
+      next = [...localCategories];
+      next[idx] = cat;
+    } else {
+      next = [...localCategories, cat];
+    }
+    persistCategories(next);
+  };
+
+  const deleteCategory = (id) => {
+    const usedBy = localProducts.filter(p => p.categoryId === id).length;
+    if (usedBy > 0) {
+      return alert(`Impossible : ${usedBy} produit(s) utilisent cette catégorie.`);
+    }
+    if (!window.confirm('Supprimer cette catégorie ?')) return;
+    persistCategories(localCategories.filter(c => c.id !== id));
   };
 
   const handleUploadMenu = async (e) => {
@@ -344,16 +395,31 @@ export default function AdminScreen({
                       </div>
                     </Section>
 
-                    {(localProducts.length > 0 || localCategories.length > 0) && (
-                      <Section title="Produits locaux (IA)">
-                        <div className="bg-gray-50 rounded-2xl p-5 space-y-3">
-                          <p className="text-xs text-gray-500">{localProducts.length} produit(s), {localCategories.length} catégorie(s)</p>
-                          <button onClick={handleDeleteAllLocal} className="w-full py-3 rounded-xl bg-red-50 text-red-700 font-bold border border-red-100 hover:bg-red-100">
-                            Supprimer tout le catalogue local
-                          </button>
-                        </div>
-                      </Section>
-                    )}
+                    <Section title={`Catégories (${localCategories.length})`}>
+                      <CategoriesManager
+                        categories={localCategories}
+                        productsCount={localProducts}
+                        onSave={upsertCategory}
+                        onDelete={deleteCategory}
+                      />
+                    </Section>
+
+                    <Section title={`Produits (${localProducts.length})`}>
+                      <ProductsManager
+                        products={localProducts}
+                        categories={localCategories}
+                        onSave={upsertProduct}
+                        onDelete={deleteProduct}
+                      />
+                      {localProducts.length > 0 && (
+                        <button
+                          onClick={handleDeleteAllLocal}
+                          className="mt-4 w-full py-3 rounded-xl bg-red-50 text-red-700 font-bold border border-red-100 hover:bg-red-100"
+                        >
+                          Supprimer tout le catalogue local
+                        </button>
+                      )}
+                    </Section>
                   </div>
                 )}
 
@@ -555,6 +621,265 @@ function ExtractedPreviewModal({ data, onCancel, onConfirm }) {
             className="flex-1 py-3 rounded-2xl bg-fuchsia-600 text-white font-black hover:bg-fuchsia-700 disabled:opacity-40"
           >Ajouter {keptIds.size} produit{keptIds.size > 1 ? 's' : ''}</button>
         </div>
+      </div>
+    </div>
+  );
+}
+
+function CategoriesManager({ categories, productsCount, onSave, onDelete }) {
+  const [newName, setNewName] = useState('');
+  const [editingId, setEditingId] = useState(null);
+  const [editName, setEditName] = useState('');
+
+  const handleAdd = () => {
+    const name = newName.trim();
+    if (!name) return;
+    const id = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || `cat-${Date.now()}`;
+    if (categories.some(c => c.id === id)) {
+      return alert('Une catégorie avec ce nom existe déjà.');
+    }
+    onSave({ id, name });
+    setNewName('');
+  };
+
+  const startEdit = (cat) => { setEditingId(cat.id); setEditName(cat.name); };
+  const cancelEdit = () => { setEditingId(null); setEditName(''); };
+  const saveEdit = (cat) => {
+    const name = editName.trim();
+    if (!name) return;
+    onSave({ ...cat, name });
+    cancelEdit();
+  };
+
+  return (
+    <div className="bg-gray-50 rounded-2xl p-5 space-y-3">
+      <div className="flex gap-2">
+        <input
+          type="text" placeholder="Nouvelle catégorie"
+          value={newName} onChange={e => setNewName(e.target.value)}
+          onKeyDown={e => e.key === 'Enter' && handleAdd()}
+          className="flex-1 px-4 py-3 rounded-xl border border-gray-200 bg-white font-bold text-gray-800 outline-none focus:ring-2 focus:ring-indigo-100"
+        />
+        <button onClick={handleAdd} className="px-6 py-3 bg-indigo-600 text-white rounded-xl font-black flex items-center gap-1">
+          <Plus size={18} /> Ajouter
+        </button>
+      </div>
+
+      {categories.length === 0 ? (
+        <p className="text-center text-sm text-gray-400 py-4">Aucune catégorie. Ajoute-en une ci-dessus.</p>
+      ) : (
+        <div className="space-y-2 max-h-72 overflow-y-auto custom-scrollbar pr-1">
+          {categories.map(cat => {
+            const count = productsCount.filter(p => p.categoryId === cat.id).length;
+            const isEditing = editingId === cat.id;
+            return (
+              <div key={cat.id} className="flex items-center gap-2 bg-white p-3 rounded-xl border border-gray-100">
+                <FolderTree size={16} className="text-indigo-400 shrink-0" />
+                {isEditing ? (
+                  <input
+                    autoFocus
+                    value={editName}
+                    onChange={e => setEditName(e.target.value)}
+                    onKeyDown={e => {
+                      if (e.key === 'Enter') saveEdit(cat);
+                      if (e.key === 'Escape') cancelEdit();
+                    }}
+                    className="flex-1 px-3 py-2 rounded-lg border border-indigo-200 outline-none focus:ring-2 focus:ring-indigo-100 font-bold text-gray-800"
+                  />
+                ) : (
+                  <span className="flex-1 font-bold text-gray-800 truncate">{cat.name}</span>
+                )}
+                <span className="text-xs text-gray-400 shrink-0">{count} produit{count > 1 ? 's' : ''}</span>
+                {isEditing ? (
+                  <>
+                    <button onClick={() => saveEdit(cat)} className="p-2 text-emerald-600 hover:bg-emerald-50 rounded-lg" title="Enregistrer"><Save size={16} /></button>
+                    <button onClick={cancelEdit} className="p-2 text-gray-400 hover:bg-gray-100 rounded-lg" title="Annuler"><X size={16} /></button>
+                  </>
+                ) : (
+                  <>
+                    <button onClick={() => startEdit(cat)} className="p-2 text-gray-500 hover:bg-gray-100 rounded-lg" title="Renommer"><Edit3 size={16} /></button>
+                    <button onClick={() => onDelete(cat.id)} className="p-2 text-red-500 hover:bg-red-50 rounded-lg" title="Supprimer"><Trash2 size={16} /></button>
+                  </>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ProductsManager({ products, categories, onSave, onDelete }) {
+  const [query, setQuery] = useState('');
+  const [filterCat, setFilterCat] = useState('all');
+  const [editingId, setEditingId] = useState(null);
+  const [draft, setDraft] = useState({ name: '', price: '', categoryId: '', desc: '' });
+  const [creating, setCreating] = useState(false);
+
+  const filtered = products.filter(p => {
+    const matchQ = !query || p.name.toLowerCase().includes(query.toLowerCase());
+    const matchC = filterCat === 'all' || p.categoryId === filterCat;
+    return matchQ && matchC;
+  });
+
+  const startCreate = () => {
+    if (categories.length === 0) {
+      return alert('Crée au moins une catégorie avant d\'ajouter un produit.');
+    }
+    setCreating(true);
+    setEditingId(null);
+    setDraft({ name: '', price: '', categoryId: categories[0].id, desc: '' });
+  };
+
+  const startEdit = (p) => {
+    setCreating(false);
+    setEditingId(p.id);
+    setDraft({
+      name: p.name,
+      price: String(p.price ?? ''),
+      categoryId: p.categoryId || categories[0]?.id || '',
+      desc: p.desc || '',
+    });
+  };
+
+  const cancel = () => { setCreating(false); setEditingId(null); };
+
+  const save = () => {
+    const name = draft.name.trim();
+    const price = Number(draft.price);
+    if (!name) return alert('Nom requis.');
+    if (Number.isNaN(price) || price < 0) return alert('Prix invalide.');
+    if (!draft.categoryId) return alert('Catégorie requise.');
+
+    if (creating) {
+      onSave({
+        id: `local-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+        categoryId: draft.categoryId,
+        name, price, desc: draft.desc.trim(),
+      });
+    } else if (editingId) {
+      const existing = products.find(p => p.id === editingId);
+      onSave({ ...existing, name, price, categoryId: draft.categoryId, desc: draft.desc.trim() });
+    }
+    cancel();
+  };
+
+  const isEditingRow = (id) => editingId === id && !creating;
+
+  return (
+    <div className="bg-gray-50 rounded-2xl p-5 space-y-3">
+      {/* Toolbar : recherche, filtre, +nouveau */}
+      <div className="flex gap-2 flex-wrap">
+        <div className="relative flex-1 min-w-[200px]">
+          <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+          <input
+            type="text" placeholder="Rechercher un produit..."
+            value={query} onChange={e => setQuery(e.target.value)}
+            className="w-full pl-9 pr-3 py-3 rounded-xl border border-gray-200 bg-white font-bold text-gray-800 outline-none focus:ring-2 focus:ring-indigo-100"
+          />
+        </div>
+        <select
+          value={filterCat} onChange={e => setFilterCat(e.target.value)}
+          className="px-4 py-3 rounded-xl border border-gray-200 bg-white font-bold text-gray-800"
+        >
+          <option value="all">Toutes catégories</option>
+          {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+        </select>
+        <button
+          onClick={startCreate}
+          className="px-5 py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-black flex items-center gap-1"
+        >
+          <Plus size={18} /> Nouveau
+        </button>
+      </div>
+
+      {/* Formulaire d'ajout/édition (modal inline en haut) */}
+      {(creating || editingId) && (
+        <ProductForm
+          draft={draft}
+          setDraft={setDraft}
+          categories={categories}
+          onCancel={cancel}
+          onSave={save}
+          isCreating={creating}
+        />
+      )}
+
+      {/* Liste */}
+      {filtered.length === 0 ? (
+        <p className="text-center text-sm text-gray-400 py-6">
+          {products.length === 0 ? 'Aucun produit. Ajoute-en un ou importe une carte.' : 'Aucun résultat.'}
+        </p>
+      ) : (
+        <div className="space-y-2 max-h-96 overflow-y-auto custom-scrollbar pr-1">
+          {filtered.map(p => {
+            if (isEditingRow(p.id)) return null;
+            const cat = categories.find(c => c.id === p.categoryId);
+            return (
+              <div key={p.id} className="flex items-center gap-3 bg-white p-3 rounded-xl border border-gray-100">
+                <div className="flex-1 min-w-0">
+                  <div className="font-bold text-gray-800 truncate">{p.name}</div>
+                  <div className="text-xs text-gray-400 flex items-center gap-2">
+                    <span>{cat?.name || '—'}</span>
+                    {p.desc && <span className="truncate">· {p.desc}</span>}
+                  </div>
+                </div>
+                <div className="font-black text-indigo-600 text-right shrink-0 tabular-nums">
+                  {Number(p.price).toFixed(2)}€
+                </div>
+                <button onClick={() => startEdit(p)} className="p-2 text-gray-500 hover:bg-gray-100 rounded-lg" title="Modifier"><Edit3 size={16} /></button>
+                <button onClick={() => onDelete(p.id)} className="p-2 text-red-500 hover:bg-red-50 rounded-lg" title="Supprimer"><Trash2 size={16} /></button>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ProductForm({ draft, setDraft, categories, onCancel, onSave, isCreating }) {
+  return (
+    <div className="bg-white border-2 border-indigo-200 rounded-2xl p-4 space-y-3">
+      <div className="flex items-center justify-between">
+        <h4 className="font-black text-indigo-700 text-sm uppercase tracking-wider">
+          {isCreating ? 'Nouveau produit' : 'Modifier produit'}
+        </h4>
+        <button onClick={onCancel} className="p-1.5 text-gray-400 hover:bg-gray-100 rounded-lg"><X size={16} /></button>
+      </div>
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+        <input
+          type="text" placeholder="Nom"
+          value={draft.name} onChange={e => setDraft({ ...draft, name: e.target.value })}
+          className="col-span-2 px-3 py-2.5 rounded-xl border border-gray-200 bg-white font-bold text-gray-800 outline-none focus:ring-2 focus:ring-indigo-100"
+        />
+        <div className="flex items-center gap-1">
+          <input
+            type="number" step="0.1" placeholder="Prix"
+            value={draft.price} onChange={e => setDraft({ ...draft, price: e.target.value })}
+            className="flex-1 px-3 py-2.5 rounded-xl border border-gray-200 bg-white font-bold text-right text-gray-800 outline-none focus:ring-2 focus:ring-indigo-100"
+          />
+          <span className="text-gray-400 font-bold">€</span>
+        </div>
+      </div>
+      <select
+        value={draft.categoryId} onChange={e => setDraft({ ...draft, categoryId: e.target.value })}
+        className="w-full px-3 py-2.5 rounded-xl border border-gray-200 bg-white font-bold text-gray-800"
+      >
+        <option value="">— Choisir une catégorie —</option>
+        {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+      </select>
+      <input
+        type="text" placeholder="Description (optionnel)"
+        value={draft.desc} onChange={e => setDraft({ ...draft, desc: e.target.value })}
+        className="w-full px-3 py-2.5 rounded-xl border border-gray-200 bg-white font-bold text-gray-800 outline-none focus:ring-2 focus:ring-indigo-100"
+      />
+      <div className="flex gap-2 justify-end">
+        <button onClick={onCancel} className="px-4 py-2 rounded-xl bg-gray-100 font-bold text-gray-700 hover:bg-gray-200">Annuler</button>
+        <button onClick={onSave} className="px-5 py-2 rounded-xl bg-indigo-600 text-white font-black hover:bg-indigo-700 flex items-center gap-1">
+          <Save size={16} /> Enregistrer
+        </button>
       </div>
     </div>
   );

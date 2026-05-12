@@ -268,6 +268,10 @@ export default function App() {
               catalog.reload();
               setAdminOpen(false);
             }}
+            onCatalogChange={() => {
+              setSetupComplete(isSetupComplete());
+              catalog.reload();
+            }}
             onLogout={handleLogout}
           />
         )}
