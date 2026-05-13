@@ -32,7 +32,7 @@ client.interceptors.request.use((config) => {
       if (s.printerIp) config.headers['X-Printer-Ip'] = s.printerIp;
       if (s.printerPort) config.headers['X-Printer-Port'] = s.printerPort;
       // Hardware Routing
-      if (s.localServerUrl && (config.url === '/api/health' || config.url === '/api/checkout')) {
+      if (s.localServerUrl && (config.url === '/api/health' || config.url === '/api/checkout' || config.url === '/api/print')) {
         config.baseURL = s.localServerUrl;
       }
     }

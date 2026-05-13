@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Lock, X, RefreshCw, Maximize2, Power, Store, Printer, Database, Trash2, Wand2, Upload, Plus, Search, Edit3, Save, FolderTree } from 'lucide-react';
+import { Lock, X, RefreshCw, Maximize2, Power, Store, Printer, Database, Trash2, Wand2, Upload, Plus, Search, Edit3, Save, FolderTree, Zap, Info } from 'lucide-react';
 
 const API = import.meta.env.VITE_API_URL || '';
 
@@ -473,19 +473,54 @@ export default function AdminScreen({
                     </Section>
 
                     <Section title="Serveur Local & Imprimante">
-                      <div className="bg-amber-50 border border-amber-100 rounded-2xl p-6 mb-4">
-                        <h4 className="font-black text-amber-900 mb-2">Architecture SaaS</h4>
-                        <p className="text-sm text-amber-800 leading-relaxed">
-                          Pour imprimer sur le réseau local depuis la plateforme web, l'utilitaire <strong>Boutididact Print Server</strong> doit être démarré sur cette borne.
-                        </p>
-                      </div>
-                      <div className="bg-gray-50 p-6 rounded-2xl space-y-4">
-                        <SettingInput label="URL du Serveur Local (Himp Boutididact)" value={settings.localServerUrl} onChange={v => setSettings({ ...settings, localServerUrl: v.trim() })} placeholder="http://localhost:3001" />
-                        <div className="grid grid-cols-2 gap-4">
-                          <SettingInput label="Adresse IP Imprimante" value={settings.printerIp} onChange={v => setSettings({ ...settings, printerIp: v.trim() })} placeholder="192.168.1.26" />
-                          <SettingInput label="Port" value={settings.printerPort} onChange={v => setSettings({ ...settings, printerPort: v.trim() })} placeholder="9100" />
+                      <div className="bg-gradient-to-br from-indigo-600 to-violet-700 rounded-3xl p-8 mb-8 text-white shadow-2xl relative overflow-hidden">
+                        <div className="relative z-10">
+                          <div className="flex items-center gap-4 mb-4">
+                            <div className="p-3 bg-white/20 rounded-2xl backdrop-blur-md">
+                              <Zap size={32} className="text-amber-300" />
+                            </div>
+                            <h4 className="text-2xl font-black italic tracking-tight">LIAISON PHYSIQUE</h4>
+                          </div>
+                          <p className="text-indigo-100 leading-relaxed mb-6">
+                            Pour transformer cette borne web en véritable caisse physique, l'utilitaire <span className="font-bold text-white">Boutididact-Print-Server.exe</span> doit être actif sur cet ordinateur.
+                          </p>
+                          <div className="flex items-start gap-3 p-4 bg-black/20 rounded-2xl border border-white/10">
+                            <Info size={20} className="shrink-0 mt-1" />
+                            <p className="text-xs text-indigo-200">
+                              Lancez le serveur local, saisissez l'IP de votre imprimante sur son tableau de bord, puis copiez les valeurs ci-dessous.
+                            </p>
+                          </div>
                         </div>
-                        <PrinterTestButton ip={settings.printerIp} port={settings.printerPort} localServerUrl={settings.localServerUrl} />
+                        <div className="absolute -right-20 -bottom-20 w-64 h-64 bg-white/10 rounded-full blur-3xl" />
+                      </div>
+
+                      <div className="bg-white border border-gray-100 p-8 rounded-3xl shadow-sm space-y-6">
+                        <div className="space-y-4">
+                          <SettingInput 
+                            label="URL du Serveur Local (Himp)" 
+                            value={settings.localServerUrl} 
+                            onChange={v => setSettings({ ...settings, localServerUrl: v.trim() })} 
+                            placeholder="http://192.168.x.x:3001" 
+                          />
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <SettingInput 
+                              label="IP de l'Imprimante Thermique" 
+                              value={settings.printerIp} 
+                              onChange={v => setSettings({ ...settings, printerIp: v.trim() })} 
+                              placeholder="192.168.1.26" 
+                            />
+                            <SettingInput 
+                              label="Port (Généralement 9100)" 
+                              value={settings.printerPort} 
+                              onChange={v => setSettings({ ...settings, printerPort: v.trim() })} 
+                              placeholder="9100" 
+                            />
+                          </div>
+                        </div>
+                        
+                        <div className="pt-4 border-t border-gray-50">
+                          <PrinterTestButton ip={settings.printerIp} port={settings.printerPort} localServerUrl={settings.localServerUrl} />
+                        </div>
                       </div>
                     </Section>
 
