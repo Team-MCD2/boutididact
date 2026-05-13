@@ -329,6 +329,13 @@ export default function LandingScreen({ initialMode = 'hero', prefillShopName = 
                     >
                       {submitting ? 'Connexion...' : 'Se connecter'}
                     </button>
+                    
+                    <div className="mt-6 p-4 bg-slate-800/50 border border-slate-700 rounded-xl flex items-start gap-3">
+                      <Zap size={20} className="text-amber-400 shrink-0 mt-0.5" />
+                      <p className="text-sm text-slate-400 leading-relaxed">
+                        <strong className="text-white">Imprimante locale :</strong> N'oubliez pas de lancer <span className="px-1.5 py-0.5 bg-slate-700 text-slate-300 rounded text-xs font-mono">Boutididact-Print-Server.exe</span> en arrière-plan pour activer l'impression des tickets sur cette borne.
+                      </p>
+                    </div>
                   </div>
                 </div>
               )}
