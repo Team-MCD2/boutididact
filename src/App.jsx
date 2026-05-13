@@ -98,6 +98,12 @@ export default function App() {
   const handleLoginSuccess = useCallback((shop) => {
     const sess = { shopName: shop?.name, email: shop?.email, loggedAt: Date.now() };
     sessionStorage.setItem(SESSION_KEY, JSON.stringify(sess));
+    
+    // Si le backend a renvoyé des réglages persistés (Cloud), on les injecte en local
+    if (shop?.settings) {
+      localStorage.setItem('boutididact_settings', JSON.stringify(shop.settings));
+    }
+    
     setSession(sess);
     setSetupComplete(isSetupComplete());
   }, []);

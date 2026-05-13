@@ -55,14 +55,30 @@ export default function AdminScreen({
     };
   });
 
-  const saveSettings = (newSettings) => {
+  const saveSettings = async (newSettings) => {
     if (!isSetupComplete(newSettings)) {
       alert('Merci de renseigner Compte Hiboutik, Utilisateur API et Clé API.');
       return;
     }
+    
     localStorage.setItem('boutididact_settings', JSON.stringify(newSettings));
     localStorage.setItem('boutididact_admin_pin', newSettings.adminPin || '0000');
     setSettings(newSettings);
+
+    // Persistance Cloud (Vercel/Stripe) pour que les réglages suivent le compte sur tous les appareils
+    if (session?.shopName) {
+      try {
+        await fetch(`${API}/api/saas/save-settings`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ shopName: session.shopName, settings: newSettings }),
+        });
+      } catch (e) {
+        console.error('Erreur sauvegarde cloud:', e);
+        // On continue quand même car c'est sauvé en local
+      }
+    }
+
     alert('Paramètres enregistrés. Redémarrage de la borne...');
     // Le client veut un redémarrage qui renvoie sur la page de connexion.
     // On vide la session et on recharge.
@@ -491,13 +507,18 @@ export default function AdminScreen({
                             <h4 className="text-2xl font-black italic tracking-tight uppercase">Mode Relais (Cloud)</h4>
                           </div>
                           <p className="text-indigo-100 leading-relaxed mb-6">
-                            Pour utiliser une tablette sans aucune configuration complexe, laissez l'URL ci-dessous <strong>vide</strong>. Votre borne communiquera avec l'imprimante via Internet.
+                            Pour imprimer depuis une tablette (Sunmi, iPad, etc.), laissez l'URL ci-dessous <strong>vide</strong>. 
+                            Le ticket sera envoyé sur le Cloud et récupéré par votre PC.
                           </p>
-                          <div className="flex items-start gap-3 p-4 bg-black/20 rounded-2xl border border-white/10">
-                            <Info size={20} className="shrink-0 mt-1" />
-                            <p className="text-xs text-indigo-200">
-                              L'utilitaire <strong>Boutididact-Print-Server.exe</strong> doit être actif sur le PC branché à l'imprimante.
-                            </p>
+                          <div className="space-y-3">
+                            <div className="flex items-start gap-3 p-4 bg-black/20 rounded-2xl border border-white/10">
+                              <Info size={20} className="shrink-0 mt-1" />
+                              <p className="text-xs text-indigo-100">
+                                1. Lancez <strong>Boutididact-Print-Server.exe</strong> sur le PC relié à l'imprimante.<br/>
+                                2. Configurez-le avec le nom : <strong className="text-white">{session?.shopName}</strong><br/>
+                                3. Vérifiez que l'URL Cloud dans le .exe correspond à votre déploiement Vercel.
+                              </p>
+                            </div>
                           </div>
                         </div>
                         <div className="absolute -right-20 -bottom-20 w-64 h-64 bg-white/10 rounded-full blur-3xl" />
