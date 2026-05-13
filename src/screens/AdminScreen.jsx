@@ -474,8 +474,8 @@ export default function AdminScreen({
                     <Section title="Imprimante">
                       <div className="bg-gray-50 p-6 rounded-2xl space-y-4">
                         <div className="grid grid-cols-2 gap-4">
-                          <SettingInput label="Adresse IP" value={settings.printerIp} onChange={v => setSettings({ ...settings, printerIp: v })} placeholder="192.168.1.100" />
-                          <SettingInput label="Port" value={settings.printerPort} onChange={v => setSettings({ ...settings, printerPort: v })} placeholder="9100" />
+                          <SettingInput label="Adresse IP" value={settings.printerIp} onChange={v => setSettings({ ...settings, printerIp: v.trim() })} placeholder="192.168.1.100" />
+                          <SettingInput label="Port" value={settings.printerPort} onChange={v => setSettings({ ...settings, printerPort: v.trim() })} placeholder="9100" />
                         </div>
                         <PrinterTestButton ip={settings.printerIp} port={settings.printerPort} />
                       </div>
