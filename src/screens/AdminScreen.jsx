@@ -50,6 +50,7 @@ export default function AdminScreen({
       printerPort: '9100',
       hiboutikStoreId: '1',
       hiboutikVendorId: '1',
+      localServerUrl: 'http://localhost:3001',
       adminPin: getAdminPin(),
     };
   });
@@ -471,13 +472,20 @@ export default function AdminScreen({
                       </div>
                     </Section>
 
-                    <Section title="Imprimante">
+                    <Section title="Serveur Local & Imprimante">
+                      <div className="bg-amber-50 border border-amber-100 rounded-2xl p-6 mb-4">
+                        <h4 className="font-black text-amber-900 mb-2">Architecture SaaS</h4>
+                        <p className="text-sm text-amber-800 leading-relaxed">
+                          Pour imprimer sur le réseau local depuis la plateforme web, l'utilitaire <strong>Boutididact Print Server</strong> doit être démarré sur cette borne.
+                        </p>
+                      </div>
                       <div className="bg-gray-50 p-6 rounded-2xl space-y-4">
+                        <SettingInput label="URL du Serveur Local (Himp Boutididact)" value={settings.localServerUrl} onChange={v => setSettings({ ...settings, localServerUrl: v.trim() })} placeholder="http://localhost:3001" />
                         <div className="grid grid-cols-2 gap-4">
-                          <SettingInput label="Adresse IP" value={settings.printerIp} onChange={v => setSettings({ ...settings, printerIp: v.trim() })} placeholder="192.168.1.100" />
+                          <SettingInput label="Adresse IP Imprimante" value={settings.printerIp} onChange={v => setSettings({ ...settings, printerIp: v.trim() })} placeholder="192.168.1.26" />
                           <SettingInput label="Port" value={settings.printerPort} onChange={v => setSettings({ ...settings, printerPort: v.trim() })} placeholder="9100" />
                         </div>
-                        <PrinterTestButton ip={settings.printerIp} port={settings.printerPort} />
+                        <PrinterTestButton ip={settings.printerIp} port={settings.printerPort} localServerUrl={settings.localServerUrl} />
                       </div>
                     </Section>
 
@@ -976,7 +984,7 @@ function ActionButton({ icon, label, onClick, variant = 'solid' }) {
   );
 }
 
-function PrinterTestButton({ ip, port }) {
+function PrinterTestButton({ ip, port, localServerUrl }) {
   const [testing, setTesting] = useState(false);
   const [result, setResult] = useState(null);
 
@@ -985,10 +993,11 @@ function PrinterTestButton({ ip, port }) {
       setResult({ ok: false, message: 'Veuillez d\'abord saisir une adresse IP.' });
       return;
     }
+    const targetUrl = localServerUrl || 'http://localhost:3001';
     setTesting(true);
     setResult(null);
     try {
-      const res = await fetch(`${API}/api/health`, {
+      const res = await fetch(`${targetUrl}/api/health`, {
         headers: {
           'X-Printer-Ip': ip,
           'X-Printer-Port': port || '9100',

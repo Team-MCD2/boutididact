@@ -31,6 +31,10 @@ client.interceptors.request.use((config) => {
       // Printer
       if (s.printerIp) config.headers['X-Printer-Ip'] = s.printerIp;
       if (s.printerPort) config.headers['X-Printer-Port'] = s.printerPort;
+      // Hardware Routing
+      if (s.localServerUrl && (config.url === '/api/health' || config.url === '/api/checkout')) {
+        config.baseURL = s.localServerUrl;
+      }
     }
   } catch (e) {
     console.error('Erreur lecture headers multi-tenant:', e);
