@@ -96,6 +96,7 @@ export default function LandingScreen({ initialMode = 'hero', prefillShopName = 
         localStorage.removeItem('boutididact_admin_pin');
         localStorage.removeItem('ai_products');
         localStorage.removeItem('ai_categories');
+        localStorage.removeItem('boutididact_supplements');
         sessionStorage.clear();
       } catch (e) { /* ignore */ }
       setDeleteSuccess(true);

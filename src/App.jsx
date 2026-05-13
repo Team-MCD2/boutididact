@@ -103,7 +103,9 @@ export default function App() {
   }, []);
 
   const handleLogout = useCallback(() => {
+    // Clear session
     sessionStorage.removeItem(SESSION_KEY);
+    // Reset state
     setSession(null);
     setAdminOpen(false);
     setScreen(STATES.IDLE);

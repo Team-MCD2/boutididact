@@ -26,7 +26,6 @@ export default function AdminScreen({
   // Lors du premier setup (pas de creds Hiboutik), on saute le PIN pour permettre la config initiale.
   const [unlocked, setUnlocked] = useState(forceSettings);
   const [pinError, setPinError] = useState('');
-  const [promptNewPin, setPromptNewPin] = useState(false);
 
   const [activeTab, setActiveTab] = useState(forceSettings ? 'settings' : 'status');
 
@@ -212,36 +211,13 @@ export default function AdminScreen({
 
   const submitPin = () => {
     const currentPin = getAdminPin();
-    if (!promptNewPin) {
-      if (pin === currentPin) {
-        if (currentPin === '0000') {
-          setPromptNewPin(true);
-          setPin('');
-          return;
-        }
-        setUnlocked(true);
-        setPinError('');
-      } else {
-        setPinError('Code incorrect');
-        setTimeout(() => setPinError(''), 1500);
-        setPin('');
-      }
-    } else {
-      if (pin.length < 4) {
-        setPinError('Le code doit faire au moins 4 chiffres');
-        return;
-      }
-      if (pin === '0000') {
-        setPinError('Le nouveau code doit être différent de 0000');
-        setPin('');
-        return;
-      }
-      localStorage.setItem('boutididact_admin_pin', pin);
-      setSettings(prev => ({ ...prev, adminPin: pin }));
+    if (pin === currentPin) {
       setUnlocked(true);
-      setPromptNewPin(false);
       setPinError('');
-      alert('Nouveau code PIN enregistré !');
+    } else {
+      setPinError('Code incorrect');
+      setTimeout(() => setPinError(''), 1500);
+      setPin('');
     }
   };
 
@@ -302,11 +278,7 @@ export default function AdminScreen({
           {!unlocked ? (
             <div className="p-8 overflow-y-auto custom-scrollbar">
               <p className="text-center text-gray-600 mb-4 font-bold">
-                {promptNewPin
-                  ? 'Saisissez votre nouveau code (différent de 0000)'
-                  : getAdminPin() === '0000'
-                    ? 'Saisissez votre code d\'accès (0000 par défaut)'
-                    : 'Saisissez votre code d\'accès'}
+                Saisissez votre code d'accès
               </p>
               <div className="flex justify-center gap-3 my-6" aria-label="PIN">
                 {[0, 1, 2, 3].map((i) => (
@@ -472,9 +444,12 @@ export default function AdminScreen({
                     </Section>
 
                     <Section title="Imprimante">
-                      <div className="grid grid-cols-2 gap-4 bg-gray-50 p-6 rounded-2xl">
-                        <SettingInput label="Adresse IP" value={settings.printerIp} onChange={v => setSettings({ ...settings, printerIp: v })} placeholder="192.168.1.100" />
-                        <SettingInput label="Port" value={settings.printerPort} onChange={v => setSettings({ ...settings, printerPort: v })} placeholder="9100" />
+                      <div className="bg-gray-50 p-6 rounded-2xl space-y-4">
+                        <div className="grid grid-cols-2 gap-4">
+                          <SettingInput label="Adresse IP" value={settings.printerIp} onChange={v => setSettings({ ...settings, printerIp: v })} placeholder="192.168.1.100" />
+                          <SettingInput label="Port" value={settings.printerPort} onChange={v => setSettings({ ...settings, printerPort: v })} placeholder="9100" />
+                        </div>
+                        <PrinterTestButton ip={settings.printerIp} port={settings.printerPort} />
                       </div>
                     </Section>
 
@@ -970,5 +945,64 @@ function ActionButton({ icon, label, onClick, variant = 'solid' }) {
       {icon}
       {label}
     </button>
+  );
+}
+
+function PrinterTestButton({ ip, port }) {
+  const [testing, setTesting] = useState(false);
+  const [result, setResult] = useState(null);
+
+  const testPrinter = async () => {
+    if (!ip) {
+      setResult({ ok: false, message: 'Veuillez d\'abord saisir une adresse IP.' });
+      return;
+    }
+    setTesting(true);
+    setResult(null);
+    try {
+      const res = await fetch(`${API}/api/health`, {
+        headers: {
+          'X-Printer-Ip': ip,
+          'X-Printer-Port': port || '9100',
+        },
+      });
+      const data = await res.json();
+      if (data.printer?.online) {
+        setResult({ ok: true, message: `✅ Imprimante joignable sur ${data.printer.ip}:${data.printer.port}` });
+      } else {
+        setResult({
+          ok: false,
+          message: `❌ Imprimante injoignable sur ${data.printer?.ip || ip}:${data.printer?.port || port || 9100}. Vérifiez :\n• L'IP est correcte\n• L'imprimante est allumée et connectée au même réseau\n• Le port ${port || 9100} est ouvert\n• Le pare-feu Windows ne bloque pas la connexion`,
+        });
+      }
+    } catch (e) {
+      setResult({ ok: false, message: `Erreur de communication avec le serveur : ${e.message}` });
+    } finally {
+      setTesting(false);
+    }
+  };
+
+  return (
+    <div className="space-y-2">
+      <button
+        onClick={testPrinter}
+        disabled={testing}
+        className={`w-full py-3 rounded-xl font-bold flex items-center justify-center gap-2 transition active:scale-95 ${
+          testing ? 'bg-gray-200 text-gray-400' : 'bg-indigo-100 text-indigo-700 hover:bg-indigo-200 border border-indigo-200'
+        }`}
+      >
+        <Printer size={18} />
+        {testing ? 'Test en cours...' : 'Tester la connexion'}
+      </button>
+      {result && (
+        <div className={`p-4 rounded-xl text-sm font-bold whitespace-pre-line ${
+          result.ok
+            ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+            : 'bg-red-50 text-red-700 border border-red-200'
+        }`}>
+          {result.message}
+        </div>
+      )}
+    </div>
   );
 }
