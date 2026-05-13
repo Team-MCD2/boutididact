@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Lock, X, RefreshCw, Maximize2, Power, Store, Printer, Database, Trash2, Wand2, Upload, Plus, Search, Edit3, Save, FolderTree, Zap, Info } from 'lucide-react';
+import { Lock, X, RefreshCw, Maximize2, Power, Store, Printer, Database, Trash2, Wand2, Upload, Plus, Search, Edit3, Save, FolderTree, Zap, Info, Cloud } from 'lucide-react';
 
 const API = import.meta.env.VITE_API_URL || '';
 
@@ -477,17 +477,17 @@ export default function AdminScreen({
                         <div className="relative z-10">
                           <div className="flex items-center gap-4 mb-4">
                             <div className="p-3 bg-white/20 rounded-2xl backdrop-blur-md">
-                              <Zap size={32} className="text-amber-300" />
+                              <Cloud size={32} className="text-amber-300" />
                             </div>
-                            <h4 className="text-2xl font-black italic tracking-tight">LIAISON PHYSIQUE</h4>
+                            <h4 className="text-2xl font-black italic tracking-tight uppercase">Mode Relais (Cloud)</h4>
                           </div>
                           <p className="text-indigo-100 leading-relaxed mb-6">
-                            Pour transformer cette borne web en véritable caisse physique, l'utilitaire <span className="font-bold text-white">Boutididact-Print-Server.exe</span> doit être actif sur cet ordinateur.
+                            Pour utiliser une tablette sans aucune configuration complexe, laissez l'URL ci-dessous <strong>vide</strong>. Votre borne communiquera avec l'imprimante via Internet.
                           </p>
                           <div className="flex items-start gap-3 p-4 bg-black/20 rounded-2xl border border-white/10">
                             <Info size={20} className="shrink-0 mt-1" />
                             <p className="text-xs text-indigo-200">
-                              Lancez le serveur local, saisissez l'IP de votre imprimante sur son tableau de bord, puis copiez les valeurs ci-dessous.
+                              L'utilitaire <strong>Boutididact-Print-Server.exe</strong> doit être actif sur le PC branché à l'imprimante.
                             </p>
                           </div>
                         </div>
@@ -497,10 +497,10 @@ export default function AdminScreen({
                       <div className="bg-white border border-gray-100 p-8 rounded-3xl shadow-sm space-y-6">
                         <div className="space-y-4">
                           <SettingInput 
-                            label="URL du Serveur Local (Himp)" 
+                            label="URL du Serveur (Laissez VIDE pour le mode Relais Tablette)" 
                             value={settings.localServerUrl} 
                             onChange={v => setSettings({ ...settings, localServerUrl: v.trim() })} 
-                            placeholder="http://192.168.x.x:3001" 
+                            placeholder="Laisser vide pour le mode Relais (Conseillé)" 
                           />
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                             <SettingInput 
@@ -510,7 +510,7 @@ export default function AdminScreen({
                               placeholder="192.168.1.26" 
                             />
                             <SettingInput 
-                              label="Port (Généralement 9100)" 
+                              label="Port" 
                               value={settings.printerPort} 
                               onChange={v => setSettings({ ...settings, printerPort: v.trim() })} 
                               placeholder="9100" 
@@ -1028,18 +1028,25 @@ function PrinterTestButton({ ip, port, localServerUrl }) {
       setResult({ ok: false, message: 'Veuillez d\'abord saisir une adresse IP.' });
       return;
     }
-    const targetUrl = localServerUrl || 'http://localhost:3001';
+    const isRelayMode = !localServerUrl;
+    const targetUrl = localServerUrl || ''; // Utilise la base par défaut (Vercel) si vide
     setTesting(true);
     setResult(null);
     try {
-      const res = await fetch(`${targetUrl}/api/health`, {
+      const url = isRelayMode ? `${API}/api/health` : `${targetUrl}/api/health`;
+      const res = await fetch(url, {
         headers: {
           'X-Printer-Ip': ip,
           'X-Printer-Port': port || '9100',
         },
       });
       const data = await res.json();
-      if (data.printer?.online) {
+      
+      if (isRelayMode) {
+        // En mode relais, on vérifie juste si Hiboutik est OK. 
+        // L'imprimante est testée par le .exe en local.
+        setResult({ ok: true, message: `✅ Mode RELAIS Actif (Cloud).\nL'imprimante sera pilotée par votre serveur local via Internet.` });
+      } else if (data.printer?.online) {
         setResult({ ok: true, message: `✅ Imprimante joignable sur ${data.printer.ip}:${data.printer.port}` });
       } else {
         setResult({
