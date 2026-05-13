@@ -187,6 +187,7 @@ export default function AdminScreen({
                 name: p.name,
                 price: Math.max(0, Number(p.price)),
                 desc: p.desc || '',
+                composition: p.composition || '',
               };
             });
             setExtractedData({

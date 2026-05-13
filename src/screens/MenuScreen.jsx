@@ -55,15 +55,20 @@ export default function MenuScreen({
   const [chosenSupps, setChosenSupps] = useState([]);
   const [removedIngredients, setRemovedIngredients] = useState([]);
 
-  // Parse ingredients from product composition (comma-separated)
+  // Parse ingredients from product composition (or desc as fallback for AI-imported products)
   const productIngredients = useMemo(() => {
-    if (!selectedProduct?.composition) return [];
-    return selectedProduct.composition.split(',').map(i => i.trim()).filter(Boolean);
+    const raw = selectedProduct?.composition || selectedProduct?.desc || '';
+    if (!raw) return [];
+    // Only treat as composition if it looks like comma-separated items (at least 2 items)
+    const parts = raw.split(',').map(i => i.trim()).filter(Boolean);
+    return parts.length >= 2 ? parts : [];
   }, [selectedProduct]);
 
   const handleProductClick = (p) => {
     const hasComposition = p.composition && p.composition.trim().length > 0;
-    if (supplements.length > 0 || hasComposition) {
+    // Fallback: if desc looks like comma-separated ingredients (2+ items), treat as composition
+    const hasDescComposition = !hasComposition && p.desc && p.desc.split(',').filter(i => i.trim()).length >= 2;
+    if (supplements.length > 0 || hasComposition || hasDescComposition) {
       setSelectedProduct(p);
       setChosenSupps([]);
       setRemovedIngredients([]);
@@ -257,7 +262,7 @@ export default function MenuScreen({
                         {p.desc && (
                           <p className="text-xs text-gray-400 mt-1 line-clamp-2">{p.desc}</p>
                         )}
-                        {p.composition && (
+                        {(p.composition || (p.desc && p.desc.split(',').filter(i => i.trim()).length >= 2)) && (
                           <span className="inline-block mt-1 text-[10px] font-bold text-emerald-600 bg-emerald-50 border border-emerald-100 px-2 py-0.5 rounded-full">✏️ Personnalisable</span>
                         )}
                         <div className="flex items-center justify-between mt-3">
