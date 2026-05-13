@@ -358,12 +358,21 @@ export default function AdminScreen({
                       value={online ? 'Système en ligne' : 'Non connecté'}
                       ok={online}
                     />
-                    <Status
-                      icon={<Printer size={20} />}
-                      label="Imprimante"
-                      value={health?.printer?.online ? 'En ligne' : 'Non connectée'}
-                      ok={health?.printer?.online}
-                    />
+                    {!settings.localServerUrl ? (
+                      <Status
+                        icon={<Cloud size={20} />}
+                        label="Imprimante (Mode Relais)"
+                        value="Connecté au Cloud ☁️"
+                        ok={online}
+                      />
+                    ) : (
+                      <Status
+                        icon={<Printer size={20} />}
+                        label="Imprimante (Mode Direct)"
+                        value={health?.printer?.online ? 'En ligne' : 'Injoignable'}
+                        ok={health?.printer?.online}
+                      />
+                    )}
                   </Section>
                 )}
 
