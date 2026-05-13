@@ -11,6 +11,8 @@ import {
   Search,
   Settings,
   XCircle,
+  Ban,
+  Check,
 } from 'lucide-react';
 import logoUrl from '../assets/logo.svg';
 import useLongPress from '../hooks/useLongPress';
@@ -51,11 +53,20 @@ export default function MenuScreen({
   const [confirmClear, setConfirmClear] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [chosenSupps, setChosenSupps] = useState([]);
+  const [removedIngredients, setRemovedIngredients] = useState([]);
+
+  // Parse ingredients from product composition (comma-separated)
+  const productIngredients = useMemo(() => {
+    if (!selectedProduct?.composition) return [];
+    return selectedProduct.composition.split(',').map(i => i.trim()).filter(Boolean);
+  }, [selectedProduct]);
 
   const handleProductClick = (p) => {
-    if (supplements.length > 0) {
+    const hasComposition = p.composition && p.composition.trim().length > 0;
+    if (supplements.length > 0 || hasComposition) {
       setSelectedProduct(p);
       setChosenSupps([]);
+      setRemovedIngredients([]);
     } else {
       onAdd(p);
     }
@@ -69,14 +80,33 @@ export default function MenuScreen({
     }
   };
 
+  const toggleIngredient = (ingredient) => {
+    if (removedIngredients.includes(ingredient)) {
+      setRemovedIngredients(removedIngredients.filter(i => i !== ingredient));
+    } else {
+      setRemovedIngredients([...removedIngredients, ingredient]);
+    }
+  };
+
   const confirmAddProduct = () => {
     if (!selectedProduct) return;
+    const sansLabel = removedIngredients.length > 0
+      ? ' (Sans ' + removedIngredients.join(', ') + ')'
+      : '';
+    const suppLabel = chosenSupps.length > 0
+      ? ' + ' + chosenSupps.map(s => s.name).join(' + ')
+      : '';
+    const idSuffix = [
+      chosenSupps.length ? chosenSupps.map(s => s.id).sort().join('-') : '',
+      removedIngredients.length ? 'no-' + removedIngredients.map(i => i.toLowerCase().replace(/\s+/g, '')).sort().join('-') : '',
+    ].filter(Boolean).join('_');
     const finalItem = {
       ...selectedProduct,
-      id: `${selectedProduct.id}${chosenSupps.length ? '-' + chosenSupps.map(s => s.id).sort().join('-') : ''}`,
+      id: `${selectedProduct.id}${idSuffix ? '-' + idSuffix : ''}`,
       productId: selectedProduct.id,
-      name: `${selectedProduct.name}${chosenSupps.length ? ' + ' + chosenSupps.map(s => s.name).join(' + ') : ''}`,
+      name: `${selectedProduct.name}${suppLabel}${sansLabel}`,
       price: Number(selectedProduct.price) + chosenSupps.reduce((sum, s) => sum + Number(s.price), 0),
+      removedIngredients: removedIngredients.length > 0 ? [...removedIngredients] : undefined,
     };
     onAdd(finalItem);
     setSelectedProduct(null);
@@ -226,6 +256,9 @@ export default function MenuScreen({
                         </h3>
                         {p.desc && (
                           <p className="text-xs text-gray-400 mt-1 line-clamp-2">{p.desc}</p>
+                        )}
+                        {p.composition && (
+                          <span className="inline-block mt-1 text-[10px] font-bold text-emerald-600 bg-emerald-50 border border-emerald-100 px-2 py-0.5 rounded-full">✏️ Personnalisable</span>
                         )}
                         <div className="flex items-center justify-between mt-3">
                           <span className="text-2xl font-black text-indigo-600">
@@ -415,7 +448,7 @@ export default function MenuScreen({
         )}
       </AnimatePresence>
 
-      {/* ========== Dialog suppléments ========== */}
+      {/* ========== Dialog personnalisation (composition + suppléments) ========== */}
       <AnimatePresence>
         {selectedProduct && (
           <motion.div
@@ -443,23 +476,63 @@ export default function MenuScreen({
                   <XCircle size={22} />
                 </button>
               </div>
-              <div className="p-6 overflow-y-auto flex-1 bg-gray-50/50">
-                <h4 className="text-xs font-black text-gray-400 uppercase tracking-widest mb-4">Personnaliser (Optionnel)</h4>
-                <div className="space-y-3">
-                  {supplements.map(s => {
-                    const active = chosenSupps.some(x => x.id === s.id);
-                    return (
-                      <button
-                        key={s.id}
-                        onClick={() => toggleSupp(s)}
-                        className={`w-full p-4 rounded-2xl border-2 flex items-center justify-between transition-all active:scale-95 ${active ? 'border-indigo-500 bg-indigo-50 shadow-md shadow-indigo-500/10' : 'border-gray-200 hover:border-gray-300 bg-white'}`}
-                      >
-                        <span className={`font-bold ${active ? 'text-indigo-700' : 'text-gray-700'}`}>{s.name}</span>
-                        <span className={`font-black ${active ? 'text-indigo-700' : 'text-gray-500'}`}>+{Number(s.price).toFixed(2)} €</span>
-                      </button>
-                    );
-                  })}
-                </div>
+              <div className="p-6 overflow-y-auto flex-1 bg-gray-50/50 space-y-6">
+
+                {/* Composition / Ingrédients */}
+                {productIngredients.length > 0 && (
+                  <div>
+                    <h4 className="text-xs font-black text-gray-400 uppercase tracking-widest mb-3">Composition — touchez pour retirer</h4>
+                    <div className="flex flex-wrap gap-2">
+                      {productIngredients.map(ingredient => {
+                        const removed = removedIngredients.includes(ingredient);
+                        return (
+                          <button
+                            key={ingredient}
+                            onClick={() => toggleIngredient(ingredient)}
+                            className={`px-4 py-3 rounded-2xl border-2 flex items-center gap-2 transition-all active:scale-95 text-sm font-bold
+                              ${removed
+                                ? 'border-red-300 bg-red-50 text-red-500 line-through'
+                                : 'border-emerald-200 bg-emerald-50 text-emerald-700'}`}
+                          >
+                            {removed ? <Ban size={16} /> : <Check size={16} />}
+                            {ingredient}
+                          </button>
+                        );
+                      })}
+                    </div>
+                    {removedIngredients.length > 0 && (
+                      <p className="text-xs text-red-400 font-bold mt-2">
+                        Sans : {removedIngredients.join(', ')}
+                      </p>
+                    )}
+                  </div>
+                )}
+
+                {/* Suppléments */}
+                {supplements.length > 0 && (
+                  <div>
+                    <h4 className="text-xs font-black text-gray-400 uppercase tracking-widest mb-3">Suppléments (Optionnel)</h4>
+                    <div className="space-y-3">
+                      {supplements.map(s => {
+                        const active = chosenSupps.some(x => x.id === s.id);
+                        return (
+                          <button
+                            key={s.id}
+                            onClick={() => toggleSupp(s)}
+                            className={`w-full p-4 rounded-2xl border-2 flex items-center justify-between transition-all active:scale-95 ${active ? 'border-indigo-500 bg-indigo-50 shadow-md shadow-indigo-500/10' : 'border-gray-200 hover:border-gray-300 bg-white'}`}
+                          >
+                            <span className={`font-bold ${active ? 'text-indigo-700' : 'text-gray-700'}`}>{s.name}</span>
+                            <span className={`font-black ${active ? 'text-indigo-700' : 'text-gray-500'}`}>+{Number(s.price).toFixed(2)} €</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {productIngredients.length === 0 && supplements.length === 0 && (
+                  <p className="text-center text-gray-400 py-4">Aucune personnalisation disponible.</p>
+                )}
               </div>
               <div className="p-6 bg-white border-t border-gray-100 z-10 shadow-[0_-10px_40px_rgba(0,0,0,0.04)]">
                 <button

@@ -714,7 +714,7 @@ function ProductsManager({ products, categories, onSave, onDelete }) {
   const [query, setQuery] = useState('');
   const [filterCat, setFilterCat] = useState('all');
   const [editingId, setEditingId] = useState(null);
-  const [draft, setDraft] = useState({ name: '', price: '', categoryId: '', desc: '' });
+  const [draft, setDraft] = useState({ name: '', price: '', categoryId: '', desc: '', composition: '' });
   const [creating, setCreating] = useState(false);
 
   const filtered = products.filter(p => {
@@ -729,7 +729,7 @@ function ProductsManager({ products, categories, onSave, onDelete }) {
     }
     setCreating(true);
     setEditingId(null);
-    setDraft({ name: '', price: '', categoryId: categories[0].id, desc: '' });
+    setDraft({ name: '', price: '', categoryId: categories[0].id, desc: '', composition: '' });
   };
 
   const startEdit = (p) => {
@@ -740,6 +740,7 @@ function ProductsManager({ products, categories, onSave, onDelete }) {
       price: String(p.price ?? ''),
       categoryId: p.categoryId || categories[0]?.id || '',
       desc: p.desc || '',
+      composition: p.composition || '',
     });
   };
 
@@ -757,10 +758,11 @@ function ProductsManager({ products, categories, onSave, onDelete }) {
         id: `local-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
         categoryId: draft.categoryId,
         name, price, desc: draft.desc.trim(),
+        composition: draft.composition.trim(),
       });
     } else if (editingId) {
       const existing = products.find(p => p.id === editingId);
-      onSave({ ...existing, name, price, categoryId: draft.categoryId, desc: draft.desc.trim() });
+      onSave({ ...existing, name, price, categoryId: draft.categoryId, desc: draft.desc.trim(), composition: draft.composition.trim() });
     }
     cancel();
   };
@@ -824,6 +826,11 @@ function ProductsManager({ products, categories, onSave, onDelete }) {
                     <span>{cat?.name || '—'}</span>
                     {p.desc && <span className="truncate">· {p.desc}</span>}
                   </div>
+                  {p.composition && (
+                    <div className="text-[10px] text-emerald-500 font-bold mt-0.5 truncate">
+                      🧾 {p.composition}
+                    </div>
+                  )}
                 </div>
                 <div className="font-black text-indigo-600 text-right shrink-0 tabular-nums">
                   {Number(p.price).toFixed(2)}€
@@ -875,6 +882,15 @@ function ProductForm({ draft, setDraft, categories, onCancel, onSave, isCreating
         value={draft.desc} onChange={e => setDraft({ ...draft, desc: e.target.value })}
         className="w-full px-3 py-2.5 rounded-xl border border-gray-200 bg-white font-bold text-gray-800 outline-none focus:ring-2 focus:ring-indigo-100"
       />
+      <div className="space-y-1">
+        <label className="text-[10px] font-black text-gray-400 uppercase tracking-wider ml-1">Composition / Ingrédients</label>
+        <input
+          type="text" placeholder="ex: Salade, Tomate, Oignon, Steak, Fromage"
+          value={draft.composition} onChange={e => setDraft({ ...draft, composition: e.target.value })}
+          className="w-full px-3 py-2.5 rounded-xl border border-gray-200 bg-white font-bold text-gray-800 outline-none focus:ring-2 focus:ring-indigo-100"
+        />
+        <p className="text-[10px] text-gray-400 ml-1">Séparez les ingrédients par des virgules. Le client pourra retirer ceux qu'il ne veut pas.</p>
+      </div>
       <div className="flex gap-2 justify-end">
         <button onClick={onCancel} className="px-4 py-2 rounded-xl bg-gray-100 font-bold text-gray-700 hover:bg-gray-200">Annuler</button>
         <button onClick={onSave} className="px-5 py-2 rounded-xl bg-indigo-600 text-white font-black hover:bg-indigo-700 flex items-center gap-1">
