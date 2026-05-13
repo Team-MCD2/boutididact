@@ -505,12 +505,6 @@ export default function AdminScreen({
 
                       <div className="bg-white border border-gray-100 p-8 rounded-3xl shadow-sm space-y-6">
                         <div className="space-y-4">
-                          <SettingInput 
-                            label="URL du Serveur (Laissez VIDE pour le mode Relais Tablette)" 
-                            value={settings.localServerUrl} 
-                            onChange={v => setSettings({ ...settings, localServerUrl: v.trim() })} 
-                            placeholder="Laisser vide pour le mode Relais (Conseillé)" 
-                          />
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                             <SettingInput 
                               label="IP de l'Imprimante Thermique" 
@@ -528,7 +522,7 @@ export default function AdminScreen({
                         </div>
                         
                         <div className="pt-4 border-t border-gray-50">
-                          <PrinterTestButton ip={settings.printerIp} port={settings.printerPort} localServerUrl={settings.localServerUrl} />
+                          <PrinterTestButton ip={settings.printerIp} port={settings.printerPort} localServerUrl={''} />
                         </div>
                       </div>
                     </Section>

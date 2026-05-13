@@ -31,10 +31,8 @@ client.interceptors.request.use((config) => {
       // Printer
       if (s.printerIp) config.headers['X-Printer-Ip'] = s.printerIp;
       if (s.printerPort) config.headers['X-Printer-Port'] = s.printerPort;
-      // Hardware Routing
-      if (s.localServerUrl && (config.url === '/api/health' || config.url === '/api/checkout' || config.url === '/api/print')) {
-        config.baseURL = s.localServerUrl;
-      }
+      // Le routage se fait désormais via le Mode Relais (Vercel -> PC)
+      // pour éviter les problèmes de sécurité sur tablette.
     }
   } catch (e) {
     console.error('Erreur lecture headers multi-tenant:', e);
