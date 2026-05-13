@@ -26,6 +26,7 @@ export default function AdminScreen({
   // Lors du premier setup (pas de creds Hiboutik), on saute le PIN pour permettre la config initiale.
   const [unlocked, setUnlocked] = useState(forceSettings);
   const [pinError, setPinError] = useState('');
+  const [promptNewPin, setPromptNewPin] = useState(false);
 
   const [activeTab, setActiveTab] = useState(forceSettings ? 'settings' : 'status');
 
@@ -211,13 +212,36 @@ export default function AdminScreen({
 
   const submitPin = () => {
     const currentPin = getAdminPin();
-    if (pin === currentPin) {
-      setUnlocked(true);
-      setPinError('');
+    if (!promptNewPin) {
+      if (pin === currentPin) {
+        if (currentPin === '0000') {
+          setPromptNewPin(true);
+          setPin('');
+          return;
+        }
+        setUnlocked(true);
+        setPinError('');
+      } else {
+        setPinError('Code incorrect');
+        setTimeout(() => setPinError(''), 1500);
+        setPin('');
+      }
     } else {
-      setPinError('Code incorrect');
-      setTimeout(() => setPinError(''), 1500);
-      setPin('');
+      if (pin.length < 4) {
+        setPinError('Le code doit faire au moins 4 chiffres');
+        return;
+      }
+      if (pin === '0000') {
+        setPinError('Le nouveau code doit être différent de 0000');
+        setPin('');
+        return;
+      }
+      localStorage.setItem('boutididact_admin_pin', pin);
+      setSettings(prev => ({ ...prev, adminPin: pin }));
+      setUnlocked(true);
+      setPromptNewPin(false);
+      setPinError('');
+      alert('Nouveau code PIN enregistré !');
     }
   };
 
@@ -278,7 +302,11 @@ export default function AdminScreen({
           {!unlocked ? (
             <div className="p-8 overflow-y-auto custom-scrollbar">
               <p className="text-center text-gray-600 mb-4 font-bold">
-                Saisissez votre code d'accès
+                {promptNewPin
+                  ? 'Saisissez votre nouveau code (différent de 0000)'
+                  : getAdminPin() === '0000'
+                    ? 'Saisissez votre code d\'accès (0000 par défaut)'
+                    : 'Saisissez votre code d\'accès'}
               </p>
               <div className="flex justify-center gap-3 my-6" aria-label="PIN">
                 {[0, 1, 2, 3].map((i) => (
