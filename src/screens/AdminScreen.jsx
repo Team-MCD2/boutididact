@@ -73,12 +73,16 @@ export default function AdminScreen({
     setSettings(newSettings);
 
     // Persistance Cloud (Vercel/Stripe) pour que les réglages suivent le compte sur tous les appareils
-    if (session?.shopName) {
+    if (session?.shopId || session?.shopName) {
       try {
         await fetch(`${API}/api/saas/save-settings`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ shopName: session.shopName, settings: newSettings }),
+          body: JSON.stringify({ 
+            shopId: session.shopId, 
+            shopName: session.shopName, 
+            settings: newSettings 
+          }),
         });
       } catch (e) {
         console.error('Erreur sauvegarde cloud:', e);
@@ -288,11 +292,15 @@ export default function AdminScreen({
       setSettings(nextSettings);
 
       // Persistance Cloud immédiate pour le PIN
-      if (session?.shopName) {
+      if (session?.shopId || session?.shopName) {
         fetch(`${API}/api/saas/save-settings`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ shopName: session.shopName, settings: nextSettings }),
+          body: JSON.stringify({ 
+            shopId: session.shopId, 
+            shopName: session.shopName, 
+            settings: nextSettings 
+          }),
         }).catch(e => console.error('Erreur sync cloud PIN:', e));
       }
 

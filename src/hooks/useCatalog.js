@@ -51,10 +51,14 @@ const getSupplements = () => {
  * Fetch cloud catalog and merge with local.
  * Returns true if cloud data was found and merged.
  */
-async function syncFromCloud(shopName) {
-  if (!shopName) return false;
+async function syncFromCloud(shopId, shopName) {
+  if (!shopId && !shopName) return false;
   try {
-    const res = await fetch(`${API}/api/saas/get-catalog?shopName=${encodeURIComponent(shopName)}`);
+    const url = shopId 
+      ? `${API}/api/saas/get-catalog?shopId=${shopId}`
+      : `${API}/api/saas/get-catalog?shopName=${encodeURIComponent(shopName)}`;
+
+    const res = await fetch(url);
     if (!res.ok) return false;
     const data = await res.json();
     const cloudProducts = data.products || [];
@@ -97,8 +101,8 @@ async function syncFromCloud(shopName) {
 /**
  * Push local AI catalog to cloud for cross-device sync.
  */
-async function syncToCloud(shopName) {
-  if (!shopName) return;
+async function syncToCloud(shopId, shopName) {
+  if (!shopId && !shopName) return;
   try {
     const products = getAIProducts();
     const categories = getAICategories();
@@ -106,7 +110,7 @@ async function syncToCloud(shopName) {
     await fetch(`${API}/api/saas/save-catalog`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ shopName, products, categories, supplements }),
+      body: JSON.stringify({ shopId, shopName, products, categories, supplements }),
     });
     console.log(`[catalog] Cloud push: ${products.length} produits, ${supplements.length} suppléments`);
   } catch (e) {
@@ -170,7 +174,7 @@ async function fetchCatalog() {
   }
 }
 
-export default function useCatalog({ enabled = true, shopName = '' } = {}) {
+export default function useCatalog({ enabled = true, shopId = '', shopName = '' } = {}) {
   const [state, dispatch] = useReducer(reducer, initial);
 
   const reload = useCallback(async () => {
@@ -180,40 +184,25 @@ export default function useCatalog({ enabled = true, shopName = '' } = {}) {
     }
     dispatch({ type: 'loading' });
     try {
-      if (shopName) {
-        await syncFromCloud(shopName);
+      if (shopId || shopName) {
+        await syncFromCloud(shopId, shopName);
       }
       const payload = await fetchCatalog();
       dispatch({ type: 'success', payload });
     } catch (e) {
-      dispatch({ type: 'error', error: e });
+      dispatch({ type: 'error', error: e.message });
     }
-  }, [enabled]);
+  }, [enabled, shopId, shopName]);
 
-  // Sync TO cloud whenever catalog changes (debounced via caller)
   const pushToCloud = useCallback(() => {
-    if (shopName) syncToCloud(shopName);
-  }, [shopName]);
+    if (shopId || shopName) syncToCloud(shopId, shopName);
+  }, [shopId, shopName]);
 
   useEffect(() => {
-    if (!enabled) {
-      dispatch({ type: 'idle' });
-      return;
+    if (enabled) {
+      reload();
     }
-    let alive = true;
-    (async () => {
-      // Step 1: Sync FROM cloud (merge any products uploaded from another device)
-      if (shopName) {
-        await syncFromCloud(shopName);
-      }
-      // Step 2: Fetch and merge with Hiboutik
-      const payload = await fetchCatalog();
-      if (alive) dispatch({ type: 'success', payload });
-    })();
-    return () => {
-      alive = false;
-    };
-  }, [enabled, shopName]);
+  }, [enabled, reload]);
 
   return { ...state, reload, pushToCloud };
 }

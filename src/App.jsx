@@ -97,7 +97,7 @@ export default function App() {
   }, [session, setupComplete]);
 
   const handleLoginSuccess = useCallback((shop) => {
-    const sess = { shopName: shop?.name, email: shop?.email, loggedAt: Date.now() };
+    const sess = { shopId: shop?.id, shopName: shop?.name, email: shop?.email, loggedAt: Date.now() };
     sessionStorage.setItem(SESSION_KEY, JSON.stringify(sess));
     
     // Si le backend a renvoyé des réglages persistés (Cloud), on les injecte en local
@@ -124,7 +124,7 @@ export default function App() {
     setLandingPrefillName('');
   }, []);
 
-  const catalog = useCatalog({ enabled: !!session && setupComplete, shopName: session?.shopName || '' });
+  const catalog = useCatalog({ enabled: !!session && setupComplete, shopId: session?.shopId, shopName: session?.shopName || '' });
   const cart = useCart();
   const supplementsState = useSupplements();
 
