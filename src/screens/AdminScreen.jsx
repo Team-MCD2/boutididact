@@ -302,7 +302,7 @@ export default function AdminScreen({
     }
   };
 
-  // Statut système simplifié (uniquement : non connecté / système en ligne)
+  // Statut système simplifié
   const online = Boolean(health?.hiboutik?.reachable);
 
   return (
@@ -391,22 +391,22 @@ export default function AdminScreen({
                   <Section title="État du système">
                     <Status
                       icon={<Database size={20} />}
-                      label="État de l'API"
-                      value={online ? 'Connecté' : (health?.hiboutik?.reason === 'not_configured' ? 'Configuration requise' : `Erreur : ${health?.hiboutik?.reason || 'Inconnue'}${health?.hiboutik?.message ? ' (' + health.hiboutik.message + ')' : ''}`)}
+                      label="Connexion à Boutididact"
+                      value={online ? 'Système en ligne' : 'Non connecté'}
                       ok={online}
                     />
                     {!settings.localServerUrl ? (
                       <Status
                         icon={<Cloud size={20} />}
                         label="Imprimante (Mode Relais)"
-                        value="Connecté au Cloud ☁️"
-                        ok={online}
+                        value="En ligne"
+                        ok={true}
                       />
                     ) : (
                       <Status
                         icon={<Printer size={20} />}
                         label="Imprimante (Mode Direct)"
-                        value={health?.printer?.online ? 'En ligne' : 'Injoignable'}
+                        value={health?.printer?.online ? 'En ligne' : 'Non connecté'}
                         ok={health?.printer?.online}
                       />
                     )}

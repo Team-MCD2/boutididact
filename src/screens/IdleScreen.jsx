@@ -80,7 +80,7 @@ export default function IdleScreen({ onStart, health }) {
             className={`w-3 h-3 rounded-full ${online ? 'bg-emerald-400 animate-pulse' : 'bg-red-400'}`}
           />
           <span className="text-sm font-semibold">
-            {online ? 'Système en ligne' : (health?.hiboutik?.reason === 'not_configured' ? 'Configuration requise' : `Mode Hors-ligne (${health?.hiboutik?.reason || 'Inconnu'}${health?.hiboutik?.message ? ': ' + health.hiboutik.message : ''})`)}
+            {online ? 'Système en ligne' : 'Non connecté'}
           </span>
         </div>
       </div>

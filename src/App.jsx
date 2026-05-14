@@ -10,6 +10,7 @@ import ErrorScreen from './screens/ErrorScreen';
 import AdminScreen from './screens/AdminScreen';
 import LoadingScreen from './components/LoadingScreen';
 import LandingScreen from './screens/LandingScreen.jsx';
+import AdminSetupScreen from './screens/AdminSetupScreen.jsx';
 
 import useCatalog from './hooks/useCatalog';
 import useCart from './hooks/useCart';
@@ -182,6 +183,11 @@ export default function App() {
       setScreen(STATES.ERROR);
     }
   };
+
+  // ---- Route Admin Spéciale ----
+  if (window.location.pathname === '/admin-setup') {
+    return <AdminSetupScreen onBack={() => { window.location.href = '/'; }} />;
+  }
 
   // ---- Rendus selon état d'auth ----
   if (!session) {
