@@ -19,22 +19,8 @@ import logoUrl from '../assets/logo.svg';
 import useLongPress from '../hooks/useLongPress';
 import ProductImage from '../components/ProductImage';
 
-const EMOJI_BY_NAME = (name = '') => {
-  const n = name.toLowerCase();
-  if (/burger|cheese|smash|bacon/.test(n)) return '🍔';
-  if (/chicken|poulet/.test(n)) return '🍗';
-  if (/frite|fries/.test(n)) return '🍟';
-  if (/onion/.test(n)) return '🧅';
-  if (/coca|soda|cola/.test(n)) return '🥤';
-  if (/tea|jus/.test(n)) return '🧃';
-  if (/eau|water/.test(n)) return '💧';
-  if (/glace|ice/.test(n)) return '🍨';
-  if (/cheesecake|tart|gateau/.test(n)) return '🍰';
-  if (/tiramisu/.test(n)) return '🍮';
-  if (/pizza/.test(n)) return '🍕';
-  if (/salade|salad/.test(n)) return '🥗';
-  return '🍽️';
-};
+// Emojis removed as requested
+const DEFAULT_ICON = <ShoppingBag size={40} className="text-gray-200" />;
 
 export default function MenuScreen({
   products,
@@ -259,7 +245,7 @@ export default function MenuScreen({
                       <div className="z-10 mb-2 md:mb-3 h-14 md:h-20 flex items-center justify-center">
                         <ProductImage
                           productId={typeof p.productId === 'number' ? p.productId : null}
-                          fallback={p.emoji || EMOJI_BY_NAME(p.name)}
+                          fallback={null}
                           alt={p.name}
                           className="text-4xl md:text-6xl drop-shadow max-h-full max-w-full object-contain"
                         />
@@ -365,7 +351,7 @@ export default function MenuScreen({
                         <div className="w-10 h-10 md:w-12 md:h-12 bg-gray-50 rounded-lg md:rounded-xl flex-shrink-0 flex items-center justify-center overflow-hidden">
                           <ProductImage
                             productId={typeof it.productId === 'number' ? it.productId : null}
-                            fallback={it.emoji || EMOJI_BY_NAME(it.name)}
+                            fallback={null}
                             alt={it.name}
                             className="text-xl md:text-2xl max-w-full max-h-full object-contain"
                           />

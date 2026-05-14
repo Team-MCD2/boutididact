@@ -306,7 +306,7 @@ export default function App() {
         )}
       </AnimatePresence>
 
-      {catalog.loading && <LoadingScreen message="Initialisation du système..." />}
+      {catalog.loading && catalog.products.length === 0 && <LoadingScreen message="Initialisation du système..." />}
     </>
   );
 }
