@@ -325,7 +325,7 @@ export default function AdminScreen({
         className="bg-white rounded-t-[2.5rem] md:rounded-3xl shadow-2xl w-full max-w-3xl md:max-w-2xl flex flex-col h-[95vh] md:h-auto md:max-h-[90vh] overflow-hidden"
       >
         {/* Header */}
-        <div className="px-8 py-6 border-b border-gray-100 flex items-center justify-between bg-gradient-to-r from-gray-900 to-gray-700 text-white">
+        <div className="shrink-0 px-8 py-6 border-b border-gray-100 flex items-center justify-between bg-gradient-to-r from-gray-900 to-gray-700 text-white">
           <div className="flex items-center gap-3">
             <Lock size={22} />
             <div>
@@ -386,7 +386,7 @@ export default function AdminScreen({
           ) : (
             <>
               {/* Tabs */}
-              <div className="flex border-b border-gray-100 px-2 md:px-4 bg-gray-50 overflow-x-auto no-scrollbar">
+              <div className="shrink-0 flex border-b border-gray-100 px-2 md:px-4 bg-gray-50 overflow-x-auto no-scrollbar">
                 <TabButton active={activeTab === 'status'} onClick={() => setActiveTab('status')} label="État" icon={<Database size={16} />} />
                 <TabButton active={activeTab === 'catalog'} onClick={() => setActiveTab('catalog')} label="Menu" icon={<Store size={16} />} />
                 <TabButton active={activeTab === 'actions'} onClick={() => setActiveTab('actions')} label="Actions" icon={<RefreshCw size={16} />} />
