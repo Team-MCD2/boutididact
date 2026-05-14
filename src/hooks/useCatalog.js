@@ -3,9 +3,6 @@ import { getHiboutikProducts, getHiboutikCategories, getHealth } from '../servic
 
 const API = import.meta.env.VITE_API_URL || '';
 
-const EMOJIS = ['🍔', '🧀', '🥓', '🍗', '🍟', '🧅', '🥤', '🧃', '💧', '🍮', '🍰', '🍨', '🌮', '🌯', '🥗', '🍕'];
-const emojiFor = (id) => EMOJIS[Math.abs(Number(id) || 0) % EMOJIS.length];
-
 const initial = {
   loading: true,
   source: null,
@@ -121,17 +118,19 @@ async function fetchCatalog() {
       getHiboutikProducts(),
       getHiboutikCategories(),
     ]);
-    let products = (pRes.items || []).map((p) => ({
-      id: p.id,
-      productId: p.id,
-      categoryId: p.categoryId,
-      name: p.name,
-      price: p.priceWithTax || p.price,
-      taxRate: p.taxRate,
-      stock: p.stock,
-      emoji: emojiFor(p.id),
-      desc: '',
-    }));
+    let products = (pRes.items || [])
+      .filter((p) => !p.name.includes('(Sans ') && !p.name.includes(' + ')) // Masque les anciens résidus du bug
+      .map((p) => ({
+        id: p.id,
+        productId: p.id,
+        categoryId: p.categoryId,
+        name: p.name,
+        price: p.priceWithTax || p.price,
+        taxRate: p.taxRate,
+        stock: p.stock,
+        emoji: null,
+        desc: '',
+      }));
     let categories = (cRes.items || []).map((c) => ({
       id: c.id,
       name: c.name,
