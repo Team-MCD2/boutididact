@@ -127,7 +127,7 @@ export default function AdminScreen({
   };
 
   const handleDeleteAllLocal = () => {
-    if (window.confirm('Supprimer TOUT le catalogue local (produits & catégories) ?')) {
+    if (window.confirm('Supprimer TOUT le catalogue (produits & catégories) ?')) {
       localStorage.removeItem('ai_products');
       localStorage.removeItem('ai_categories');
       setLocalProducts([]);
@@ -483,7 +483,7 @@ export default function AdminScreen({
                           onClick={handleDeleteAllLocal}
                           className="mt-4 w-full py-3 rounded-xl bg-red-50 text-red-700 font-bold border border-red-100 hover:bg-red-100"
                         >
-                          Supprimer tout le catalogue local
+                          Supprimer tout le catalogue
                         </button>
                       )}
                     </Section>
