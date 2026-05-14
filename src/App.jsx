@@ -120,7 +120,7 @@ export default function App() {
     setLandingPrefillName('');
   }, []);
 
-  const catalog = useCatalog({ enabled: !!session && setupComplete });
+  const catalog = useCatalog({ enabled: !!session && setupComplete, shopName: session?.shopName || '' });
   const cart = useCart();
   const supplementsState = useSupplements();
 
@@ -159,15 +159,17 @@ export default function App() {
         })),
       };
       const data = await checkout(payload);
-      // Persiste les nouveaux IDs Hiboutik dans le catalogue local (évite re-création à chaque vente)
+      // FIX: Quand Hiboutik provisionne des produits locaux, on les RETIRE du catalogue AI
+      // (ils existent désormais dans Hiboutik et seront chargés via l'API).
+      // Cela évite la duplication "Commander" dans la carte.
       if (data?.idMapping && Object.keys(data.idMapping).length > 0) {
         try {
           const stored = JSON.parse(localStorage.getItem('ai_products') || '[]');
-          const updated = stored.map(p => (
-            data.idMapping[p.id] != null ? { ...p, id: data.idMapping[p.id] } : p
-          ));
-          localStorage.setItem('ai_products', JSON.stringify(updated));
+          const mappedLocalIds = new Set(Object.keys(data.idMapping));
+          const cleaned = stored.filter(p => !mappedLocalIds.has(String(p.id)));
+          localStorage.setItem('ai_products', JSON.stringify(cleaned));
           catalog.reload();
+          catalog.pushToCloud();
         } catch (e) { /* ignore */ }
       }
       setResult(data);
@@ -297,6 +299,7 @@ export default function App() {
             onCatalogChange={() => {
               setSetupComplete(isSetupComplete());
               catalog.reload();
+              catalog.pushToCloud();
             }}
             onLogout={handleLogout}
           />

@@ -29,12 +29,12 @@ export default function IdleScreen({ onStart, health }) {
       </div>
 
       {/* Contenu */}
-      <div className="relative h-full w-full flex flex-col items-center justify-center text-white px-12 text-center">
+      <div className="relative h-full w-full flex flex-col items-center justify-center text-white px-6 md:px-12 text-center">
         <motion.div
           initial={{ scale: 0.8, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
           transition={{ delay: 0.1, type: 'spring' }}
-          className="w-44 h-44 rounded-3xl bg-white/95 shadow-2xl shadow-black/20 flex items-center justify-center p-5 mb-10"
+          className="w-32 h-32 md:w-44 md:h-44 rounded-3xl bg-white/95 shadow-2xl shadow-black/20 flex items-center justify-center p-4 md:p-5 mb-6 md:mb-10"
         >
           <img src={logoUrl} alt="BOUTIDIDACT" className="w-full h-full object-contain" />
         </motion.div>
@@ -43,7 +43,7 @@ export default function IdleScreen({ onStart, health }) {
           initial={{ y: 20, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
           transition={{ delay: 0.2 }}
-          className="text-7xl md:text-8xl font-black tracking-tight"
+          className="text-5xl sm:text-7xl md:text-8xl font-black tracking-tight"
         >
           BOUTIDIDACT
         </motion.h1>
@@ -51,25 +51,25 @@ export default function IdleScreen({ onStart, health }) {
           initial={{ y: 20, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
           transition={{ delay: 0.3 }}
-          className="mt-4 text-2xl md:text-3xl font-light text-white/85 flex items-center gap-3"
+          className="mt-4 text-lg sm:text-2xl md:text-3xl font-light text-white/85 flex items-center gap-3"
         >
-          <Sparkles size={28} /> Commande &amp; Encaissement en libre-service
+          <Sparkles size={24} className="md:w-7 md:h-7" /> Commande &amp; Encaissement en libre-service
         </motion.p>
 
         <motion.div
           initial={{ y: 30, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
           transition={{ delay: 0.4 }}
-          className="mt-16 flex flex-col items-center gap-6"
+          className="mt-12 md:mt-16 flex flex-col items-center gap-6"
         >
           <motion.div
             animate={{ scale: [1, 1.08, 1] }}
             transition={{ duration: 1.6, repeat: Infinity, ease: 'easeInOut' }}
-            className="w-32 h-32 rounded-full bg-white text-indigo-600 flex items-center justify-center shadow-2xl"
+            className="w-24 h-24 md:w-32 md:h-32 rounded-full bg-white text-indigo-600 flex items-center justify-center shadow-2xl"
           >
-            <Hand size={56} />
+            <Hand size={44} className="md:w-14 md:h-14" />
           </motion.div>
-          <p className="text-3xl md:text-4xl font-bold uppercase tracking-widest">
+          <p className="text-xl sm:text-3xl md:text-4xl font-bold uppercase tracking-widest">
             Touchez pour commencer
           </p>
         </motion.div>

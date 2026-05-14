@@ -20,13 +20,13 @@ export default function ProcessingScreen({ paymentMethod }) {
         animate={{ rotate: 360 }}
         transition={{ duration: 1.4, repeat: Infinity, ease: 'linear' }}
       >
-        <Loader2 size={96} strokeWidth={2} />
+        <Loader2 size={window.innerWidth < 768 ? 64 : 96} strokeWidth={2} />
       </motion.div>
 
-      <h1 className="mt-10 text-5xl md:text-6xl font-black tracking-tight">
+      <h1 className="mt-8 md:mt-10 text-3xl md:text-6xl font-black tracking-tight text-center px-4">
         Traitement en cours…
       </h1>
-      <p className="mt-4 text-xl text-white/85 max-w-xl text-center">
+      <p className="mt-4 text-lg md:text-xl text-white/85 max-w-xl text-center px-6">
         {paymentMethod === 'cash'
           ? 'Préparez le montant exact, votre ticket est en cours d’édition.'
           : 'Suivez les instructions du terminal de paiement.'}
@@ -41,12 +41,12 @@ export default function ProcessingScreen({ paymentMethod }) {
               initial={{ opacity: 0, y: 16 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.2 + i * 0.15 }}
-              className="bg-white/10 backdrop-blur rounded-2xl p-5 border border-white/20 flex items-center gap-4"
+              className="bg-white/10 backdrop-blur rounded-2xl p-4 md:p-5 border border-white/20 flex items-center gap-4"
             >
-              <div className="w-12 h-12 rounded-xl bg-white/20 flex items-center justify-center">
-                <Icon size={22} />
+              <div className="w-10 h-10 md:w-12 md:h-12 rounded-xl bg-white/20 flex items-center justify-center">
+                <Icon size={window.innerWidth < 768 ? 18 : 22} />
               </div>
-              <span className="font-bold">{s.label}</span>
+              <span className="font-bold text-sm md:text-base">{s.label}</span>
             </motion.div>
           );
         })}

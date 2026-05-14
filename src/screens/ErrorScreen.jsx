@@ -29,15 +29,15 @@ export default function ErrorScreen({ error, onRetry, onCancel }) {
         initial={{ scale: 0 }}
         animate={{ scale: 1 }}
         transition={{ type: 'spring', stiffness: 200 }}
-        className="w-32 h-32 rounded-full bg-red-500 text-white flex items-center justify-center shadow-2xl shadow-red-500/40"
+        className="w-24 h-24 md:w-32 md:h-32 rounded-full bg-red-500 text-white flex items-center justify-center shadow-2xl shadow-red-500/40"
       >
-        <AlertCircle size={72} />
+        <AlertCircle size={window.innerWidth < 768 ? 48 : 72} />
       </motion.div>
 
-      <h1 className="mt-8 text-5xl font-black text-gray-900 text-center">
+      <h1 className="mt-6 md:mt-8 text-3xl md:text-5xl font-black text-gray-900 text-center px-4">
         Oups, une erreur est survenue
       </h1>
-      <p className="mt-4 text-xl text-gray-600 max-w-2xl text-center">
+      <p className="mt-3 md:mt-4 text-lg md:text-xl text-gray-600 max-w-2xl text-center px-4">
         {error?.message || 'Le paiement n’a pas pu être finalisé. Aucune somme n’a été débitée.'}
       </p>
 
@@ -68,20 +68,20 @@ export default function ErrorScreen({ error, onRetry, onCancel }) {
         </div>
       )}
 
-      <div className="mt-10 flex gap-4">
+      <div className="mt-8 md:mt-10 flex flex-col sm:flex-row gap-3 md:gap-4 w-full max-w-xs md:max-w-none px-4">
         <button
           onClick={onRetry}
-          className="flex items-center gap-3 px-8 py-4 rounded-2xl bg-indigo-600 text-white font-bold text-lg hover:bg-indigo-700 active:scale-95 transition shadow-xl"
+          className="flex-1 flex items-center justify-center gap-3 px-8 py-4 rounded-xl md:rounded-2xl bg-indigo-600 text-white font-bold text-lg hover:bg-indigo-700 active:scale-95 transition shadow-xl"
         >
           <RefreshCw size={22} />
           Réessayer
         </button>
         <button
           onClick={onCancel}
-          className="flex items-center gap-3 px-8 py-4 rounded-2xl bg-white border border-gray-200 text-gray-700 font-bold text-lg hover:bg-gray-50 active:scale-95 transition"
+          className="flex-1 flex items-center justify-center gap-3 px-8 py-4 rounded-xl md:rounded-2xl bg-white border border-gray-200 text-gray-700 font-bold text-lg hover:bg-gray-50 active:scale-95 transition"
         >
           <Home size={22} />
-          Retour à l’accueil
+          Accueil
         </button>
       </div>
     </motion.div>

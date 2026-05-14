@@ -161,19 +161,19 @@ export default function LandingScreen({ initialMode = 'hero', prefillShopName = 
               <Rocket size={48} className="text-white" />
             </motion.div>
 
-            <h1 className="text-6xl md:text-7xl font-black text-white tracking-tighter mb-6 bg-clip-text text-transparent bg-gradient-to-b from-white to-white/60">
+            <h1 className="text-4xl sm:text-6xl md:text-7xl font-black text-white tracking-tighter mb-6 bg-clip-text text-transparent bg-gradient-to-b from-white to-white/60">
               BOUTIDIDACT
             </h1>
 
-            <p className="text-xl md:text-2xl text-slate-400 font-medium max-w-2xl mx-auto mb-12 leading-relaxed">
+            <p className="text-base sm:text-xl md:text-2xl text-slate-400 font-medium max-w-2xl mx-auto mb-10 md:mb-12 leading-relaxed px-4 md:px-0">
               L'intelligence artificielle qui transforme votre point de vente en une expérience{' '}
               <span className="text-indigo-400">futuriste</span> et <span className="text-fuchsia-400">automatisée</span>.
             </p>
 
-            <div className="flex flex-col md:flex-row items-center justify-center gap-4">
+            <div className="flex flex-col md:flex-row items-center justify-center gap-4 px-4 md:px-0">
               <button
                 onClick={() => { setErrorMsg(''); setMode('pricing'); }}
-                className="group px-8 py-5 bg-white text-slate-950 rounded-2xl font-black text-lg transition-all hover:scale-105 active:scale-95 flex items-center gap-3 shadow-xl"
+                className="w-full md:w-auto group px-8 py-4 md:py-5 bg-white text-slate-950 rounded-2xl font-black text-base md:text-lg transition-all hover:scale-105 active:scale-95 flex items-center justify-center gap-3 shadow-xl"
               >
                 Activer ma borne
                 <ChevronRight size={22} className="group-hover:translate-x-1 transition-transform" />
@@ -181,7 +181,7 @@ export default function LandingScreen({ initialMode = 'hero', prefillShopName = 
 
               <button
                 onClick={() => { setErrorMsg(''); setMode('login'); }}
-                className="px-8 py-5 bg-slate-800/50 text-white border border-slate-700 rounded-2xl font-black text-lg transition-all hover:bg-slate-800 active:scale-95"
+                className="w-full md:w-auto px-8 py-4 md:py-5 bg-slate-800/50 text-white border border-slate-700 rounded-2xl font-black text-base md:text-lg transition-all hover:bg-slate-800 active:scale-95"
               >
                 Déjà client
               </button>
@@ -194,19 +194,19 @@ export default function LandingScreen({ initialMode = 'hero', prefillShopName = 
                 setDeleteForm({ shopName: '', email: '' });
                 setMode('delete');
               }}
-              className="mt-10 inline-flex items-center gap-2 text-slate-500 hover:text-red-400 text-sm font-bold transition-colors"
+              className="mt-8 md:mt-10 inline-flex items-center gap-2 text-slate-500 hover:text-red-400 text-xs md:text-sm font-bold transition-colors"
             >
               <Trash2 size={14} /> Supprimer ma boutique BOUTIDIDACT
             </button>
 
-            <div className="mt-8 pt-8 border-t border-white/5">
+            <div className="mt-8 pt-8 border-t border-white/5 px-4 md:px-0">
               <a
-                href="/downloads/Boutididact-Relais.exe"
+                href="/downloads/Boutididact-Print-Server.exe"
                 download
-                className="inline-flex items-center gap-3 px-6 py-3 bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-300 border border-indigo-500/20 rounded-xl text-sm font-bold transition-all"
+                className="inline-flex items-center gap-3 px-6 py-3 bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-300 border border-indigo-500/20 rounded-xl text-xs md:text-sm font-bold transition-all text-center"
               >
                 <Zap size={16} />
-                Télécharger le Relais d'Impression (Windows)
+                Relais d'Impression (Windows)
               </a>
             </div>
           </motion.div>
@@ -225,13 +225,13 @@ export default function LandingScreen({ initialMode = 'hero', prefillShopName = 
                 setErrorMsg('');
                 setMode(mode === 'signup' ? 'pricing' : 'hero');
               }}
-              className="absolute -top-16 left-0 flex items-center gap-2 text-slate-400 hover:text-white font-bold transition-colors"
+              className="absolute -top-12 md:-top-16 left-4 md:left-0 flex items-center gap-2 text-slate-400 hover:text-white font-bold transition-colors"
             >
               <ArrowLeft size={20} />
               Retour
             </button>
 
-            <div className="bg-slate-900/50 backdrop-blur-xl border border-slate-800 rounded-[3rem] p-8 md:p-12 shadow-2xl">
+            <div className="bg-slate-900/50 backdrop-blur-xl border border-slate-800 rounded-[2rem] md:rounded-[3rem] p-6 md:p-12 shadow-2xl overflow-y-auto max-h-[80vh] md:max-h-none custom-scrollbar">
               {mode === 'pricing' && (
                 <div className="space-y-8">
                   <div className="text-center">

@@ -310,12 +310,12 @@ export default function AdminScreen({
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      className="fixed inset-0 z-[60] bg-gray-900/60 backdrop-blur-md flex items-center justify-center p-6"
+      className="fixed inset-0 z-[60] bg-gray-900/60 backdrop-blur-md flex items-end md:items-center justify-center p-0 md:p-6"
     >
       <motion.div
-        initial={{ y: 30, opacity: 0 }}
+        initial={window.innerWidth < 768 ? { y: '100%' } : { y: 30, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
-        className="bg-white rounded-3xl shadow-2xl w-full max-w-2xl flex flex-col max-h-[90vh] overflow-hidden"
+        className="bg-white rounded-t-[2.5rem] md:rounded-3xl shadow-2xl w-full max-w-3xl md:max-w-2xl flex flex-col h-[95vh] md:h-auto md:max-h-[90vh] overflow-hidden"
       >
         {/* Header */}
         <div className="px-8 py-6 border-b border-gray-100 flex items-center justify-between bg-gradient-to-r from-gray-900 to-gray-700 text-white">
@@ -336,9 +336,9 @@ export default function AdminScreen({
           )}
         </div>
 
-        <div className="flex-1 flex flex-col overflow-hidden">
+        <div className="flex-1 flex flex-col overflow-hidden bg-white">
           {!unlocked ? (
-            <div className="p-8 overflow-y-auto custom-scrollbar">
+            <div className="p-6 md:p-8 overflow-y-auto custom-scrollbar">
               <p className="text-center text-gray-600 mb-4 font-bold">
                 {promptNewPin
                   ? 'Saisissez votre nouveau code (différent de 0000)'
@@ -379,14 +379,14 @@ export default function AdminScreen({
           ) : (
             <>
               {/* Tabs */}
-              <div className="flex border-b border-gray-100 px-4 bg-gray-50">
+              <div className="flex border-b border-gray-100 px-2 md:px-4 bg-gray-50 overflow-x-auto no-scrollbar">
                 <TabButton active={activeTab === 'status'} onClick={() => setActiveTab('status')} label="État" icon={<Database size={16} />} />
-                <TabButton active={activeTab === 'catalog'} onClick={() => setActiveTab('catalog')} label="Catalogue" icon={<Store size={16} />} />
+                <TabButton active={activeTab === 'catalog'} onClick={() => setActiveTab('catalog')} label="Menu" icon={<Store size={16} />} />
                 <TabButton active={activeTab === 'actions'} onClick={() => setActiveTab('actions')} label="Actions" icon={<RefreshCw size={16} />} />
-                <TabButton active={activeTab === 'settings'} onClick={() => setActiveTab('settings')} label="Paramètres" icon={<Printer size={16} />} />
+                <TabButton active={activeTab === 'settings'} onClick={() => setActiveTab('settings')} label="Réglages" icon={<Printer size={16} />} />
               </div>
 
-              <div className="overflow-y-auto flex-1 p-8 space-y-6 custom-scrollbar">
+              <div className="overflow-y-auto flex-1 p-4 md:p-8 space-y-6 custom-scrollbar">
                 {activeTab === 'status' && (
                   <Section title="État du système">
                     <Status
@@ -472,10 +472,10 @@ export default function AdminScreen({
                 )}
 
                 {activeTab === 'actions' && (
-                  <div className="grid grid-cols-2 gap-4">
-                    <ActionButton icon={<RefreshCw size={20} />} label="Mettre à jour le catalogue" onClick={onReload} />
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 md:gap-4">
+                    <ActionButton icon={<RefreshCw size={20} />} label="Mise à jour catalogue" onClick={onReload} />
                     <ActionButton icon={<Maximize2 size={20} />} label="Plein écran" onClick={requestFullscreen} />
-                    <ActionButton icon={<Power size={20} />} label="Redémarrer l'application" onClick={() => window.location.reload()} />
+                    <ActionButton icon={<Power size={20} />} label="Redémarrer l'app" onClick={() => window.location.reload()} />
                     <ActionButton
                       icon={<Lock size={20} />}
                       label="Verrouiller la borne"
@@ -547,7 +547,7 @@ export default function AdminScreen({
                             </div>
                             
                             <a
-                              href="/downloads/Boutididact-Relais.exe"
+                              href="/downloads/Boutididact-Print-Server.exe"
                               download
                               className="mt-6 w-full flex items-center justify-center gap-3 px-6 py-4 bg-white/10 hover:bg-white/20 text-white rounded-2xl font-black transition-all border border-white/10 shadow-lg"
                             >
