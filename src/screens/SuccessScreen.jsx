@@ -65,7 +65,7 @@ export default function SuccessScreen({ result, onDone, autoCloseMs = 8000 }) {
         </div>
         {result?.saleId && (
           <div className="text-sm text-gray-500">
-            Vente Hiboutik <span className="font-bold text-gray-700">#{result.saleId}</span>
+            Vente Boutididact <span className="font-bold text-gray-700">#{result.saleId}</span>
           </div>
         )}
         {!printed && (
