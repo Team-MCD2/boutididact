@@ -1052,7 +1052,7 @@ function PrinterTestButton({ ip, port, localServerUrl }) {
       setResult({ ok: false, message: 'Veuillez d\'abord saisir une adresse IP.' });
       return;
     }
-    const isRelayMode = !localServerUrl;
+    const isRelayMode = !localServerUrl || localServerUrl.includes('vercel.app');
     const targetUrl = localServerUrl || ''; // Utilise la base par défaut (Vercel) si vide
     setTesting(true);
     setResult(null);
