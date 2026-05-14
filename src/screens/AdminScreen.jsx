@@ -23,7 +23,7 @@ export default function AdminScreen({
 }) {
   const refreshCatalog = onCatalogChange || onReload;
   const [pin, setPin] = useState('');
-  // Lors du premier setup (pas de creds Hiboutik), on saute le PIN pour permettre la config initiale.
+  // Lors du premier setup (pas de creds Boutididact), on saute le PIN pour permettre la config initiale.
   const [unlocked, setUnlocked] = useState(forceSettings);
   const [pinError, setPinError] = useState('');
   const [promptNewPin, setPromptNewPin] = useState(false);
@@ -57,7 +57,7 @@ export default function AdminScreen({
 
   const saveSettings = async (newSettings) => {
     if (!isSetupComplete(newSettings)) {
-      alert('Merci de renseigner Compte Hiboutik, Utilisateur API et Clé API.');
+      alert('Merci de renseigner Compte Boutididact, Utilisateur API et Clé API.');
       return;
     }
     
@@ -370,7 +370,7 @@ export default function AdminScreen({
                   <Section title="État du système">
                     <Status
                       icon={<Database size={20} />}
-                      label="Connexion à Hiboutik"
+                      label="Connexion à Boutididact"
                       value={online ? 'Système en ligne' : 'Non connecté'}
                       ok={online}
                     />
@@ -467,16 +467,16 @@ export default function AdminScreen({
                 {activeTab === 'settings' && (
                   <div className="space-y-8">
                     <div className="bg-amber-50 border border-amber-100 rounded-2xl p-6">
-                      <h4 className="font-black text-amber-900 mb-2">Configuration Hiboutik</h4>
+                      <h4 className="font-black text-amber-900 mb-2">Configuration Boutididact</h4>
                       <p className="text-sm text-amber-800 leading-relaxed">
-                        Renseignez les identifiants <strong>Hiboutik</strong> qui vous ont été envoyés par e-mail.
+                        Renseignez les identifiants <strong>Boutididact</strong> qui vous ont été envoyés par e-mail.
                         Une fois enregistrés, la borne redémarre et vous serez redirigé sur l'écran de connexion.
                       </p>
                     </div>
 
-                    <Section title="Identifiants Hiboutik">
+                    <Section title="Identifiants Boutididact">
                       <div className="grid grid-cols-1 gap-4 bg-gray-50 p-6 rounded-2xl">
-                        <SettingInput label="Compte Hiboutik" value={settings.hiboutikAccount} onChange={v => setSettings({ ...settings, hiboutikAccount: v })} placeholder="ex: ma-boutique" />
+                        <SettingInput label="Compte Boutididact" value={settings.hiboutikAccount} onChange={v => setSettings({ ...settings, hiboutikAccount: v })} placeholder="ex: ma-boutique" />
                         <SettingInput label="Utilisateur API" value={settings.hiboutikUser} onChange={v => setSettings({ ...settings, hiboutikUser: v })} placeholder="ex: admin@mail.com" />
                         <SettingInput label="Clé API" value={settings.hiboutikApiKey} onChange={v => setSettings({ ...settings, hiboutikApiKey: v })} placeholder="Clé fournie par e-mail" type="password" />
                         <div className="grid grid-cols-2 gap-4">
@@ -1076,7 +1076,7 @@ function PrinterTestButton({ ip, port, localServerUrl }) {
       const data = await res.json();
       
       if (isRelayMode) {
-        // En mode relais, on vérifie juste si Hiboutik est OK. 
+        // En mode relais, on vérifie juste si Boutididact est OK. 
         // L'imprimante est testée par le .exe en local.
         setResult({ ok: true, message: `✅ Mode RELAIS Actif (Cloud).\nL'imprimante sera pilotée par votre serveur local via Internet.` });
       } else if (data.printer?.online) {

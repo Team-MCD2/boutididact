@@ -55,7 +55,7 @@ export default function ErrorScreen({ error, onRetry, onCancel }) {
           )}
           {error?.hiboutik?.status && (
             <p className="text-gray-500 font-mono">
-              <span className="font-bold">Hiboutik HTTP :</span> {error.hiboutik.status}
+              <span className="font-bold">Boutididact HTTP :</span> {error.hiboutik.status}
             </p>
           )}
           {detailsList && detailsList.length > 0 && (

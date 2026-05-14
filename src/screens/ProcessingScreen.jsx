@@ -3,7 +3,7 @@ import { motion } from 'framer-motion';
 import { Loader2, CreditCard, Receipt, Database } from 'lucide-react';
 
 const STEPS = [
-  { key: 'sale', label: 'Enregistrement Hiboutik', icon: Database },
+  { key: 'sale', label: 'Enregistrement Boutididact', icon: Database },
   { key: 'payment', label: 'Validation du paiement', icon: CreditCard },
   { key: 'print', label: 'Impression du ticket', icon: Receipt },
 ];

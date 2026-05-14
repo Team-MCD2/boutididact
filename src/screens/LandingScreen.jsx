@@ -253,7 +253,7 @@ export default function LandingScreen({ initialMode = 'hero', prefillShopName = 
 
                     <div className="space-y-4 mb-8">
                       <PricingFeature text="Numérisation de carte par IA illimitée" />
-                      <PricingFeature text="Synchronisation Cloud Hiboutik" />
+                      <PricingFeature text="Synchronisation Cloud Boutididact" />
                       <PricingFeature text="Gestion des stocks en temps réel" />
                       <PricingFeature text="Paiement par carte sécurisé" />
                       <PricingFeature text="Support prioritaire 24/7" />
@@ -459,9 +459,9 @@ function WaitingPanel({ onContinue }) {
         </motion.div>
         <h2 className="text-3xl md:text-4xl font-black text-white mb-3">Paiement confirmé !</h2>
         <p className="text-slate-400 leading-relaxed mb-8">
-          Vos identifiants <strong className="text-white">Hiboutik</strong> seront envoyés par e-mail dans les prochaines minutes.
+          Vos identifiants <strong className="text-white">Boutididact</strong> seront envoyés par e-mail dans les prochaines minutes.
           Une fois reçus, connectez-vous avec le <strong className="text-white">nom de votre boutique</strong> et le{' '}
-          <strong className="text-white">mot de passe</strong> choisi à l'inscription, puis renseignez vos identifiants Hiboutik dans les paramètres.
+          <strong className="text-white">mot de passe</strong> choisi à l'inscription, puis renseignez vos identifiants Boutididact dans les paramètres.
         </p>
 
         <button
