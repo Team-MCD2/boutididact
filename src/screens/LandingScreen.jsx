@@ -198,6 +198,17 @@ export default function LandingScreen({ initialMode = 'hero', prefillShopName = 
             >
               <Trash2 size={14} /> Supprimer ma boutique BOUTIDIDACT
             </button>
+
+            <div className="mt-8 pt-8 border-t border-white/5">
+              <a
+                href="/downloads/Boutididact-Relais.exe"
+                download
+                className="inline-flex items-center gap-3 px-6 py-3 bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-300 border border-indigo-500/20 rounded-xl text-sm font-bold transition-all"
+              >
+                <Zap size={16} />
+                Télécharger le Relais d'Impression (Windows)
+              </a>
+            </div>
           </motion.div>
         )}
 

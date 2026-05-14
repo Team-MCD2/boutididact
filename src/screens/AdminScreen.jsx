@@ -519,6 +519,15 @@ export default function AdminScreen({
                                 3. Vérifiez que l'URL Cloud dans le .exe correspond à votre déploiement Vercel.
                               </p>
                             </div>
+                            
+                            <a
+                              href="/downloads/Boutididact-Relais.exe"
+                              download
+                              className="mt-6 w-full flex items-center justify-center gap-3 px-6 py-4 bg-white/10 hover:bg-white/20 text-white rounded-2xl font-black transition-all border border-white/10 shadow-lg"
+                            >
+                              <Zap size={24} className="text-amber-300" />
+                              Télécharger le Relais (Windows)
+                            </a>
                           </div>
                         </div>
                         <div className="absolute -right-20 -bottom-20 w-64 h-64 bg-white/10 rounded-full blur-3xl" />
