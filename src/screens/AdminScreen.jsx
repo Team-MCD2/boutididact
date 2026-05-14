@@ -282,7 +282,19 @@ export default function AdminScreen({
         return;
       }
       localStorage.setItem('boutididact_admin_pin', pin);
-      setSettings(prev => ({ ...prev, adminPin: pin }));
+      const nextSettings = { ...settings, adminPin: pin };
+      localStorage.setItem('boutididact_settings', JSON.stringify(nextSettings));
+      setSettings(nextSettings);
+
+      // Persistance Cloud immédiate pour le PIN
+      if (session?.shopName) {
+        fetch(`${API}/api/saas/save-settings`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ shopName: session.shopName, settings: nextSettings }),
+        }).catch(e => console.error('Erreur sync cloud PIN:', e));
+      }
+
       setUnlocked(true);
       setPromptNewPin(false);
       setPinError('');
