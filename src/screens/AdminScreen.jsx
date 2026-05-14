@@ -448,10 +448,12 @@ export default function AdminScreen({
 
                     <Section title="Suppléments">
                       <div className="bg-gray-50 rounded-2xl p-5 space-y-4">
-                        <div className="flex gap-2">
-                          <input type="text" placeholder="Nom" className="flex-1 px-4 py-3 rounded-xl border border-gray-200" value={newSuppName} onChange={e => setNewSuppName(e.target.value)} />
-                          <input type="number" placeholder="€" className="w-24 px-4 py-3 rounded-xl border border-gray-200" value={newSuppPrice} onChange={e => setNewSuppPrice(e.target.value)} />
-                          <button onClick={handleAddSupp} className="px-6 py-3 bg-indigo-600 text-white rounded-xl font-black">+</button>
+                        <div className="flex flex-col sm:flex-row gap-2">
+                          <input type="text" placeholder="Nom du supplément" className="flex-1 px-4 py-3 rounded-xl border border-gray-200" value={newSuppName} onChange={e => setNewSuppName(e.target.value)} />
+                          <div className="flex gap-2">
+                            <input type="number" placeholder="€" className="flex-1 sm:w-24 px-4 py-3 rounded-xl border border-gray-200" value={newSuppPrice} onChange={e => setNewSuppPrice(e.target.value)} />
+                            <button onClick={handleAddSupp} className="px-6 py-3 bg-indigo-600 text-white rounded-xl font-black shrink-0">+</button>
+                          </div>
                         </div>
                         {supplements.map(s => (
                           <div key={s.id} className="flex justify-between items-center bg-white p-4 rounded-xl border border-gray-100">
@@ -778,14 +780,14 @@ function CategoriesManager({ categories, productsCount, onSave, onDelete }) {
 
   return (
     <div className="bg-gray-50 rounded-2xl p-5 space-y-3">
-      <div className="flex gap-2">
+      <div className="flex flex-col sm:flex-row gap-2">
         <input
           type="text" placeholder="Nouvelle catégorie"
           value={newName} onChange={e => setNewName(e.target.value)}
           onKeyDown={e => e.key === 'Enter' && handleAdd()}
           className="flex-1 px-4 py-3 rounded-xl border border-gray-200 bg-white font-bold text-gray-800 outline-none focus:ring-2 focus:ring-indigo-100"
         />
-        <button onClick={handleAdd} className="px-6 py-3 bg-indigo-600 text-white rounded-xl font-black flex items-center gap-1">
+        <button onClick={handleAdd} className="px-6 py-3 bg-indigo-600 text-white rounded-xl font-black flex items-center justify-center gap-1 shrink-0">
           <Plus size={18} /> Ajouter
         </button>
       </div>
