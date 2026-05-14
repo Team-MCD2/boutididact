@@ -183,44 +183,65 @@ export default function AdminScreen({
     if (!file) return;
     setIsUploading(true);
     try {
-      const reader = new FileReader();
-      reader.onload = async (ev) => {
-        const base64 = ev.target.result;
-        try {
-          const res = await fetch(`${API}/api/saas/extract-menu`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ imageBase64: base64, mimeType: file.type }),
+      const resizeImage = (file) => new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.onload = (ev) => {
+          const img = new Image();
+          img.onload = () => {
+            const canvas = document.createElement('canvas');
+            let width = img.width;
+            let height = img.height;
+            const MAX = 1600;
+            if (width > height) {
+              if (width > MAX) { height *= MAX / width; width = MAX; }
+            } else {
+              if (height > MAX) { width *= MAX / height; height = MAX; }
+            }
+            canvas.width = width;
+            canvas.height = height;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(img, 0, 0, width, height);
+            resolve(canvas.toDataURL('image/jpeg', 0.7));
+          };
+          img.src = ev.target.result;
+        };
+        reader.readAsDataURL(file);
+      });
+
+      const base64 = await resizeImage(file);
+      try {
+        const res = await fetch(`${API}/api/saas/extract-menu`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ imageBase64: base64, mimeType: 'image/jpeg' }),
+        });
+        const data = await res.json();
+        if (data.products) {
+          const catSet = new Set();
+          const newProducts = data.products.map((p, i) => {
+            const catId = p.category ? p.category.toLowerCase().replace(/[^a-z0-9]/g, '-') : 'divers';
+            catSet.add(JSON.stringify({ id: catId, name: p.category || 'Divers' }));
+            return {
+              id: `ai-${Date.now()}-${i}`,
+              categoryId: catId,
+              name: p.name,
+              price: Math.max(0, Number(p.price)),
+              desc: p.desc || '',
+              composition: p.composition || '',
+            };
           });
-          const data = await res.json();
-          if (data.products) {
-            const catSet = new Set();
-            const newProducts = data.products.map((p, i) => {
-              const catId = p.category ? p.category.toLowerCase().replace(/[^a-z0-9]/g, '-') : 'divers';
-              catSet.add(JSON.stringify({ id: catId, name: p.category || 'Divers' }));
-              return {
-                id: `ai-${Date.now()}-${i}`,
-                categoryId: catId,
-                name: p.name,
-                price: Math.max(0, Number(p.price)),
-                desc: p.desc || '',
-                composition: p.composition || '',
-              };
-            });
-            setExtractedData({
-              products: newProducts,
-              categories: Array.from(catSet).map(s => JSON.parse(s)),
-            });
-          } else {
-            alert('Erreur IA : ' + (data.message || data.error || 'Inconnue'));
-          }
-        } catch (err) {
-          alert('Erreur lors de la communication avec l\'IA.');
-        } finally {
-          setIsUploading(false);
+          setExtractedData({
+            products: newProducts,
+            categories: Array.from(catSet).map(s => JSON.parse(s)),
+          });
+        } else {
+          alert('Erreur IA : ' + (data.message || data.error || 'Inconnue'));
         }
-      };
-      reader.readAsDataURL(file);
+      } catch (err) {
+        alert('Erreur lors de la communication avec l\'IA.');
+      } finally {
+        setIsUploading(false);
+      }
     } catch (error) {
       alert('Erreur de lecture du fichier');
       setIsUploading(false);
@@ -370,8 +391,8 @@ export default function AdminScreen({
                   <Section title="État du système">
                     <Status
                       icon={<Database size={20} />}
-                      label="Connexion à Boutididact"
-                      value={online ? 'Système en ligne' : 'Non connecté'}
+                      label="État de l'API"
+                      value={online ? 'Connecté' : 'Configuration requise'}
                       ok={online}
                     />
                     {!settings.localServerUrl ? (
@@ -935,17 +956,17 @@ function ProductForm({ draft, setDraft, categories, onCancel, onSave, isCreating
         </h4>
         <button onClick={onCancel} className="p-1.5 text-gray-400 hover:bg-gray-100 rounded-lg"><X size={16} /></button>
       </div>
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+      <div className="flex gap-2">
         <input
           type="text" placeholder="Nom"
           value={draft.name} onChange={e => setDraft({ ...draft, name: e.target.value })}
-          className="col-span-2 px-3 py-2.5 rounded-xl border border-gray-200 bg-white font-bold text-gray-800 outline-none focus:ring-2 focus:ring-indigo-100"
+          className="flex-[2] min-w-0 px-3 py-2.5 rounded-xl border border-gray-200 bg-white font-bold text-gray-800 outline-none focus:ring-2 focus:ring-indigo-100"
         />
-        <div className="flex items-center gap-1">
+        <div className="flex-[1] min-w-0 flex items-center gap-1">
           <input
             type="number" step="0.1" placeholder="Prix"
             value={draft.price} onChange={e => setDraft({ ...draft, price: e.target.value })}
-            className="flex-1 px-3 py-2.5 rounded-xl border border-gray-200 bg-white font-bold text-right text-gray-800 outline-none focus:ring-2 focus:ring-indigo-100"
+            className="w-full min-w-0 px-3 py-2.5 rounded-xl border border-gray-200 bg-white font-bold text-right text-gray-800 outline-none focus:ring-2 focus:ring-indigo-100"
           />
           <span className="text-gray-400 font-bold">€</span>
         </div>
