@@ -3,7 +3,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Mail, Store, User, Key, Send, Lock, ArrowLeft, CheckCircle, AlertCircle, 
   Users, Search, Edit3, Save, X, Phone, MapPin, FileText, Clock,
-  RefreshCw, ChevronDown, ChevronUp, Building2, Eye, EyeOff
+  RefreshCw, ChevronDown, ChevronUp, Building2, Eye, EyeOff,
+  TrendingUp, Percent, Zap
 } from 'lucide-react';
 import { API_URL } from '../services/api';
 
@@ -146,19 +147,28 @@ function ShopsPanel({ password }) {
 
   const sortedShops = [...filtered].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
 
+  const activeShops = shops.filter(s => s.paidAt);
+  const mrr = activeShops.length * 49.90;
+  const newThisMonth = shops.filter(s => {
+    if (!s.createdAt) return false;
+    const d = new Date(s.createdAt);
+    const now = new Date();
+    return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
+  });
+  const completionRate = shops.length > 0 
+    ? Math.round((shops.filter(s => s.phone && s.address && s.city).length / shops.length) * 100) 
+    : 0;
+
   return (
     <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}>
-      {/* Stats */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
-        <StatCard label="Boutiques" value={shops.length} icon={<Store size={18} />} color="indigo" />
-        <StatCard label="Actives" value={shops.filter(s => s.paidAt).length} icon={<CheckCircle size={18} />} color="emerald" />
-        <StatCard label="Avec tél." value={shops.filter(s => s.phone).length} icon={<Phone size={18} />} color="amber" />
-        <StatCard label="Ce mois" value={shops.filter(s => {
-          if (!s.createdAt) return false;
-          const d = new Date(s.createdAt);
-          const now = new Date();
-          return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
-        }).length} icon={<Clock size={18} />} color="fuchsia" />
+      {/* KPI Dashboard */}
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 mb-6">
+        <StatCard label="MRR" value={`${mrr.toFixed(2)}€`} icon={<TrendingUp size={16} />} color="emerald" />
+        <StatCard label="Total Clients" value={shops.length} icon={<Users size={16} />} color="indigo" />
+        <StatCard label="Actifs" value={activeShops.length} icon={<CheckCircle size={16} />} color="fuchsia" />
+        <StatCard label="Nouveaux (Mois)" value={newThisMonth.length} icon={<Zap size={16} />} color="amber" />
+        <StatCard label="Profils Complets" value={`${completionRate}%`} icon={<Percent size={16} />} color="blue" />
+        <StatCard label="Sans Téléphone" value={shops.filter(s => !s.phone).length} icon={<AlertCircle size={16} />} color="red" />
       </div>
 
       {/* Search + Refresh */}
@@ -225,11 +235,18 @@ function StatCard({ label, value, icon, color }) {
     emerald: 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400',
     amber: 'bg-amber-500/10 border-amber-500/20 text-amber-400',
     fuchsia: 'bg-fuchsia-500/10 border-fuchsia-500/20 text-fuchsia-400',
+    blue: 'bg-blue-500/10 border-blue-500/20 text-blue-400',
+    red: 'bg-red-500/10 border-red-500/20 text-red-400',
   };
   return (
-    <div className={`p-4 rounded-2xl border ${colors[color]}`}>
-      <div className="flex items-center justify-between mb-2 opacity-70">{icon}<span className="text-[10px] font-black uppercase tracking-widest">{label}</span></div>
-      <div className="text-3xl font-black">{value}</div>
+    <div className={`p-4 rounded-2xl border ${colors[color]} flex flex-col justify-between h-full`}>
+      <div className="flex items-center justify-between mb-3 opacity-80">
+        {icon}
+      </div>
+      <div>
+        <div className="text-2xl sm:text-3xl font-black mb-1 leading-none">{value}</div>
+        <div className="text-[10px] font-black uppercase tracking-widest opacity-70 leading-tight">{label}</div>
+      </div>
     </div>
   );
 }
