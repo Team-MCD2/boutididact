@@ -214,6 +214,7 @@ export default function App() {
         health={catalog.health}
         session={session}
         forceSettings
+        loading={catalog.loading}
         supplements={supplementsState.supplements}
         onAddSupplement={supplementsState.add}
         onRemoveSupplement={supplementsState.remove}
@@ -292,6 +293,7 @@ export default function App() {
             key="admin"
             health={catalog.health}
             session={session}
+            loading={catalog.loading}
             supplements={supplementsState.supplements}
             onAddSupplement={supplementsState.add}
             onRemoveSupplement={supplementsState.remove}
@@ -300,7 +302,6 @@ export default function App() {
               setSetupComplete(isSetupComplete());
               await catalog.reload();
               supplementsState.reload();
-              setAdminOpen(false);
             }}
             onCatalogChange={async () => {
               setSetupComplete(isSetupComplete());

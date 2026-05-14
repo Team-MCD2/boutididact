@@ -26,6 +26,7 @@ export default function AdminScreen({
   onReload,
   onCatalogChange,
   onLogout,
+  loading = false,
 }) {
   const refreshCatalog = onCatalogChange || onReload;
   const [pin, setPin] = useState('');
@@ -494,7 +495,12 @@ export default function AdminScreen({
 
                 {activeTab === 'actions' && (
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 md:gap-4">
-                    <ActionButton icon={<RefreshCw size={20} />} label="Mise à jour catalogue" onClick={onReload} />
+                    <ActionButton 
+                      icon={<RefreshCw size={20} className={loading ? 'animate-spin' : ''} />} 
+                      label={loading ? 'Mise à jour...' : 'Mise à jour catalogue'} 
+                      onClick={onReload} 
+                      disabled={loading}
+                    />
                     <ActionButton icon={<Maximize2 size={20} />} label="Plein écran" onClick={requestFullscreen} />
                     <ActionButton icon={<Power size={20} />} label="Redémarrer l'app" onClick={() => window.location.reload()} />
                     <ActionButton
@@ -1083,7 +1089,7 @@ function Status({ icon, label, value, ok }) {
   );
 }
 
-function ActionButton({ icon, label, onClick, variant = 'solid' }) {
+function ActionButton({ icon, label, onClick, variant = 'solid', disabled = false }) {
   const cls =
     variant === 'ghost'
       ? 'bg-gray-50 hover:bg-gray-100 text-gray-700'
@@ -1091,7 +1097,8 @@ function ActionButton({ icon, label, onClick, variant = 'solid' }) {
   return (
     <button
       onClick={onClick}
-      className={`flex items-center gap-3 px-4 py-3 rounded-2xl font-bold text-sm active:scale-95 transition ${cls}`}
+      disabled={disabled}
+      className={`flex items-center gap-3 px-4 py-3 rounded-2xl font-bold text-sm active:scale-95 transition ${cls} ${disabled ? 'opacity-50 cursor-not-allowed' : ''}`}
     >
       {icon}
       {label}
