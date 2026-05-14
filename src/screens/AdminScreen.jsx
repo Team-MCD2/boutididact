@@ -132,7 +132,7 @@ export default function AdminScreen({
       localStorage.removeItem('ai_categories');
       setLocalProducts([]);
       setLocalCategories([]);
-      onReload();
+      refreshCatalog?.();
     }
   };
 
@@ -630,7 +630,7 @@ export default function AdminScreen({
             localStorage.setItem('ai_products', JSON.stringify(merged));
             localStorage.setItem('ai_categories', JSON.stringify(mergedC));
             setExtractedData(null);
-            onReload();
+            refreshCatalog?.();
           }}
         />
       )}
