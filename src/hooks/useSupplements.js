@@ -28,5 +28,18 @@ export default function useSupplements() {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(newSupps));
   };
 
-  return { supplements, add, remove };
+  const reload = () => {
+    const saved = localStorage.getItem(STORAGE_KEY);
+    if (saved) {
+      try {
+        setSupplements(JSON.parse(saved));
+      } catch (e) {
+        setSupplements([]);
+      }
+    } else {
+      setSupplements([]);
+    }
+  };
+
+  return { supplements, add, remove, reload };
 }

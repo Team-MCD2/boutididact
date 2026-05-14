@@ -43,6 +43,9 @@ const getAIProducts = () => {
 const getAICategories = () => {
   try { return JSON.parse(localStorage.getItem('ai_categories') || '[]'); } catch { return []; }
 };
+const getSupplements = () => {
+  try { return JSON.parse(localStorage.getItem('boutididact_supplements') || '[]'); } catch { return []; }
+};
 
 /**
  * Fetch cloud catalog and merge with local.
@@ -56,14 +59,15 @@ async function syncFromCloud(shopName) {
     const data = await res.json();
     const cloudProducts = data.products || [];
     const cloudCategories = data.categories || [];
-    if (cloudProducts.length === 0 && cloudCategories.length === 0) return false;
+    const cloudSupplements = data.supplements || [];
+    if (cloudProducts.length === 0 && cloudCategories.length === 0 && cloudSupplements.length === 0) return false;
 
     // Merge cloud into local (cloud wins for same IDs)
     const localProducts = getAIProducts();
     const localCategories = getAICategories();
+    const localSupplements = getSupplements();
 
     const productMap = new Map();
-    // Local first, then cloud overwrites
     localProducts.forEach(p => productMap.set(p.id, p));
     cloudProducts.forEach(p => productMap.set(p.id, p));
     const mergedProducts = Array.from(productMap.values());
@@ -73,9 +77,16 @@ async function syncFromCloud(shopName) {
     cloudCategories.forEach(c => catMap.set(c.id, c));
     const mergedCategories = Array.from(catMap.values());
 
+    const suppMap = new Map();
+    localSupplements.forEach(s => suppMap.set(s.id, s));
+    cloudSupplements.forEach(s => suppMap.set(s.id, s));
+    const mergedSupplements = Array.from(suppMap.values());
+
     localStorage.setItem('ai_products', JSON.stringify(mergedProducts));
     localStorage.setItem('ai_categories', JSON.stringify(mergedCategories));
-    console.log(`[catalog] Cloud sync: ${cloudProducts.length} produits cloud, ${mergedProducts.length} total fusionné`);
+    localStorage.setItem('boutididact_supplements', JSON.stringify(mergedSupplements));
+    
+    console.log(`[catalog] Cloud sync: ${cloudProducts.length} produits, ${cloudSupplements.length} suppléments`);
     return true;
   } catch (e) {
     console.warn('[catalog] Cloud sync failed:', e.message);
@@ -91,12 +102,13 @@ async function syncToCloud(shopName) {
   try {
     const products = getAIProducts();
     const categories = getAICategories();
+    const supplements = getSupplements();
     await fetch(`${API}/api/saas/save-catalog`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ shopName, products, categories }),
+      body: JSON.stringify({ shopName, products, categories, supplements }),
     });
-    console.log(`[catalog] Cloud push: ${products.length} produits envoyés`);
+    console.log(`[catalog] Cloud push: ${products.length} produits, ${supplements.length} suppléments`);
   } catch (e) {
     console.warn('[catalog] Cloud push failed:', e.message);
   }
@@ -168,6 +180,9 @@ export default function useCatalog({ enabled = true, shopName = '' } = {}) {
     }
     dispatch({ type: 'loading' });
     try {
+      if (shopName) {
+        await syncFromCloud(shopName);
+      }
       const payload = await fetchCatalog();
       dispatch({ type: 'success', payload });
     } catch (e) {

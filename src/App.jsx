@@ -103,6 +103,10 @@ export default function App() {
     // Si le backend a renvoyé des réglages persistés (Cloud), on les injecte en local
     if (shop?.settings) {
       localStorage.setItem('boutididact_settings', JSON.stringify(shop.settings));
+      // SYNC PIN: On s'assure que le PIN cloud est aussi mis dans la clé dédiée pour AdminScreen
+      if (shop.settings.adminPin) {
+        localStorage.setItem('boutididact_admin_pin', shop.settings.adminPin);
+      }
     }
     
     setSession(sess);
@@ -217,6 +221,7 @@ export default function App() {
         onReload={() => {
           setSetupComplete(isSetupComplete());
           catalog.reload();
+          supplementsState.reload();
         }}
         onLogout={handleLogout}
       />
@@ -294,11 +299,13 @@ export default function App() {
             onReload={() => {
               setSetupComplete(isSetupComplete());
               catalog.reload();
+              supplementsState.reload();
               setAdminOpen(false);
             }}
             onCatalogChange={() => {
               setSetupComplete(isSetupComplete());
               catalog.reload();
+              supplementsState.reload();
               catalog.pushToCloud();
             }}
             onLogout={handleLogout}

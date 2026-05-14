@@ -4,7 +4,13 @@ import { Lock, X, RefreshCw, Maximize2, Power, Store, Printer, Database, Trash2,
 
 const API = import.meta.env.VITE_API_URL || '';
 
-const getAdminPin = () => localStorage.getItem('boutididact_admin_pin') || '0000';
+const getAdminPin = () => {
+  try {
+    const s = JSON.parse(localStorage.getItem('boutididact_settings') || '{}');
+    if (s.adminPin) return s.adminPin;
+  } catch (e) {}
+  return localStorage.getItem('boutididact_admin_pin') || '0000';
+};
 
 const isSetupComplete = (s) =>
   Boolean(s?.hiboutikAccount && s?.hiboutikUser && s?.hiboutikApiKey);
@@ -116,6 +122,7 @@ export default function AdminScreen({
       onAddSupplement(newSuppName, price);
       setNewSuppName('');
       setNewSuppPrice('');
+      refreshCatalog?.();
     }
   };
 
@@ -437,7 +444,7 @@ export default function AdminScreen({
                         {supplements.map(s => (
                           <div key={s.id} className="flex justify-between items-center bg-white p-4 rounded-xl border border-gray-100">
                             <span className="font-bold">{s.name} <span className="text-gray-400 font-normal">{s.price}€</span></span>
-                            <button onClick={() => onRemoveSupplement(s.id)} className="text-red-500"><Trash2 size={18} /></button>
+                            <button onClick={() => { onRemoveSupplement(s.id); refreshCatalog?.(); }} className="text-red-500"><Trash2 size={18} /></button>
                           </div>
                         ))}
                       </div>
