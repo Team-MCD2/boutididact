@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Store, Mail, Lock, ChevronRight, Rocket, Check, ArrowLeft, Zap, Clock, Inbox, Trash2, AlertTriangle } from 'lucide-react';
+import { Store, Mail, Lock, ChevronRight, Rocket, Check, ArrowLeft, Zap, Clock, Inbox, Trash2, AlertTriangle, Phone } from 'lucide-react';
 
 const API = import.meta.env.VITE_API_URL || '';
 
@@ -14,9 +14,9 @@ const API = import.meta.env.VITE_API_URL || '';
  */
 export default function LandingScreen({ initialMode = 'hero', prefillShopName = '', onLoginSuccess }) {
   const [mode, setMode] = useState(initialMode);
-  const [form, setForm] = useState({ name: '', email: '', password: '' });
+  const [form, setForm] = useState({ name: '', email: '', password: '', phone: '' });
   const [loginForm, setLoginForm] = useState({ shopName: prefillShopName, password: '' });
-  const [deleteForm, setDeleteForm] = useState({ shopName: '', email: '' });
+  const [deleteForm, setDeleteForm] = useState({ shopName: '', email: '', password: '' });
   const [deleteSuccess, setDeleteSuccess] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
@@ -44,6 +44,7 @@ export default function LandingScreen({ initialMode = 'hero', prefillShopName = 
           boutiqueName: form.name.trim(),
           boutiqueEmail: form.email.trim(),
           boutiquePassword: form.password,
+          boutiquePhone: form.phone.trim(),
         }),
       });
       const data = await res.json();
@@ -70,8 +71,8 @@ export default function LandingScreen({ initialMode = 'hero', prefillShopName = 
 
   const handleDelete = async () => {
     setErrorMsg('');
-    if (!deleteForm.shopName.trim() || !deleteForm.email.trim()) {
-      setErrorMsg('Renseignez le nom de la boutique et l\'email associé.');
+    if (!deleteForm.shopName.trim() || !deleteForm.email.trim() || !deleteForm.password) {
+      setErrorMsg('Renseignez le nom de la boutique, l\'email et le mot de passe.');
       return;
     }
     setSubmitting(true);
@@ -82,6 +83,7 @@ export default function LandingScreen({ initialMode = 'hero', prefillShopName = 
         body: JSON.stringify({
           shopName: deleteForm.shopName.trim(),
           email: deleteForm.email.trim(),
+          password: deleteForm.password,
         }),
       });
       const data = await res.json();
@@ -191,7 +193,7 @@ export default function LandingScreen({ initialMode = 'hero', prefillShopName = 
               onClick={() => {
                 setErrorMsg('');
                 setDeleteSuccess(false);
-                setDeleteForm({ shopName: '', email: '' });
+                setDeleteForm({ shopName: '', email: '', password: '' });
                 setMode('delete');
               }}
               className="mt-8 md:mt-10 inline-flex items-center gap-2 text-slate-500 hover:text-red-400 text-xs md:text-sm font-bold transition-colors"
@@ -200,14 +202,25 @@ export default function LandingScreen({ initialMode = 'hero', prefillShopName = 
             </button>
 
             <div className="mt-8 pt-8 border-t border-white/5 px-4 md:px-0">
-              <a
-                href="/downloads/Boutididact-Print-Server.exe"
-                download
-                className="inline-flex items-center gap-3 px-6 py-3 bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-300 border border-indigo-500/20 rounded-xl text-xs md:text-sm font-bold transition-all text-center"
-              >
-                <Zap size={16} />
-                Relais d'Impression (Windows)
-              </a>
+              <p className="text-xs text-slate-500 font-bold uppercase tracking-widest mb-3 text-center">Relais d'impression</p>
+              <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
+                <a
+                  href="/downloads/Boutididact-Print-Server.exe"
+                  download
+                  className="inline-flex items-center gap-3 px-6 py-3 bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-300 border border-indigo-500/20 rounded-xl text-xs md:text-sm font-bold transition-all text-center w-full sm:w-auto justify-center"
+                >
+                  <Zap size={16} />
+                  Windows (.exe)
+                </a>
+                <a
+                  href="/downloads/Boutididact-Print-Server.apk"
+                  download
+                  className="inline-flex items-center gap-3 px-6 py-3 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-300 border border-emerald-500/20 rounded-xl text-xs md:text-sm font-bold transition-all text-center w-full sm:w-auto justify-center"
+                >
+                  <Zap size={16} />
+                  Android (.apk)
+                </a>
+              </div>
             </div>
           </motion.div>
         )}
@@ -288,6 +301,10 @@ export default function LandingScreen({ initialMode = 'hero', prefillShopName = 
                     <DarkInput
                       icon={<Lock size={20} />} placeholder="Mot de passe souhaité" type="password"
                       value={form.password} onChange={v => setForm({ ...form, password: v })}
+                    />
+                    <DarkInput
+                      icon={<Phone size={20} />} placeholder="Numéro de téléphone" type="tel"
+                      value={form.phone} onChange={v => setForm({ ...form, phone: v })}
                     />
 
                     {errorMsg && <ErrorBox message={errorMsg} />}
@@ -407,6 +424,10 @@ export default function LandingScreen({ initialMode = 'hero', prefillShopName = 
                     <DarkInput
                       icon={<Mail size={20} />} placeholder="Email associé à la boutique" type="email"
                       value={deleteForm.email} onChange={v => setDeleteForm({ ...deleteForm, email: v })}
+                    />
+                    <DarkInput
+                      icon={<Lock size={20} />} placeholder="Mot de passe" type="password"
+                      value={deleteForm.password} onChange={v => setDeleteForm({ ...deleteForm, password: v })}
                     />
 
                     {errorMsg && <ErrorBox message={errorMsg} />}
