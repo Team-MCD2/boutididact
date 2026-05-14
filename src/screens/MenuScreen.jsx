@@ -170,7 +170,7 @@ export default function MenuScreen({
           <div className="flex items-center gap-3">
             {source === 'offline' && (
               <span className="px-4 py-2 rounded-full bg-red-100 text-red-800 text-xs font-bold border border-red-200">
-                {health?.hiboutik?.reason === 'not_configured' ? 'Configuration requise' : `Mode Hors-ligne (${health?.hiboutik?.reason || 'Inconnu'})`}
+                {health?.hiboutik?.reason === 'not_configured' ? 'Configuration requise' : `Mode Hors-ligne (${health?.hiboutik?.reason || 'Inconnu'}${health?.hiboutik?.message ? ': ' + health.hiboutik.message : ''})`}
               </span>
             )}
             {source === 'hiboutik' && (
