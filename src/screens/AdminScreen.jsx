@@ -497,7 +497,12 @@ export default function AdminScreen({
 
                     <Section title="Identifiants Boutididact">
                       <div className="grid grid-cols-1 gap-4 bg-gray-50 p-6 rounded-2xl">
-                        <SettingInput label="Compte Boutididact" value={settings.hiboutikAccount} onChange={v => setSettings({ ...settings, hiboutikAccount: v })} placeholder="ex: ma-boutique" />
+                        <SettingInput 
+                          label="Compte Boutididact" 
+                          value={settings.hiboutikAccount} 
+                          onChange={v => setSettings({ ...settings, hiboutikAccount: v.trim().replace(/\.hiboutik\.com$/i, '') })} 
+                          placeholder="ex: ma-boutique" 
+                        />
                         <SettingInput label="Utilisateur API" value={settings.hiboutikUser} onChange={v => setSettings({ ...settings, hiboutikUser: v })} placeholder="ex: admin@mail.com" />
                         <SettingInput label="Clé API" value={settings.hiboutikApiKey} onChange={v => setSettings({ ...settings, hiboutikApiKey: v })} placeholder="Clé fournie par e-mail" type="password" />
                         <div className="grid grid-cols-2 gap-4">
