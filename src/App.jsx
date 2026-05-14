@@ -218,9 +218,9 @@ export default function App() {
         onAddSupplement={supplementsState.add}
         onRemoveSupplement={supplementsState.remove}
         onClose={() => { /* on bloque la fermeture tant que pas configuré */ }}
-        onReload={() => {
+        onReload={async () => {
           setSetupComplete(isSetupComplete());
-          catalog.reload();
+          await catalog.reload();
           supplementsState.reload();
         }}
         onLogout={handleLogout}
@@ -296,15 +296,15 @@ export default function App() {
             onAddSupplement={supplementsState.add}
             onRemoveSupplement={supplementsState.remove}
             onClose={() => setAdminOpen(false)}
-            onReload={() => {
+            onReload={async () => {
               setSetupComplete(isSetupComplete());
-              catalog.reload();
+              await catalog.reload();
               supplementsState.reload();
               setAdminOpen(false);
             }}
-            onCatalogChange={() => {
+            onCatalogChange={async () => {
               setSetupComplete(isSetupComplete());
-              catalog.reload();
+              await catalog.reload();
               supplementsState.reload();
               catalog.pushToCloud();
             }}
