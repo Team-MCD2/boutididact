@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Mail, Store, User, Key, Send, Lock, ArrowLeft, CheckCircle2, AlertCircle } from 'lucide-react';
+import { Mail, Store, User, Key, Send, Lock, ArrowLeft, CheckCircle, AlertCircle } from 'lucide-react';
 import { API_URL } from '../services/api';
 
 export default function AdminSetupScreen({ onBack }) {
@@ -112,7 +112,7 @@ export default function AdminSetupScreen({ onBack }) {
         <div className="p-10 flex-1">
           {success && (
             <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="mb-6 p-4 bg-emerald-50 border border-emerald-100 rounded-2xl flex items-center gap-3 text-emerald-700 text-sm font-bold">
-              <CheckCircle2 size={20} /> E-mail envoyé avec succès !
+              <CheckCircle size={20} /> E-mail envoyé avec succès !
             </motion.div>
           )}
           {error && (
