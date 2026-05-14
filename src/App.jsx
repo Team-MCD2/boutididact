@@ -232,6 +232,7 @@ export default function App() {
           products={catalog.products}
           categories={catalog.categories}
           source={catalog.source}
+          health={catalog.health}
           cart={cart}
           supplements={supplementsState.supplements}
           onAdd={cart.add}

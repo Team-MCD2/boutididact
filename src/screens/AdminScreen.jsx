@@ -392,7 +392,7 @@ export default function AdminScreen({
                     <Status
                       icon={<Database size={20} />}
                       label="État de l'API"
-                      value={online ? 'Connecté' : 'Configuration requise'}
+                      value={online ? 'Connecté' : (health?.hiboutik?.reason === 'not_configured' ? 'Configuration requise' : `Erreur : ${health?.hiboutik?.reason || 'Inconnue'}`)}
                       ok={online}
                     />
                     {!settings.localServerUrl ? (
