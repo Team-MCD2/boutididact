@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Store, Mail, Lock, ChevronRight, Rocket, Check, ArrowLeft, Zap, Clock, Inbox, Trash2, AlertTriangle, Phone, Smartphone, Monitor, Download, Info, ExternalLink, X } from 'lucide-react';
+import { Store, Mail, Lock, ChevronRight, Rocket, Check, ArrowLeft, Zap, Clock, Inbox, Trash2, AlertTriangle, Phone, Smartphone, Monitor, Download, Info, ExternalLink, X, MapPin } from 'lucide-react';
 
 const API = import.meta.env.VITE_API_URL || '';
 
@@ -14,7 +14,7 @@ const API = import.meta.env.VITE_API_URL || '';
  */
 export default function LandingScreen({ initialMode = 'hero', prefillShopName = '', onLoginSuccess }) {
   const [mode, setMode] = useState(initialMode);
-  const [form, setForm] = useState({ name: '', email: '', password: '', phone: '', siret: '', tva: '' });
+  const [form, setForm] = useState({ name: '', email: '', password: '', phone: '', siret: '', tva: '', city: '' });
   const [loginForm, setLoginForm] = useState({ shopName: prefillShopName, password: '' });
   const [deleteForm, setDeleteForm] = useState({ shopName: '', email: '', password: '' });
   const [deleteSuccess, setDeleteSuccess] = useState(false);
@@ -47,6 +47,7 @@ export default function LandingScreen({ initialMode = 'hero', prefillShopName = 
           boutiquePhone: form.phone.trim(),
           boutiqueSiret: form.siret.trim(),
           boutiqueTva: form.tva.trim(),
+          boutiqueCity: form.city.trim(),
         }),
       });
       const data = await res.json();
@@ -282,10 +283,16 @@ export default function LandingScreen({ initialMode = 'hero', prefillShopName = 
                       icon={<Lock size={20} />} placeholder="Mot de passe souhaité" type="password"
                       value={form.password} onChange={v => setForm({ ...form, password: v })}
                     />
-                    <DarkInput
-                      icon={<Phone size={20} />} placeholder="Numéro de téléphone" type="tel"
-                      value={form.phone} onChange={v => setForm({ ...form, phone: v })}
-                    />
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <DarkInput
+                        icon={<Phone size={20} />} placeholder="Numéro de téléphone" type="tel"
+                        value={form.phone} onChange={v => setForm({ ...form, phone: v })}
+                      />
+                      <DarkInput
+                        icon={<MapPin size={20} />} placeholder="Ville"
+                        value={form.city} onChange={v => setForm({ ...form, city: v })}
+                      />
+                    </div>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <DarkInput
                         icon={<Inbox size={20} />} placeholder="SIRET (14 chiffres)"

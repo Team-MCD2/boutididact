@@ -156,7 +156,7 @@ function ShopsPanel({ password }) {
     return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
   });
   const completionRate = shops.length > 0 
-    ? Math.round((shops.filter(s => s.phone && s.address && s.city).length / shops.length) * 100) 
+    ? Math.round((shops.filter(s => s.phone && s.address && s.city && s.siret && s.tva).length / shops.length) * 100) 
     : 0;
 
   return (
@@ -261,6 +261,7 @@ function ShopCard({ shop, expanded, onToggle, password, onUpdate }) {
     address: shop.address || '',
     city: shop.city || '',
     siret: shop.siret || '',
+    tva: shop.tva || '',
     notes: shop.notes || '',
   });
 
@@ -377,8 +378,17 @@ function ShopCard({ shop, expanded, onToggle, password, onUpdate }) {
                   onChange={v => setForm({...form, siret: v})}
                 />
                 <InfoField 
+                  icon={<Percent size={14} />} label="N° TVA" 
+                  value={form.tva} editing={editing}
+                  onChange={v => setForm({...form, tva: v})}
+                />
+                <InfoField 
                   icon={<Clock size={14} />} label="Inscrit le" 
                   value={formatDate(shop.createdAt)} editing={false}
+                />
+                <InfoField 
+                  icon={<Zap size={14} />} label="Statut" 
+                  value={shop.paidAt ? 'Abonnement Actif' : 'En attente paiement'} editing={false}
                 />
               </div>
 
@@ -403,7 +413,12 @@ function ShopCard({ shop, expanded, onToggle, password, onUpdate }) {
               {/* Meta info */}
               <div className="mt-4 flex flex-wrap gap-2 text-[10px] font-bold text-slate-600">
                 <span className="px-2 py-1 bg-slate-800 rounded">ID: {shop.id}</span>
-                {shop.paidAt && <span className="px-2 py-1 bg-emerald-500/5 text-emerald-500/60 rounded">Payé le {formatDate(shop.paidAt)}</span>}
+                {shop.paidAt && (
+                  <>
+                    <span className="px-2 py-1 bg-emerald-500/10 text-emerald-400 rounded">Début: {formatDate(shop.paidAt)}</span>
+                    <span className="px-2 py-1 bg-indigo-500/10 text-indigo-400 rounded">Fin/Renouv.: {formatDate(new Date(shop.paidAt).getTime() + 30*24*60*60*1000)}</span>
+                  </>
+                )}
               </div>
             </div>
           </motion.div>
