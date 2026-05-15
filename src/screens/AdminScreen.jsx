@@ -1189,9 +1189,18 @@ function PrinterTestButton({ ip, port, isRelayMode }) {
     setResult(null);
     try {
       if (isRelayMode) {
-        // En mode relais, on vérifie juste si Boutididact est OK. 
-        // L'imprimante est testée par le .exe en local.
-        setResult({ ok: true, message: `✅ Mode RELAIS Actif (Cloud).\nL'imprimante sera pilotée par votre serveur local (PC ou Android) via Internet.` });
+        // En mode relais, on envoie un véritable ticket de test au Cloud
+        const res = await fetch(`${API}/api/saas/test-print`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ shopName: session?.shopName }),
+        });
+        const data = await res.json();
+        if (data.ok) {
+          setResult({ ok: true, message: `✅ Commande de TEST envoyée au Cloud !\n\nSi votre relais (PC/Android) est allumé, l'imprimante doit sortir un ticket dans quelques secondes.` });
+        } else {
+          setResult({ ok: false, message: `❌ Erreur lors de l'envoi du test : ${data.error || 'Inconnu'}` });
+        }
       } else {
         const res = await fetch(`${API}/api/health`, {
           headers: {
