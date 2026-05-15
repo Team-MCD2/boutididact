@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Lock, X, RefreshCw, Maximize2, Power, Store, Printer, Database, Trash2, Wand2, Upload, Plus, Search, Edit3, Save, FolderTree, Zap, Info, Cloud } from 'lucide-react';
+import { Lock, X, RefreshCw, Maximize2, Power, Store, Printer, Database, Trash2, Wand2, Upload, Plus, Search, Edit3, Save, FolderTree, Zap, Info, Cloud, Smartphone, Monitor, Download, ExternalLink } from 'lucide-react';
 
 const API = import.meta.env.VITE_API_URL || '';
 
