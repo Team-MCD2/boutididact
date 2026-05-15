@@ -84,6 +84,7 @@ export default function AdminScreen({
             settings: newSettings,
             // Synchronisation de la fiche client Cloud
             address: newSettings.shopAddress,
+            city: newSettings.shopCity,
             siret: newSettings.shopSiret,
             tva: newSettings.shopTva
           }),
