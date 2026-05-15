@@ -111,11 +111,12 @@ export default function App() {
     // Fusion avec les données du Cloud (Stripe Metadata)
     const newSettings = {
       ...currentSettings,
-      shopName: shop?.name || currentSettings.shopName || '',
-      shopAddress: shop?.address || currentSettings.shopAddress || '',
-      shopSiret: shop?.siret || currentSettings.shopSiret || '',
-      shopTva: shop?.tva || currentSettings.shopTva || '',
-      ...(shop?.settings || {}) // On écrase avec les réglages spécifiques si présents
+      ...(shop?.settings || {}),
+      // Priorité aux données de la fiche client Cloud si présentes
+      shopName: shop?.name || shop?.settings?.shopName || currentSettings.shopName || '',
+      shopAddress: shop?.address || shop?.settings?.shopAddress || currentSettings.shopAddress || '',
+      shopSiret: shop?.siret || shop?.settings?.shopSiret || currentSettings.shopSiret || '',
+      shopTva: shop?.tva || shop?.settings?.shopTva || currentSettings.shopTva || '',
     };
 
     localStorage.setItem('boutididact_settings', JSON.stringify(newSettings));

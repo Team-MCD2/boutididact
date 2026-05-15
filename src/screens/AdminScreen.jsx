@@ -81,7 +81,11 @@ export default function AdminScreen({
           body: JSON.stringify({ 
             shopId: session.shopId, 
             shopName: session.shopName, 
-            settings: newSettings 
+            settings: newSettings,
+            // Synchronisation de la fiche client Cloud
+            address: newSettings.shopAddress,
+            siret: newSettings.shopSiret,
+            tva: newSettings.shopTva
           }),
         });
       } catch (e) {
