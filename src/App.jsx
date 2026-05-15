@@ -108,15 +108,20 @@ export default function App() {
       currentSettings = JSON.parse(localStorage.getItem('boutididact_settings') || '{}');
     } catch (e) {}
 
-    // Fusion avec les données du Cloud (Stripe Metadata)
+    // Fusion intelligente : on ne laisse pas le Cloud vider nos accès Hiboutik locaux s'ils existent déjà
+    const cloudSettings = shop?.settings || {};
     const newSettings = {
       ...currentSettings,
-      ...(shop?.settings || {}),
-      // Priorité aux données de la fiche client Cloud si présentes
-      shopName: shop?.name || shop?.settings?.shopName || currentSettings.shopName || '',
-      shopAddress: shop?.address || shop?.settings?.shopAddress || currentSettings.shopAddress || '',
-      shopSiret: shop?.siret || shop?.settings?.shopSiret || currentSettings.shopSiret || '',
-      shopTva: shop?.tva || shop?.settings?.shopTva || currentSettings.shopTva || '',
+      ...cloudSettings,
+      // On protège les accès Hiboutik : priorité au local s'ils sont remplis et que le cloud est vide
+      hiboutikAccount: cloudSettings.hiboutikAccount || currentSettings.hiboutikAccount || '',
+      hiboutikUser: cloudSettings.hiboutikUser || currentSettings.hiboutikUser || '',
+      hiboutikApiKey: cloudSettings.hiboutikApiKey || currentSettings.hiboutikApiKey || '',
+      // Priorité aux données de la fiche client Cloud pour les infos légales
+      shopName: shop?.name || cloudSettings.shopName || currentSettings.shopName || '',
+      shopAddress: shop?.address || cloudSettings.shopAddress || currentSettings.shopAddress || '',
+      shopSiret: shop?.siret || cloudSettings.shopSiret || currentSettings.shopSiret || '',
+      shopTva: shop?.tva || cloudSettings.shopTva || currentSettings.shopTva || '',
     };
 
     localStorage.setItem('boutididact_settings', JSON.stringify(newSettings));
