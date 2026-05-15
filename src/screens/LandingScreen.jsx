@@ -200,13 +200,6 @@ export default function LandingScreen({ initialMode = 'hero', prefillShopName = 
             >
               <Trash2 size={14} /> Supprimer ma boutique BOUTIDIDACT
             </button>
-
-            <button
-              onClick={() => window.location.href = '/relay-guide'}
-              className="mt-8 pt-8 border-t border-white/5 w-full text-center flex items-center justify-center gap-2 text-slate-500 hover:text-indigo-400 text-xs font-bold transition-colors group"
-            >
-              <Zap size={14} className="group-hover:animate-pulse" /> Besoin du relais d'impression ? Voir le guide d'installation
-            </button>
           </motion.div>
         )}
 
