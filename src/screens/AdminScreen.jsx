@@ -208,7 +208,7 @@ export default function AdminScreen({
             const canvas = document.createElement('canvas');
             let width = img.width;
             let height = img.height;
-            const MAX = 1600;
+            const MAX = 1024; // Plus petit pour Vercel (4.5MB limit)
             if (width > height) {
               if (width > MAX) { height *= MAX / width; width = MAX; }
             } else {
@@ -218,7 +218,7 @@ export default function AdminScreen({
             canvas.height = height;
             const ctx = canvas.getContext('2d');
             ctx.drawImage(img, 0, 0, width, height);
-            resolve(canvas.toDataURL('image/jpeg', 0.7));
+            resolve(canvas.toDataURL('image/jpeg', 0.6)); // Qualité 0.6 suffisante pour l'IA
           };
           img.src = ev.target.result;
         };
@@ -226,6 +226,12 @@ export default function AdminScreen({
       });
 
       const base64 = await resizeImage(file);
+      
+      // Sécurité : Vercel limite à 4.5MB total (Base64 + JSON)
+      if (base64.length > 4000000) {
+        throw new Error('Image trop lourde même après réduction. Essayez une photo moins complexe.');
+      }
+
       try {
         const res = await fetch(`${API}/api/saas/extract-menu`, {
           method: 'POST',
