@@ -3,7 +3,7 @@ import { motion } from 'framer-motion';
 import { AlertCircle, RefreshCw, Home } from 'lucide-react';
 
 const STAGE_LABELS = {
-  provision_local_products: 'Synchronisation des produits',
+  provision_local_products: 'Synchronisationjhj des produits',
   create: 'Création de la vente',
   add_items: 'Ajout des articles',
   payment: 'Enregistrement du paiement',
