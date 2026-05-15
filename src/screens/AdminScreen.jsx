@@ -435,18 +435,18 @@ export default function AdminScreen({
                       value={online ? 'Système en ligne' : 'Non connecté'}
                       ok={online}
                     />
-                    {!settings.localServerUrl ? (
+                    {(!settings.localServerUrl || settings.localServerUrl.includes('vercel.app')) ? (
                       <Status
-                        icon={<Cloud size={20} />}
+                        icon={<Zap size={20} />}
                         label="Imprimante (Mode Relais)"
-                        value="En ligne"
+                        value="Prêt (via PC/Tablette)"
                         ok={true}
                       />
                     ) : (
                       <Status
                         icon={<Printer size={20} />}
                         label="Imprimante (Mode Direct)"
-                        value={health?.printer?.online ? 'En ligne' : 'Non connecté'}
+                        value={health?.printer?.online ? 'Connectée' : 'Non détectée'}
                         ok={health?.printer?.online}
                       />
                     )}
