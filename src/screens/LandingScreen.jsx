@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Store, Mail, Lock, ChevronRight, Rocket, Check, ArrowLeft, Zap, Clock, Inbox, Trash2, AlertTriangle, Phone } from 'lucide-react';
+import { Store, Mail, Lock, ChevronRight, Rocket, Check, ArrowLeft, Zap, Clock, Inbox, Trash2, AlertTriangle, Phone, Smartphone, Monitor, Download, Info, ExternalLink, X } from 'lucide-react';
 
 const API = import.meta.env.VITE_API_URL || '';
 
@@ -14,6 +14,7 @@ const API = import.meta.env.VITE_API_URL || '';
  */
 export default function LandingScreen({ initialMode = 'hero', prefillShopName = '', onLoginSuccess }) {
   const [mode, setMode] = useState(initialMode);
+  const [showGuide, setShowGuide] = useState(null); // 'win', 'android', 'ios'
   const [form, setForm] = useState({ name: '', email: '', password: '', phone: '' });
   const [loginForm, setLoginForm] = useState({ shopName: prefillShopName, password: '' });
   const [deleteForm, setDeleteForm] = useState({ shopName: '', email: '', password: '' });
@@ -204,24 +205,35 @@ export default function LandingScreen({ initialMode = 'hero', prefillShopName = 
             <div className="mt-8 pt-8 border-t border-white/5 px-4 md:px-0">
               <p className="text-xs text-slate-500 font-bold uppercase tracking-widest mb-3 text-center">Relais d'impression</p>
               <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
-                <a
-                  href="/downloads/Boutididact-Print-Server.exe"
-                  download
+                <button
+                  onClick={() => setShowGuide('win')}
                   className="inline-flex items-center gap-3 px-6 py-3 bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-300 border border-indigo-500/20 rounded-xl text-xs md:text-sm font-bold transition-all text-center w-full sm:w-auto justify-center"
                 >
-                  <Zap size={16} />
-                  Windows (.exe)
-                </a>
-                <a
-                  href="/downloads/Boutididact-Print-Server.apk"
-                  download
+                  <Monitor size={16} />
+                  Windows
+                </button>
+                <button
+                  onClick={() => setShowGuide('android')}
                   className="inline-flex items-center gap-3 px-6 py-3 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-300 border border-emerald-500/20 rounded-xl text-xs md:text-sm font-bold transition-all text-center w-full sm:w-auto justify-center"
                 >
-                  <Zap size={16} />
-                  Android (.apk)
-                </a>
+                  <Smartphone size={16} />
+                  Android
+                </button>
+                <button
+                  onClick={() => setShowGuide('ios')}
+                  className="inline-flex items-center gap-3 px-6 py-3 bg-slate-500/10 hover:bg-slate-500/20 text-slate-300 border border-slate-500/20 rounded-xl text-xs md:text-sm font-bold transition-all text-center w-full sm:w-auto justify-center"
+                >
+                  <Smartphone size={16} />
+                  iOS
+                </button>
               </div>
             </div>
+
+            <AnimatePresence>
+              {showGuide && (
+                <GuideModal type={showGuide} onClose={() => setShowGuide(null)} />
+              )}
+            </AnimatePresence>
           </motion.div>
         )}
 
@@ -532,6 +544,108 @@ function DarkInput({ icon, placeholder, type = 'text', value, onChange, maxLengt
         maxLength={maxLength}
         className="w-full pl-12 pr-4 py-4 bg-slate-800/50 border border-slate-700 rounded-2xl outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 text-white font-bold transition-all placeholder:text-slate-600"
       />
+    </div>
+  );
+}
+function GuideModal({ type, onClose }) {
+  const guides = {
+    win: {
+      title: 'Installation Windows',
+      icon: <Monitor size={32} className="text-indigo-400" />,
+      color: 'indigo',
+      link: '/downloads/Boutididact-Print-Server.exe',
+      steps: [
+        { t: 'Téléchargement', d: 'Cliquez sur le bouton ci-dessous pour télécharger le fichier .exe.' },
+        { t: 'Sécurité Windows', d: 'Si votre navigateur bloque le fichier, cliquez sur les trois points (...) puis sur "Conserver".' },
+        { t: 'SmartScreen', d: 'Si Windows affiche une alerte, cliquez sur "Informations complémentaires" puis sur "Exécuter quand même".' },
+        { t: 'Lancement', d: 'L\'application s\'ouvrira pour configurer votre imprimante locale.' }
+      ]
+    },
+    android: {
+      title: 'Installation Android',
+      icon: <Smartphone size={32} className="text-emerald-400" />,
+      color: 'emerald',
+      link: '/downloads/Boutididact-Print-Server.apk',
+      steps: [
+        { t: 'Téléchargement', d: 'Téléchargez le fichier .apk directement sur votre téléphone.' },
+        { t: 'Sources Inconnues', d: 'Autorisez l\'installation depuis votre navigateur si le système le demande.' },
+        { t: 'Play Protect', d: 'Si une alerte s\'affiche, cliquez sur "Installer quand même" (nécessaire car l\'app n\'est pas sur le Store).' },
+        { t: 'Utilisation', d: 'Ouvrez l\'application "Boutididact Print" pour commencer.' }
+      ]
+    },
+    ios: {
+      title: 'Guide iOS (PWA)',
+      icon: <Smartphone size={32} className="text-blue-400" />,
+      color: 'blue',
+      steps: [
+        { t: 'Navigateur Safari', d: 'Ouvrez ce site (boutididact.com) dans Safari sur votre iPhone.' },
+        { t: 'Partager', d: 'Cliquez sur l\'icône "Partager" (le carré avec une flèche vers le haut) en bas de l\'écran.' },
+        { t: 'Sur l\'écran d\'accueil', d: 'Faites défiler vers le bas et choisissez "Sur l\'écran d\'accueil".' },
+        { t: 'Valider', d: 'Cliquez sur "Ajouter" en haut à droite. L\'app apparaîtra comme une icône native !' }
+      ]
+    }
+  };
+
+  const g = guides[type];
+
+  return (
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+      <motion.div 
+        initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+        onClick={onClose}
+        className="absolute inset-0 bg-slate-950/80 backdrop-blur-sm" 
+      />
+      
+      <motion.div 
+        initial={{ opacity: 0, scale: 0.9, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.9, y: 20 }}
+        className="relative w-full max-w-md bg-slate-900 border border-slate-800 rounded-3xl shadow-2xl overflow-hidden"
+      >
+        <div className="p-6 border-b border-white/5 flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <div className={`p-3 rounded-2xl bg-${g.color}-500/10`}>{g.icon}</div>
+            <div>
+              <h3 className="text-xl font-black text-white">{g.title}</h3>
+              <p className="text-xs font-bold text-slate-500 uppercase tracking-widest">Guide d'installation</p>
+            </div>
+          </div>
+          <button onClick={onClose} className="p-2 hover:bg-white/5 rounded-xl text-slate-500 transition-colors">
+            <X size={20} />
+          </button>
+        </div>
+
+        <div className="p-6 space-y-6">
+          <div className="space-y-4">
+            {g.steps.map((s, i) => (
+              <div key={i} className="flex gap-4">
+                <div className="flex-shrink-0 w-6 h-6 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center text-[10px] font-black text-slate-400">
+                  {i + 1}
+                </div>
+                <div>
+                  <p className="text-sm font-bold text-white mb-0.5">{s.t}</p>
+                  <p className="text-xs text-slate-400 leading-relaxed">{s.d}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {g.link ? (
+            <a 
+              href={g.link} download 
+              className={`flex items-center justify-center gap-3 w-full py-4 rounded-2xl bg-indigo-500 hover:bg-indigo-400 text-slate-950 font-black text-sm transition-all active:scale-95`}
+            >
+              <Download size={18} />
+              Télécharger maintenant
+            </a>
+          ) : (
+            <div className="p-4 bg-blue-500/10 border border-blue-500/20 rounded-2xl flex items-start gap-3">
+              <Info size={18} className="text-blue-400 shrink-0 mt-0.5" />
+              <p className="text-xs text-blue-300/80 leading-relaxed font-medium">
+                Sur iOS, l'ajout à l'écran d'accueil permet de transformer le site en une application fluide et rapide.
+              </p>
+            </div>
+          )}
+        </div>
+      </motion.div>
     </div>
   );
 }
