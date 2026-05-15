@@ -208,7 +208,7 @@ export default function AdminScreen({
             const canvas = document.createElement('canvas');
             let width = img.width;
             let height = img.height;
-            const MAX = 1600;
+            const MAX = 1200;
             if (width > height) {
               if (width > MAX) { height *= MAX / width; width = MAX; }
             } else {
@@ -218,7 +218,7 @@ export default function AdminScreen({
             canvas.height = height;
             const ctx = canvas.getContext('2d');
             ctx.drawImage(img, 0, 0, width, height);
-            resolve(canvas.toDataURL('image/jpeg', 0.7));
+            resolve(canvas.toDataURL('image/jpeg', 0.6));
           };
           img.src = ev.target.result;
         };
