@@ -1,0 +1,139 @@
+import React, { useState } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Monitor, Smartphone, Download, Info, ChevronLeft, Zap, CheckCircle, ExternalLink } from 'lucide-react';
+
+export default function RelayGuideScreen({ onBack }) {
+  const [platform, setPlatform] = useState('win'); // 'win', 'android', 'ios'
+
+  const guides = {
+    win: {
+      title: 'Windows',
+      icon: <Monitor size={24} />,
+      link: '/downloads/Boutididact-Print-Server.exe',
+      steps: [
+        { t: 'Téléchargement', d: 'Téléchargez le fichier .exe sur l\'ordinateur relié à l\'imprimante.' },
+        { t: 'Bypass Sécurité', d: 'Si Windows bloque l\'installation, cliquez sur "Informations complémentaires" puis "Exécuter quand même".' },
+        { t: 'Configuration', d: 'Lancez l\'appli, entrez votre nom de boutique et l\'adresse IP locale de votre imprimante.' },
+        { t: 'Actif', d: 'Laissez l\'application ouverte (ou réduite) pour que les tickets sortent.' }
+      ]
+    },
+    android: {
+      title: 'Android',
+      icon: <Smartphone size={24} />,
+      link: '/downloads/Boutididact-Print-Server.apk',
+      steps: [
+        { t: 'Téléchargement', d: 'Téléchargez l\'APK sur votre tablette ou téléphone Android.' },
+        { t: 'Autorisation', d: 'Autorisez l\'installation de sources inconnues si demandé par le système.' },
+        { t: 'Arrière-plan', d: 'Au premier lancement, autorisez le fonctionnement sans restrictions de batterie.' },
+        { t: 'Prêt', d: 'Lancez le relais et les tickets s\'imprimeront automatiquement.' }
+      ]
+    },
+    ios: {
+      title: 'iPhone / iPad',
+      icon: <Smartphone size={24} />,
+      steps: [
+        { t: 'Safari', d: 'Ouvrez ce site dans le navigateur Safari de votre iPhone.' },
+        { t: 'Menu Partage', d: 'Appuyez sur le bouton "Partager" (carré avec flèche en haut).' },
+        { t: 'Écran d\'accueil', d: 'Choisissez "Sur l\'écran d\'accueil" dans la liste.' },
+        { t: 'Installation', d: 'L\'icône Boutididact apparaît. Note: iOS ne supporte pas le relais direct, utilisez un PC ou Android pour l\'impression.' }
+      ]
+    }
+  };
+
+  const g = guides[platform];
+
+  return (
+    <div className="min-h-screen bg-[#0f172a] text-white p-6 md:p-12 font-sans selection:bg-indigo-500/30">
+      <div className="max-w-4xl mx-auto">
+        <button 
+          onClick={onBack}
+          className="flex items-center gap-2 text-slate-400 hover:text-white transition-colors mb-8 font-bold text-sm group"
+        >
+          <ChevronLeft size={20} className="group-hover:-translate-x-1 transition-transform" /> Retour
+        </button>
+
+        <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-12">
+          <div>
+            <h1 className="text-4xl md:text-5xl font-black mb-4 tracking-tight">Installation du <span className="text-indigo-500">Relais d'Impression</span></h1>
+            <p className="text-slate-400 text-lg max-w-2xl font-medium leading-relaxed">
+              Pour que vos tickets s'impriment automatiquement, vous devez installer notre petit logiciel de relais sur un appareil connecté à votre réseau local.
+            </p>
+          </div>
+          <div className="bg-indigo-500/10 border border-indigo-500/20 px-4 py-2 rounded-full flex items-center gap-2">
+            <Zap size={16} className="text-indigo-400" />
+            <span className="text-xs font-black uppercase tracking-widest text-indigo-300">Indispensable pour l'auto-print</span>
+          </div>
+        </div>
+
+        {/* Tab Selector */}
+        <div className="flex p-1.5 bg-slate-900 border border-slate-800 rounded-2xl mb-8 w-fit">
+          {Object.keys(guides).map(p => (
+            <button
+              key={p}
+              onClick={() => setPlatform(p)}
+              className={`flex items-center gap-3 px-6 py-3 rounded-xl text-sm font-black transition-all ${
+                platform === p ? 'bg-indigo-600 text-white shadow-xl shadow-indigo-600/20' : 'text-slate-500 hover:text-slate-300'
+              }`}
+            >
+              {guides[p].icon} {guides[p].title}
+            </button>
+          ))}
+        </div>
+
+        <div className="grid md:grid-cols-2 gap-12 items-start">
+          <motion.div 
+            key={platform}
+            initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }}
+            className="space-y-8"
+          >
+            {g.steps.map((s, i) => (
+              <div key={i} className="flex gap-6 group">
+                <div className="flex-shrink-0 w-10 h-10 rounded-2xl bg-slate-800 border border-slate-700 flex items-center justify-center text-sm font-black text-slate-400 group-hover:border-indigo-500/50 group-hover:text-indigo-400 transition-all">
+                  {i + 1}
+                </div>
+                <div className="pt-1">
+                  <h3 className="text-lg font-bold text-white mb-2">{s.t}</h3>
+                  <p className="text-slate-400 leading-relaxed text-sm font-medium">{s.d}</p>
+                </div>
+              </div>
+            ))}
+
+            {g.link && (
+              <a 
+                href={g.link} download
+                className="inline-flex items-center gap-3 px-8 py-4 bg-indigo-500 hover:bg-indigo-400 text-slate-950 font-black rounded-2xl transition-all hover:scale-[1.02] active:scale-95 shadow-xl shadow-indigo-500/20"
+              >
+                <Download size={20} /> Télécharger pour {g.title}
+              </a>
+            )}
+          </motion.div>
+
+          <div className="bg-slate-900/50 border border-slate-800 rounded-3xl p-8 sticky top-12">
+            <h4 className="text-sm font-black uppercase tracking-widest text-slate-500 mb-6">Pourquoi c'est important ?</h4>
+            <div className="space-y-6">
+              <div className="flex gap-4">
+                <div className="p-2 h-fit bg-emerald-500/10 rounded-lg text-emerald-400"><CheckCircle size={20} /></div>
+                <p className="text-sm text-slate-300 leading-relaxed"><span className="text-white font-bold">Impression Instantanée :</span> Vos tickets sortent dès que le client a fini de commander.</p>
+              </div>
+              <div className="flex gap-4">
+                <div className="p-2 h-fit bg-emerald-500/10 rounded-lg text-emerald-400"><CheckCircle size={20} /></div>
+                <p className="text-sm text-slate-300 leading-relaxed"><span className="text-white font-bold">Zéro Configuration :</span> Une fois l'IP de l'imprimante saisie, tout est automatisé.</p>
+              </div>
+              <div className="flex gap-4">
+                <div className="p-2 h-fit bg-emerald-500/10 rounded-lg text-emerald-400"><CheckCircle size={20} /></div>
+                <p className="text-sm text-slate-300 leading-relaxed"><span className="text-white font-bold">Mode Relais :</span> Le logiciel fait le pont entre le Cloud et votre imprimante locale.</p>
+              </div>
+            </div>
+
+            <div className="mt-10 p-6 bg-amber-500/5 border border-amber-500/20 rounded-2xl flex items-start gap-4">
+              <Info size={24} className="text-amber-500 shrink-0" />
+              <p className="text-xs text-amber-200/70 leading-relaxed font-medium">
+                Si vous rencontrez une alerte de sécurité lors de l'installation, ne vous inquiétez pas. Nos logiciels sont auto-signés, c'est pourquoi les systèmes demandent une confirmation manuelle.
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}

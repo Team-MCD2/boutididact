@@ -11,6 +11,7 @@ import AdminScreen from './screens/AdminScreen';
 import LoadingScreen from './components/LoadingScreen';
 import LandingScreen from './screens/LandingScreen.jsx';
 import AdminSetupScreen from './screens/AdminSetupScreen.jsx';
+import RelayGuideScreen from './screens/RelayGuideScreen.jsx';
 
 import useCatalog from './hooks/useCatalog';
 import useCart from './hooks/useCart';
@@ -46,6 +47,7 @@ export default function App() {
   const [session, setSession] = useState(() => {
     try { return JSON.parse(sessionStorage.getItem(SESSION_KEY) || 'null'); } catch { return null; }
   });
+  const [activeTab, setActiveTab] = useState('shops'); // 'shops', 'relay'
   const [setupComplete, setSetupComplete] = useState(isSetupComplete);
 
   // Mode initial du LandingScreen (en cas de retour Stripe)
@@ -190,9 +192,12 @@ export default function App() {
     }
   };
 
-  // ---- Route Admin Spéciale ----
+  // ---- Routes Spéciales ----
   if (window.location.pathname === '/admin-setup') {
     return <AdminSetupScreen onBack={() => { window.location.href = '/'; }} />;
+  }
+  if (window.location.pathname === '/relay-guide') {
+    return <RelayGuideScreen onBack={() => { window.location.href = '/'; }} />;
   }
 
   // ---- Rendus selon état d'auth ----
