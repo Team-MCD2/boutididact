@@ -14,7 +14,7 @@ const API = import.meta.env.VITE_API_URL || '';
  */
 export default function LandingScreen({ initialMode = 'hero', prefillShopName = '', onLoginSuccess }) {
   const [mode, setMode] = useState(initialMode);
-  const [form, setForm] = useState({ name: '', email: '', password: '', phone: '' });
+  const [form, setForm] = useState({ name: '', email: '', password: '', phone: '', siret: '', tva: '' });
   const [loginForm, setLoginForm] = useState({ shopName: prefillShopName, password: '' });
   const [deleteForm, setDeleteForm] = useState({ shopName: '', email: '', password: '' });
   const [deleteSuccess, setDeleteSuccess] = useState(false);
@@ -45,6 +45,8 @@ export default function LandingScreen({ initialMode = 'hero', prefillShopName = 
           boutiqueEmail: form.email.trim(),
           boutiquePassword: form.password,
           boutiquePhone: form.phone.trim(),
+          boutiqueSiret: form.siret.trim(),
+          boutiqueTva: form.tva.trim(),
         }),
       });
       const data = await res.json();
@@ -284,6 +286,18 @@ export default function LandingScreen({ initialMode = 'hero', prefillShopName = 
                       icon={<Phone size={20} />} placeholder="Numéro de téléphone" type="tel"
                       value={form.phone} onChange={v => setForm({ ...form, phone: v })}
                     />
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <DarkInput
+                        icon={<Inbox size={20} />} placeholder="SIRET (14 chiffres)"
+                        value={form.siret} onChange={v => setForm({ ...form, siret: v })}
+                        maxLength={14}
+                      />
+                      <DarkInput
+                        icon={<Check size={20} />} placeholder="N° TVA (13 car.)"
+                        value={form.tva} onChange={v => setForm({ ...form, tva: v })}
+                        maxLength={13}
+                      />
+                    </div>
 
                     {errorMsg && <ErrorBox message={errorMsg} />}
 
