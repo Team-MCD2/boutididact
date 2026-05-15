@@ -53,11 +53,11 @@ export default function AdminScreen({
       shopAddress: '',
       shopSiret: '',
       shopTva: '',
-      printerIp: '',
-      printerPort: '9100',
       hiboutikStoreId: '1',
       hiboutikVendorId: '1',
-      localServerUrl: 'http://localhost:3001',
+      isRelayMode: true,
+      printerIp: '',
+      printerPort: '9100',
       adminPin: getAdminPin(),
     };
   });
@@ -626,6 +626,32 @@ export default function AdminScreen({
                       </div>
 
                       <div className="bg-white border border-gray-100 p-8 rounded-3xl shadow-sm space-y-6">
+                        <div className="flex items-center justify-between p-4 bg-indigo-50/50 rounded-2xl border border-indigo-100">
+                          <div className="flex items-center gap-3">
+                            <div className={`w-10 h-10 rounded-full flex items-center justify-center ${settings.isRelayMode ? 'bg-indigo-500 text-white' : 'bg-gray-200 text-gray-500'}`}>
+                              <Cloud size={20} />
+                            </div>
+                            <div>
+                              <h5 className="font-bold text-gray-900">Mode Relais (Cloud)</h5>
+                              <p className="text-xs text-gray-500 font-medium">Recommandé pour Tablettes & Mobile</p>
+                            </div>
+                          </div>
+                          <button 
+                            onClick={() => setSettings({ ...settings, isRelayMode: !settings.isRelayMode })}
+                            className={`w-14 h-8 rounded-full transition-all relative ${settings.isRelayMode ? 'bg-indigo-600' : 'bg-gray-300'}`}
+                          >
+                            <div className={`absolute top-1 w-6 h-6 bg-white rounded-full transition-all ${settings.isRelayMode ? 'left-7' : 'left-1'}`} />
+                          </button>
+                        </div>
+
+                        {!settings.isRelayMode && (
+                          <div className="p-4 bg-amber-50 border border-amber-100 rounded-2xl">
+                            <p className="text-xs text-amber-900 leading-relaxed font-medium">
+                              <strong>Note :</strong> Sans le Mode Relais, cette borne doit être sur le même réseau que l'imprimante et le navigateur peut bloquer l'impression pour des raisons de sécurité.
+                            </p>
+                          </div>
+                        )}
+
                         <div className="space-y-4">
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                             <SettingInput 
@@ -644,7 +670,7 @@ export default function AdminScreen({
                         </div>
                         
                         <div className="pt-4 border-t border-gray-50">
-                          <PrinterTestButton ip={settings.printerIp} port={settings.printerPort} localServerUrl={''} />
+                          <PrinterTestButton ip={settings.printerIp} port={settings.printerPort} isRelayMode={settings.isRelayMode} />
                         </div>
                       </div>
                     </Section>
@@ -1145,7 +1171,7 @@ function ActionButton({ icon, label, onClick, variant = 'solid', disabled = fals
   );
 }
 
-function PrinterTestButton({ ip, port, localServerUrl }) {
+function PrinterTestButton({ ip, port, isRelayMode }) {
   const [testing, setTesting] = useState(false);
   const [result, setResult] = useState(null);
 
@@ -1159,26 +1185,26 @@ function PrinterTestButton({ ip, port, localServerUrl }) {
     setTesting(true);
     setResult(null);
     try {
-      const url = isRelayMode ? `${API}/api/health` : `${targetUrl}/api/health`;
-      const res = await fetch(url, {
-        headers: {
-          'X-Printer-Ip': ip,
-          'X-Printer-Port': port || '9100',
-        },
-      });
-      const data = await res.json();
-      
       if (isRelayMode) {
         // En mode relais, on vérifie juste si Boutididact est OK. 
         // L'imprimante est testée par le .exe en local.
-        setResult({ ok: true, message: `✅ Mode RELAIS Actif (Cloud).\nL'imprimante sera pilotée par votre serveur local via Internet.` });
-      } else if (data.printer?.online) {
-        setResult({ ok: true, message: `✅ Imprimante joignable sur ${data.printer.ip}:${data.printer.port}` });
+        setResult({ ok: true, message: `✅ Mode RELAIS Actif (Cloud).\nL'imprimante sera pilotée par votre serveur local (PC ou Android) via Internet.` });
       } else {
-        setResult({
-          ok: false,
-          message: `❌ Imprimante injoignable sur ${data.printer?.ip || ip}:${data.printer?.port || port || 9100}. Vérifiez :\n• L'IP est correcte\n• L'imprimante est allumée et connectée au même réseau\n• Le port ${port || 9100} est ouvert\n• Le pare-feu Windows ne bloque pas la connexion`,
+        const res = await fetch(`${API}/api/health`, {
+          headers: {
+            'X-Printer-Ip': ip,
+            'X-Printer-Port': port || '9100',
+          },
         });
+        const data = await res.json();
+        if (data.printer?.online) {
+          setResult({ ok: true, message: `✅ Imprimante joignable sur ${data.printer.ip}:${data.printer.port}` });
+        } else {
+          setResult({
+            ok: false,
+            message: `❌ Imprimante injoignable sur ${data.printer?.ip || ip}:${data.printer?.port || port || 9100}.`,
+          });
+        }
       }
     } catch (e) {
       setResult({ ok: false, message: `Erreur de communication avec le serveur : ${e.message}` });
