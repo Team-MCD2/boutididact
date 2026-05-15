@@ -102,13 +102,27 @@ export default function App() {
     const sess = { shopId: shop?.id, shopName: shop?.name, email: shop?.email, loggedAt: Date.now() };
     sessionStorage.setItem(SESSION_KEY, JSON.stringify(sess));
     
-    // Si le backend a renvoyé des réglages persistés (Cloud), on les injecte en local
-    if (shop?.settings) {
-      localStorage.setItem('boutididact_settings', JSON.stringify(shop.settings));
-      // SYNC PIN: On s'assure que le PIN cloud est aussi mis dans la clé dédiée pour AdminScreen
-      if (shop.settings.adminPin) {
-        localStorage.setItem('boutididact_admin_pin', shop.settings.adminPin);
-      }
+    // Récupération des réglages existants ou création par défaut
+    let currentSettings = {};
+    try {
+      currentSettings = JSON.parse(localStorage.getItem('boutididact_settings') || '{}');
+    } catch (e) {}
+
+    // Fusion avec les données du Cloud (Stripe Metadata)
+    const newSettings = {
+      ...currentSettings,
+      shopName: shop?.name || currentSettings.shopName || '',
+      shopAddress: shop?.address || currentSettings.shopAddress || '',
+      shopSiret: shop?.siret || currentSettings.shopSiret || '',
+      shopTva: shop?.tva || currentSettings.shopTva || '',
+      ...(shop?.settings || {}) // On écrase avec les réglages spécifiques si présents
+    };
+
+    localStorage.setItem('boutididact_settings', JSON.stringify(newSettings));
+    
+    // SYNC PIN dédié
+    if (newSettings.adminPin) {
+      localStorage.setItem('boutididact_admin_pin', newSettings.adminPin);
     }
     
     setSession(sess);
