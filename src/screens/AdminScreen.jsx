@@ -664,13 +664,38 @@ export default function AdminScreen({
                         )}
 
                         <div className="space-y-4">
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-end">
+                            <div className="flex-1">
+                              <SettingInput 
+                                label="IP de l'Imprimante Thermique" 
+                                value={settings.printerIp} 
+                                onChange={v => setSettings({ ...settings, printerIp: v })} 
+                                placeholder="192.168.1.100" 
+                              />
+                            </div>
+                            <button
+                              onClick={async () => {
+                                if (!settings.printerIp) return alert('Entrez une IP d\'abord');
+                                try {
+                                  const target = settings.localServerUrl || 'http://localhost:3001';
+                                  const res = await fetch(`${target}/api/test-printer`, {
+                                    method: 'POST',
+                                    headers: { 'Content-Type': 'application/json' },
+                                    body: JSON.stringify({ printerIp: settings.printerIp, printerPort: settings.printerPort })
+                                  });
+                                  const data = await res.json();
+                                  if (data.success) alert('✅ Connexion OK ! Le ticket de test a été envoyé.');
+                                  else alert('❌ ' + (data.error || 'Erreur de connexion'));
+                                } catch (e) {
+                                  alert('❌ Impossible de joindre le serveur local. Vérifiez qu\'il est ouvert sur cet appareil.');
+                                }
+                              }}
+                              className="w-full md:w-auto px-8 py-3.5 bg-amber-500 hover:bg-amber-600 text-slate-900 font-black rounded-xl transition-all shadow-lg shadow-amber-500/20"
+                            >
+                              Tester la connexion
+                            </button>
+                          </div>
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                            <SettingInput 
-                              label="IP de l'Imprimante Thermique" 
-                              value={settings.printerIp} 
-                              onChange={v => setSettings({ ...settings, printerIp: v.trim() })} 
-                              placeholder="192.168.1.26" 
-                            />
                             <SettingInput 
                               label="Port" 
                               value={settings.printerPort} 
