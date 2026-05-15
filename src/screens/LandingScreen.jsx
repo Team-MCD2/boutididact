@@ -361,21 +361,6 @@ export default function LandingScreen({ initialMode = 'hero', prefillShopName = 
                     >
                       {submitting ? 'Connexion...' : 'Se connecter'}
                     </button>
-                    
-                    <div className="mt-6 p-4 bg-slate-800/50 border border-slate-700 rounded-xl space-y-3">
-                      <div className="flex items-start gap-3">
-                        <Zap size={20} className="text-amber-400 shrink-0 mt-0.5" />
-                        <p className="text-sm text-slate-400 leading-relaxed">
-                          <strong className="text-white">Imprimante locale :</strong> L'impression automatique nécessite le relais Boutididact.
-                        </p>
-                      </div>
-                      <button 
-                        onClick={() => window.location.href = '/relay-guide'}
-                        className="w-full py-2 bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-400 text-xs font-black rounded-lg border border-indigo-500/20 transition-all flex items-center justify-center gap-2"
-                      >
-                        <ExternalLink size={12} /> Télécharger le Relais (Windows / Android)
-                      </button>
-                    </div>
                   </div>
                 </div>
               )}

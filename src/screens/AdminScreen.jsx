@@ -1181,12 +1181,10 @@ function PrinterTestButton({ ip, port, isRelayMode }) {
   const [result, setResult] = useState(null);
 
   const testPrinter = async () => {
-    if (!ip) {
+    if (!ip && !isRelayMode) {
       setResult({ ok: false, message: 'Veuillez d\'abord saisir une adresse IP.' });
       return;
     }
-    const isRelayMode = !localServerUrl || localServerUrl.includes('vercel.app');
-    const targetUrl = localServerUrl || ''; // Utilise la base par défaut (Vercel) si vide
     setTesting(true);
     setResult(null);
     try {
