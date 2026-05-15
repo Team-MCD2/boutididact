@@ -14,7 +14,7 @@ const API = import.meta.env.VITE_API_URL || '';
  */
 export default function LandingScreen({ initialMode = 'hero', prefillShopName = '', onLoginSuccess }) {
   const [mode, setMode] = useState(initialMode);
-  const [form, setForm] = useState({ name: '', email: '', password: '', phone: '', siret: '', tva: '', city: '' });
+  const [form, setForm] = useState({ name: '', email: '', password: '', phone: '', siret: '', tva: '', city: '', address: '' });
   const [loginForm, setLoginForm] = useState({ shopName: prefillShopName, password: '' });
   const [deleteForm, setDeleteForm] = useState({ shopName: '', email: '', password: '' });
   const [deleteSuccess, setDeleteSuccess] = useState(false);
@@ -48,6 +48,7 @@ export default function LandingScreen({ initialMode = 'hero', prefillShopName = 
           boutiqueSiret: form.siret.trim(),
           boutiqueTva: form.tva.trim(),
           boutiqueCity: form.city.trim(),
+          boutiqueAddress: form.address.trim(),
         }),
       });
       const data = await res.json();
@@ -282,6 +283,10 @@ export default function LandingScreen({ initialMode = 'hero', prefillShopName = 
                     <DarkInput
                       icon={<Lock size={20} />} placeholder="Mot de passe souhaité" type="password"
                       value={form.password} onChange={v => setForm({ ...form, password: v })}
+                    />
+                    <DarkInput
+                      icon={<MapPin size={20} />} placeholder="Adresse complète"
+                      value={form.address} onChange={v => setForm({ ...form, address: v })}
                     />
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <DarkInput
