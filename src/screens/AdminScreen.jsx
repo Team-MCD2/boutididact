@@ -411,6 +411,7 @@ export default function AdminScreen({
                 <TabButton active={activeTab === 'status'} onClick={() => setActiveTab('status')} label="État" icon={<Database size={16} />} />
                 <TabButton active={activeTab === 'catalog'} onClick={() => setActiveTab('catalog')} label="Menu" icon={<Store size={16} />} />
                 <TabButton active={activeTab === 'actions'} onClick={() => setActiveTab('actions')} label="Actions" icon={<RefreshCw size={16} />} />
+                <TabButton active={activeTab === 'relais'} onClick={() => setActiveTab('relais')} label="Relais" icon={<Zap size={16} />} />
                 <TabButton active={activeTab === 'settings'} onClick={() => setActiveTab('settings')} label="Réglages" icon={<Printer size={16} />} />
               </div>
 
@@ -520,6 +521,56 @@ export default function AdminScreen({
                   </div>
                 )}
 
+                {activeTab === 'relais' && (
+                  <div className="space-y-6">
+                    <div className="bg-indigo-600 rounded-3xl p-8 text-white shadow-xl relative overflow-hidden">
+                      <div className="relative z-10">
+                        <div className="flex items-center gap-4 mb-4">
+                          <div className="p-3 bg-white/20 rounded-2xl">
+                            <Zap size={32} className="text-amber-300" />
+                          </div>
+                          <div>
+                            <h4 className="text-2xl font-black uppercase italic tracking-tight">Relais d'Impression</h4>
+                            <p className="text-indigo-100 text-sm font-medium">Configuration & Installation</p>
+                          </div>
+                        </div>
+                        <p className="text-indigo-50/80 leading-relaxed mb-6 max-w-xl">
+                          Pour que vos tickets s'impriment automatiquement depuis n'importe quelle tablette, vous devez installer le logiciel relais sur un appareil connecté à votre imprimante.
+                        </p>
+                        
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <a 
+                            href="/downloads/Boutididact-Print-Server.exe" download
+                            className="flex items-center justify-center gap-3 px-6 py-5 bg-white text-indigo-900 rounded-2xl font-black transition-all hover:scale-[1.02] active:scale-95 shadow-lg"
+                          >
+                            <Monitor size={24} /> Télécharger pour Windows
+                          </a>
+                          <a 
+                            href="/downloads/Boutididact-Print-Server.apk" download
+                            className="flex items-center justify-center gap-3 px-6 py-5 bg-indigo-500 text-white rounded-2xl font-black transition-all hover:scale-[1.02] active:scale-95 border border-white/20 shadow-lg"
+                          >
+                            <Smartphone size={24} /> Télécharger pour Android
+                          </a>
+                        </div>
+                      </div>
+                      <div className="absolute -right-20 -top-20 w-64 h-64 bg-white/10 rounded-full blur-3xl" />
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <RelayStep icon="1" title="Installez" desc="Installez le relais sur le PC (Windows) ou la tablette Android reliée à l'imprimante." />
+                      <RelayStep icon="2" title="Configurez" desc={`Entrez le nom de votre boutique : "${session?.shopName}" et l'IP de l'imprimante.`} />
+                      <RelayStep icon="3" title="Imprimez" desc="Laissez le relais tourner en arrière-plan. L'impression sera automatique." />
+                    </div>
+
+                    <div className="p-6 bg-amber-50 border border-amber-100 rounded-2xl flex items-start gap-4">
+                      <Info size={24} className="text-amber-600 shrink-0" />
+                      <p className="text-sm text-amber-900 leading-relaxed font-medium">
+                        <strong>Important :</strong> Si Windows ou Android affiche une alerte de sécurité, cliquez sur "Informations complémentaires" puis "Exécuter quand même". Nos logiciels sont auto-signés.
+                      </p>
+                    </div>
+                  </div>
+                )}
+
                 {activeTab === 'settings' && (
                   <div className="space-y-8">
                     <div className="bg-amber-50 border border-amber-100 rounded-2xl p-6">
@@ -559,39 +610,19 @@ export default function AdminScreen({
                     </Section>
 
                     <Section title="Serveur Local & Imprimante">
-                      <div className="bg-gradient-to-br from-indigo-600 to-violet-700 rounded-3xl p-8 mb-8 text-white shadow-2xl relative overflow-hidden">
-                        <div className="relative z-10">
-                          <div className="flex items-center gap-4 mb-4">
-                            <div className="p-3 bg-white/20 rounded-2xl backdrop-blur-md">
-                              <Cloud size={32} className="text-amber-300" />
-                            </div>
-                            <h4 className="text-2xl font-black italic tracking-tight uppercase">Mode Relais (Cloud)</h4>
-                          </div>
-                          <p className="text-indigo-100 leading-relaxed mb-6">
-                            Pour imprimer depuis une tablette (Sunmi, iPad, etc.), laissez l'URL ci-dessous <strong>vide</strong>. 
-                            Le ticket sera envoyé sur le Cloud et récupéré par votre PC.
+                      <div className="bg-indigo-50 border border-indigo-100 rounded-2xl p-6 mb-8 flex items-center justify-between">
+                        <div>
+                          <h4 className="font-black text-indigo-900 mb-1">Installation du Relais</h4>
+                          <p className="text-sm text-indigo-800">
+                            Configurez votre imprimante locale ou installez le relais pour tablette.
                           </p>
-                          <div className="space-y-3">
-                            <div className="flex items-start gap-3 p-4 bg-black/20 rounded-2xl border border-white/10">
-                              <Info size={20} className="shrink-0 mt-1" />
-                              <p className="text-xs text-indigo-100">
-                                1. Lancez <strong>Boutididact-Print-Server.exe</strong> sur le PC relié à l'imprimante.<br/>
-                                2. Configurez-le avec le nom : <strong className="text-white">{session?.shopName}</strong><br/>
-                                3. Vérifiez que l'URL Cloud dans le .exe correspond à votre déploiement Vercel.
-                              </p>
-                            </div>
-                            
-                            <a
-                              href="/downloads/Boutididact-Print-Server.exe"
-                              download
-                              className="mt-6 w-full flex items-center justify-center gap-3 px-6 py-4 bg-white/10 hover:bg-white/20 text-white rounded-2xl font-black transition-all border border-white/10 shadow-lg"
-                            >
-                              <Zap size={24} className="text-amber-300" />
-                              Télécharger le Relais (Windows)
-                            </a>
-                          </div>
                         </div>
-                        <div className="absolute -right-20 -bottom-20 w-64 h-64 bg-white/10 rounded-full blur-3xl" />
+                        <button 
+                          onClick={() => setActiveTab('relais')}
+                          className="px-6 py-3 bg-indigo-600 text-white rounded-xl font-black text-sm hover:bg-indigo-700 transition-all shadow-lg"
+                        >
+                          Voir le guide
+                        </button>
                       </div>
 
                       <div className="bg-white border border-gray-100 p-8 rounded-3xl shadow-sm space-y-6">
@@ -1177,6 +1208,20 @@ function PrinterTestButton({ ip, port, localServerUrl }) {
           {result.message}
         </div>
       )}
+    </div>
+  );
+}
+
+function RelayStep({ icon, title, desc }) {
+  return (
+    <div className="bg-gray-50 border border-gray-100 p-6 rounded-2xl flex items-start gap-4 h-full">
+      <div className="w-10 h-10 rounded-xl bg-indigo-100 text-indigo-700 flex items-center justify-center font-black text-lg shrink-0">
+        {icon}
+      </div>
+      <div>
+        <h5 className="font-bold text-gray-900 mb-1">{title}</h5>
+        <p className="text-sm text-gray-500 leading-relaxed font-medium">{desc}</p>
+      </div>
     </div>
   );
 }
