@@ -43,36 +43,36 @@ export default function RelayGuideScreen({ onBack }) {
   const g = guides[platform];
 
   return (
-    <div className="min-h-screen bg-[#0f172a] text-white p-6 md:p-12 font-sans selection:bg-indigo-500/30">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-indigo-50/50 text-slate-900 p-6 md:p-12 font-sans selection:bg-indigo-500/10">
       <div className="max-w-4xl mx-auto">
         <button 
           onClick={onBack}
-          className="flex items-center gap-2 text-slate-400 hover:text-white transition-colors mb-8 font-bold text-sm group"
+          className="flex items-center gap-2 text-slate-500 hover:text-slate-900 transition-colors mb-8 font-bold text-sm group"
         >
           <ChevronLeft size={20} className="group-hover:-translate-x-1 transition-transform" /> Retour
         </button>
 
         <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-12">
           <div>
-            <h1 className="text-4xl md:text-5xl font-black mb-4 tracking-tight">Installation du <span className="text-indigo-500">Relais d'Impression</span></h1>
-            <p className="text-slate-400 text-lg max-w-2xl font-medium leading-relaxed">
+            <h1 className="text-4xl md:text-5xl font-black mb-4 tracking-tight text-slate-900">Installation du <span className="text-indigo-650">Relais d'Impression</span></h1>
+            <p className="text-slate-600 text-lg max-w-2xl font-medium leading-relaxed">
               Pour que vos tickets s'impriment automatiquement, vous devez installer notre petit logiciel de relais sur un appareil connecté à votre réseau local.
             </p>
           </div>
-          <div className="bg-indigo-500/10 border border-indigo-500/20 px-4 py-2 rounded-full flex items-center gap-2">
-            <Zap size={16} className="text-indigo-400" />
-            <span className="text-xs font-black uppercase tracking-widest text-indigo-300">Indispensable pour l'auto-print</span>
+          <div className="bg-indigo-50 border border-indigo-100 px-4 py-2 rounded-full flex items-center gap-2 h-fit shrink-0">
+            <Zap size={16} className="text-indigo-600" />
+            <span className="text-xs font-black uppercase tracking-widest text-indigo-700">Indispensable pour l'auto-print</span>
           </div>
         </div>
 
         {/* Tab Selector */}
-        <div className="flex p-1.5 bg-slate-900 border border-slate-800 rounded-2xl mb-8 w-fit">
+        <div className="flex p-1.5 bg-white border border-slate-200 rounded-2xl mb-8 w-fit shadow-sm">
           {Object.keys(guides).map(p => (
             <button
               key={p}
               onClick={() => setPlatform(p)}
               className={`flex items-center gap-3 px-6 py-3 rounded-xl text-sm font-black transition-all ${
-                platform === p ? 'bg-indigo-600 text-white shadow-xl shadow-indigo-600/20' : 'text-slate-500 hover:text-slate-300'
+                platform === p ? 'bg-indigo-600 text-white shadow-xl shadow-indigo-600/20' : 'text-slate-500 hover:text-slate-900 hover:bg-slate-50'
               }`}
             >
               {guides[p].icon} {guides[p].title}
@@ -88,12 +88,12 @@ export default function RelayGuideScreen({ onBack }) {
           >
             {g.steps.map((s, i) => (
               <div key={i} className="flex gap-6 group">
-                <div className="flex-shrink-0 w-10 h-10 rounded-2xl bg-slate-800 border border-slate-700 flex items-center justify-center text-sm font-black text-slate-400 group-hover:border-indigo-500/50 group-hover:text-indigo-400 transition-all">
+                <div className="flex-shrink-0 w-10 h-10 rounded-2xl bg-white border border-slate-200 flex items-center justify-center text-sm font-black text-slate-500 group-hover:border-indigo-500 group-hover:text-indigo-650 transition-all shadow-sm">
                   {i + 1}
                 </div>
                 <div className="pt-1">
-                  <h3 className="text-lg font-bold text-white mb-2">{s.t}</h3>
-                  <p className="text-slate-400 leading-relaxed text-sm font-medium">{s.d}</p>
+                  <h3 className="text-lg font-bold text-slate-900 mb-2">{s.t}</h3>
+                  <p className="text-slate-600 leading-relaxed text-sm font-medium">{s.d}</p>
                 </div>
               </div>
             ))}
@@ -101,33 +101,33 @@ export default function RelayGuideScreen({ onBack }) {
             {g.link && (
               <a 
                 href={g.link} download
-                className="inline-flex items-center gap-3 px-8 py-4 bg-indigo-500 hover:bg-indigo-400 text-slate-950 font-black rounded-2xl transition-all hover:scale-[1.02] active:scale-95 shadow-xl shadow-indigo-500/20"
+                className="inline-flex items-center gap-3 px-8 py-4 bg-indigo-600 hover:bg-indigo-750 text-white font-black rounded-2xl transition-all hover:scale-[1.02] active:scale-95 shadow-xl shadow-indigo-600/15"
               >
                 <Download size={20} /> Télécharger pour {g.title}
               </a>
             )}
           </motion.div>
 
-          <div className="bg-slate-900/50 border border-slate-800 rounded-3xl p-8 sticky top-12">
-            <h4 className="text-sm font-black uppercase tracking-widest text-slate-500 mb-6">Pourquoi c'est important ?</h4>
+          <div className="bg-white border border-slate-200 rounded-3xl p-8 sticky top-12 shadow-sm">
+            <h4 className="text-sm font-black uppercase tracking-widest text-slate-400 mb-6">Pourquoi c'est important ?</h4>
             <div className="space-y-6">
               <div className="flex gap-4">
-                <div className="p-2 h-fit bg-emerald-500/10 rounded-lg text-emerald-400"><CheckCircle size={20} /></div>
-                <p className="text-sm text-slate-300 leading-relaxed"><span className="text-white font-bold">Impression Instantanée :</span> Vos tickets sortent dès que le client a fini de commander.</p>
+                <div className="p-2 h-fit bg-emerald-50 border border-emerald-100 rounded-lg text-emerald-600"><CheckCircle size={20} /></div>
+                <p className="text-sm text-slate-600 leading-relaxed"><span className="text-slate-900 font-extrabold">Impression Instantanée :</span> Vos tickets sortent dès que le client a fini de commander.</p>
               </div>
               <div className="flex gap-4">
-                <div className="p-2 h-fit bg-emerald-500/10 rounded-lg text-emerald-400"><CheckCircle size={20} /></div>
-                <p className="text-sm text-slate-300 leading-relaxed"><span className="text-white font-bold">Zéro Configuration :</span> Une fois l'IP de l'imprimante saisie, tout est automatisé.</p>
+                <div className="p-2 h-fit bg-emerald-50 border border-emerald-100 rounded-lg text-emerald-600"><CheckCircle size={20} /></div>
+                <p className="text-sm text-slate-600 leading-relaxed"><span className="text-slate-900 font-extrabold">Zéro Configuration :</span> Une fois l'IP de l'imprimante saisie, tout est automatisé.</p>
               </div>
               <div className="flex gap-4">
-                <div className="p-2 h-fit bg-emerald-500/10 rounded-lg text-emerald-400"><CheckCircle size={20} /></div>
-                <p className="text-sm text-slate-300 leading-relaxed"><span className="text-white font-bold">Mode Relais :</span> Le logiciel fait le pont entre le Cloud et votre imprimante locale.</p>
+                <div className="p-2 h-fit bg-emerald-50 border border-emerald-100 rounded-lg text-emerald-600"><CheckCircle size={20} /></div>
+                <p className="text-sm text-slate-600 leading-relaxed"><span className="text-slate-900 font-extrabold">Mode Relais :</span> Le logiciel fait le pont entre le Cloud et votre imprimante locale.</p>
               </div>
             </div>
 
-            <div className="mt-10 p-6 bg-amber-500/5 border border-amber-500/20 rounded-2xl flex items-start gap-4">
-              <Info size={24} className="text-amber-500 shrink-0" />
-              <p className="text-xs text-amber-200/70 leading-relaxed font-medium">
+            <div className="mt-10 p-6 bg-amber-50 border border-amber-200 rounded-2xl flex items-start gap-4">
+              <Info size={24} className="text-amber-600 shrink-0" />
+              <p className="text-xs text-amber-800 leading-relaxed font-semibold">
                 Si vous rencontrez une alerte de sécurité lors de l'installation, ne vous inquiétez pas. Nos logiciels sont auto-signés, c'est pourquoi les systèmes demandent une confirmation manuelle.
               </p>
             </div>
