@@ -19,7 +19,7 @@ import logoUrl from '../assets/logo.svg';
 import useLongPress from '../hooks/useLongPress';
 import ProductImage from '../components/ProductImage';
 
-// Emojis removed as requested
+// Emojis removed as requested c
 const DEFAULT_ICON = <ShoppingBag size={40} className="text-gray-200" />;
 
 export default function MenuScreen({
