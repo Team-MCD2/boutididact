@@ -166,6 +166,7 @@ export default function LandingScreen({ initialMode = 'hero', prefillShopName = 
       {/* 3. Footer */}
       <Footer 
         onLogin={() => { setErrorMsg(''); setMode('login'); }} 
+        onLegal={() => { setErrorMsg(''); setMode('legal'); }}
         onDelete={() => { 
           setErrorMsg(''); 
           setDeleteSuccess(false); 
@@ -399,6 +400,41 @@ export default function LandingScreen({ initialMode = 'hero', prefillShopName = 
 
                 {mode === 'waiting' && (
                   <WaitingPanel onContinue={() => { setErrorMsg(''); setMode('login'); }} />
+                )}
+
+                {mode === 'legal' && (
+                  <div className="space-y-6 text-slate-800 text-left">
+                    <div className="text-center">
+                      <span className="px-4 py-1.5 bg-indigo-50 text-indigo-600 rounded-full text-xs font-black uppercase tracking-widest border border-indigo-100">
+                        Réglementation
+                      </span>
+                      <h2 className="text-3xl font-black text-slate-900 mt-4">Mentions Légales</h2>
+                      <p className="text-slate-500 mt-2">Dernière mise à jour : Mai 2026</p>
+                    </div>
+                    <div className="space-y-4 max-h-[50vh] overflow-y-auto pr-2 text-sm leading-relaxed custom-scrollbar font-medium">
+                      <div>
+                        <h3 className="font-extrabold text-slate-900 mb-1">1. Présentation du site</h3>
+                        <p>En vertu de l'article 6 de la loi n° 2004-575 du 21 juin 2004 pour la confiance dans l'économie numérique, il est précisé aux utilisateurs du site <strong>Boutididact</strong> l'identité des différents intervenants dans le cadre de sa réalisation et de son suivi :</p>
+                        <p className="mt-1"><strong>Éditeur et Propriétaire :</strong> Microdidact E.U.R.L., agence de développement web et logiciel.</p>
+                        <p className="mt-1"><strong>Créateur & Webmaster :</strong> Microdidact (<a href="https://microdidact.com" target="_blank" rel="noopener noreferrer" className="text-indigo-600 font-bold hover:underline">microdidact.com</a>)</p>
+                        <p className="mt-1"><strong>Hébergeur :</strong> Vercel Inc., 750 Broadway, Suite 2003, New York, NY 10003.</p>
+                      </div>
+                      <div>
+                        <h3 className="font-extrabold text-slate-900 mb-1">2. Propriété intellectuelle</h3>
+                        <p>Microdidact est propriétaire des droits de propriété intellectuelle ou détient les droits d'usage sur tous les éléments accessibles sur le site, notamment les textes, images, graphismes, logo, icônes, sons, logiciels.</p>
+                        <p className="mt-1">Toute reproduction, représentation, modification, publication, adaptation de tout ou partie des éléments du site, quel que soit le moyen ou le procédé utilisé, is interdite, sauf autorisation écrite préalable de Microdidact.</p>
+                      </div>
+                      <div>
+                        <h3 className="font-extrabold text-slate-900 mb-1">3. Limitations de responsabilité</h3>
+                        <p>Boutididact ne pourra être tenu responsable des dommages directs et indirects causés au matériel de l'utilisateur, lors de l'accès au site, et résultant soit de l'utilisation d'un matériel ne répondant pas aux spécifications indiquées, soit de l'apparition d'un bug ou d'une incompatibilité.</p>
+                      </div>
+                      <div>
+                        <h3 className="font-extrabold text-slate-900 mb-1">4. Gestion des données personnelles & Cookies</h3>
+                        <p>En France, les données personnelles sont notamment protégées par la loi n° 78-87 du 6 janvier 1978, la loi n° 2004-801 du 6 août 2004, l'article L. 226-13 du Code pénal et la Réglementation Européenne (RGPD).</p>
+                        <p className="mt-1">À l'occasion de l'utilisation du site, peuvent être recueillies : l'URL des liens par l'intermédiaire desquels l'utilisateur a accédé au site, le fournisseur d'accès de l'utilisateur, l'adresse de protocole Internet (IP) de l'utilisateur.</p>
+                      </div>
+                    </div>
+                  </div>
                 )}
                 
               </div>
@@ -700,12 +736,12 @@ function ReviewsSection() {
           </div>
         </motion.div>
 
-        <div className="grid md:grid-cols-3 gap-8">
+        <div className="flex overflow-x-auto gap-8 pb-8 snap-x snap-mandatory scroll-smooth custom-scrollbar-horizontal select-none">
           {reviews.map((r, i) => (
             <motion.div 
               key={i}
               initial={{ opacity: 0, y: 30 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: i * 0.15 }}
-              className="p-8 rounded-3xl bg-white border border-slate-200 hover:-translate-y-2 hover:border-indigo-300 hover:shadow-2xl hover:shadow-indigo-500/10 transition-all duration-300"
+              className="min-w-[280px] sm:min-w-[360px] md:min-w-[400px] flex-1 snap-start p-8 rounded-3xl bg-white border border-slate-200 hover:-translate-y-2 hover:border-indigo-300 hover:shadow-2xl hover:shadow-indigo-500/10 transition-all duration-300"
             >
               <div className="flex items-center justify-between mb-4">
                 <div className="flex text-amber-400 gap-0.5">
@@ -807,7 +843,7 @@ function CtaSection({ onPricing }) {
   );
 }
 
-function Footer({ onLogin, onDelete }) {
+function Footer({ onLogin, onLegal, onDelete }) {
   return (
     <footer className="bg-slate-900 text-slate-300">
       <div className="max-w-7xl mx-auto px-6 py-16 grid md:grid-cols-4 gap-12 border-b border-slate-800">
@@ -839,7 +875,8 @@ function Footer({ onLogin, onDelete }) {
           <h4 className="font-black uppercase tracking-widest text-white mb-6 text-sm">Ressources</h4>
           <ul className="space-y-4 font-medium">
             <li><a href="/relay-guide" className="hover:text-indigo-400 transition-colors">Logiciel Relais (PC)</a></li>
-            <li><button onClick={onDelete} className="hover:text-red-400 transition-colors">Supprimer mon compte</button></li>
+            <li><button onClick={onLegal} className="hover:text-indigo-400 text-left transition-colors">Mentions Légales</button></li>
+            <li><button onClick={onDelete} className="hover:text-red-400 text-left transition-colors">Supprimer mon compte</button></li>
           </ul>
         </div>
       </div>
