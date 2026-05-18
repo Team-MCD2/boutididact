@@ -154,6 +154,7 @@ export default function LandingScreen({ initialMode = 'hero', prefillShopName = 
       {/* 2. Vitrine Content */}
       <main className="flex-1">
         <HeroSection onPricing={() => { setErrorMsg(''); setMode('pricing'); }} />
+        <IntegrationMarqueeSection />
         <FeaturesSection />
         <HowItWorksSection />
         <ReviewsSection />
@@ -413,9 +414,19 @@ export default function LandingScreen({ initialMode = 'hero', prefillShopName = 
 // ==========================================
 
 function Header({ onLogin, onPricing }) {
+  const [isScrolled, setIsScrolled] = useState(false);
+
+  useEffect(() => {
+    const handleScroll = () => {
+      setIsScrolled(window.scrollY > 20);
+    };
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
+
   return (
-    <header className="sticky top-0 z-50 bg-white/80 backdrop-blur-md border-b border-slate-200 transition-all">
-      <div className="max-w-7xl mx-auto px-6 h-20 flex items-center justify-between">
+    <header className={`fixed top-0 w-full z-50 transition-all duration-300 ${isScrolled ? 'bg-white/80 backdrop-blur-md border-b border-slate-200 shadow-sm' : 'bg-transparent border-transparent'}`}>
+      <div className={`max-w-7xl mx-auto px-6 flex items-center justify-between transition-all duration-300 ${isScrolled ? 'h-16' : 'h-24'}`}>
         <a href="#" className="flex items-center gap-3 group">
           <div className="w-10 h-10 bg-gradient-to-tr from-indigo-600 to-fuchsia-600 rounded-xl flex items-center justify-center shadow-lg shadow-indigo-500/20 group-hover:scale-105 transition-transform">
             <Rocket size={20} className="text-white" />
@@ -426,16 +437,16 @@ function Header({ onLogin, onPricing }) {
         </a>
 
         <nav className="hidden md:flex items-center gap-8">
-          <a href="#fonctionnalites" className="text-sm font-bold text-slate-500 hover:text-indigo-600 uppercase tracking-widest transition-colors">Fonctionnalités</a>
-          <a href="#avis" className="text-sm font-bold text-slate-500 hover:text-indigo-600 uppercase tracking-widest transition-colors">Avis</a>
-          <a href="#faq" className="text-sm font-bold text-slate-500 hover:text-indigo-600 uppercase tracking-widest transition-colors">FAQ</a>
+          <a href="#fonctionnalites" className="text-sm font-bold text-slate-600 hover:text-indigo-600 uppercase tracking-widest transition-colors">Fonctionnalités</a>
+          <a href="#avis" className="text-sm font-bold text-slate-600 hover:text-indigo-600 uppercase tracking-widest transition-colors">Avis</a>
+          <a href="#faq" className="text-sm font-bold text-slate-600 hover:text-indigo-600 uppercase tracking-widest transition-colors">FAQ</a>
         </nav>
 
         <div className="flex items-center gap-4">
-          <button onClick={onLogin} className="hidden md:block px-5 py-2.5 text-sm font-black text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-xl transition-colors">
+          <button onClick={onLogin} className="hidden md:block px-5 py-2 text-sm font-black text-slate-700 bg-white border border-slate-200 hover:border-slate-300 hover:bg-slate-50 shadow-sm rounded-xl transition-all">
             Espace Client
           </button>
-          <button onClick={onPricing} className="px-5 py-2.5 text-sm font-black text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl transition-all shadow-md shadow-indigo-600/20 active:scale-95">
+          <button onClick={onPricing} className="px-5 py-2 text-sm font-black text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl transition-all shadow-md shadow-indigo-600/20 active:scale-95">
             Activer ma borne
           </button>
         </div>
@@ -443,6 +454,37 @@ function Header({ onLogin, onPricing }) {
     </header>
   );
 }
+
+function IntegrationMarqueeSection() {
+  const items = [
+    { text: "Propulsé par l'IA", icon: <BrainCircuit size={20} /> },
+    { text: "Intégration Hiboutik Native", icon: <Store size={20} /> },
+    { text: "Paiements Sécurisés Stripe", icon: <Shield size={20} /> },
+    { text: "Mode Relais Zero-Touch", icon: <Printer size={20} /> },
+    { text: "Temps réel Cloud", icon: <RefreshCw size={20} /> },
+  ];
+
+  return (
+    <div className="w-full bg-slate-900 text-white overflow-hidden py-4 flex relative border-y border-slate-800">
+      <div className="absolute inset-y-0 left-0 w-24 bg-gradient-to-r from-slate-900 to-transparent z-10 pointer-events-none"></div>
+      <div className="absolute inset-y-0 right-0 w-24 bg-gradient-to-l from-slate-900 to-transparent z-10 pointer-events-none"></div>
+      <motion.div
+        animate={{ x: [0, -1035] }}
+        transition={{ ease: "linear", duration: 20, repeat: Infinity }}
+        className="flex whitespace-nowrap"
+      >
+        {[...items, ...items, ...items].map((item, i) => (
+          <div key={i} className="flex items-center gap-3 px-8 text-sm font-bold uppercase tracking-widest text-slate-300">
+            <span className="text-indigo-400">{item.icon}</span>
+            {item.text}
+            <span className="w-1.5 h-1.5 rounded-full bg-fuchsia-500 mx-6"></span>
+          </div>
+        ))}
+      </motion.div>
+    </div>
+  );
+}
+
 
 function HeroSection({ onPricing }) {
   return (
