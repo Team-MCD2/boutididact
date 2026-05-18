@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Store, Mail, Lock, ChevronRight, Rocket, Check, ArrowLeft, Zap, Clock, Inbox, Trash2, AlertTriangle, Phone, Smartphone, Monitor, Download, Info, ExternalLink, X, MapPin, Plus, BrainCircuit, RefreshCw, Printer, Shield, Star, ArrowRight, PlayCircle } from 'lucide-react';
+import logoUrl from '../assets/logo.svg';
 
 const API = import.meta.env.VITE_API_URL || '';
 
@@ -428,8 +429,8 @@ function Header({ onLogin, onPricing }) {
     <header className={`fixed top-0 w-full z-50 transition-all duration-300 ${isScrolled ? 'bg-white/80 backdrop-blur-md border-b border-slate-200 shadow-sm' : 'bg-transparent border-transparent'}`}>
       <div className={`max-w-7xl mx-auto px-6 flex items-center justify-between transition-all duration-300 ${isScrolled ? 'h-16' : 'h-24'}`}>
         <a href="#" className="flex items-center gap-3 group">
-          <div className="w-10 h-10 bg-gradient-to-tr from-indigo-600 to-fuchsia-600 rounded-xl flex items-center justify-center shadow-lg shadow-indigo-500/20 group-hover:scale-105 transition-transform">
-            <Rocket size={20} className="text-white" />
+          <div className="w-10 h-10 flex items-center justify-center group-hover:scale-105 transition-transform">
+            <img src={logoUrl} alt="BOUTIDIDACT" className="w-full h-full object-contain" />
           </div>
           <span className="font-black text-2xl tracking-tighter bg-clip-text text-transparent bg-gradient-to-r from-slate-900 to-indigo-900">
             BOUTIDIDACT
@@ -509,9 +510,6 @@ function HeroSection({ onPricing }) {
           transition={{ duration: 0.6 }}
           className="text-center lg:text-left"
         >
-          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-indigo-100/80 text-indigo-700 text-sm font-black uppercase tracking-wider mb-6 border border-indigo-200 shadow-sm">
-            <Star size={16} className="fill-indigo-700" /> Numéro 1 en France
-          </div>
           <h1 className="text-5xl md:text-6xl lg:text-7xl font-black tracking-tighter mb-6 text-slate-900 leading-tight">
             Votre point de vente <br/>
             <span className="bg-clip-text text-transparent bg-gradient-to-r from-indigo-600 via-purple-600 to-fuchsia-600">
@@ -815,8 +813,8 @@ function Footer({ onLogin, onDelete }) {
       <div className="max-w-7xl mx-auto px-6 py-16 grid md:grid-cols-4 gap-12 border-b border-slate-800">
         <div className="md:col-span-2">
           <div className="flex items-center gap-3 mb-6">
-            <div className="w-10 h-10 bg-gradient-to-tr from-indigo-500 to-fuchsia-500 rounded-xl flex items-center justify-center shadow-lg">
-              <Rocket size={20} className="text-white" />
+            <div className="w-10 h-10 flex items-center justify-center">
+              <img src={logoUrl} alt="BOUTIDIDACT" className="w-full h-full object-contain" />
             </div>
             <span className="font-black text-2xl tracking-tight text-white">
               BOUTIDIDACT
