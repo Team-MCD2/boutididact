@@ -745,7 +745,7 @@ export default function AdminScreen({
                         </div>
                         
                         <div className="pt-4 border-t border-gray-50">
-                          <PrinterTestButton ip={settings.printerIp} port={settings.printerPort} isRelayMode={settings.isRelayMode} />
+                          <PrinterTestButton ip={settings.printerIp} port={settings.printerPort} isRelayMode={settings.isRelayMode} shopName={session?.shopName} />
                         </div>
                       </div>
                     </Section>
@@ -1319,7 +1319,7 @@ function ActionButton({ icon, label, onClick, variant = 'solid', disabled = fals
   );
 }
 
-function PrinterTestButton({ ip, port, isRelayMode }) {
+function PrinterTestButton({ ip, port, isRelayMode, shopName }) {
   const [testing, setTesting] = useState(false);
   const [result, setResult] = useState(null);
 
@@ -1336,7 +1336,7 @@ function PrinterTestButton({ ip, port, isRelayMode }) {
         const res = await fetch(`${API}/api/saas/test-print`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ shopName: session?.shopName }),
+          body: JSON.stringify({ shopName }),
         });
         const data = await res.json();
         if (data.ok) {
