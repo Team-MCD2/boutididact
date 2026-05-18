@@ -40,6 +40,11 @@ export default function AdminScreen({
   const [newSuppName, setNewSuppName] = useState('');
   const [newSuppPrice, setNewSuppPrice] = useState('');
 
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deleteForm, setDeleteForm] = useState({ shopName: session?.shopName || '', email: '', password: '' });
+  const [deleteError, setDeleteError] = useState('');
+  const [deleteSubmitting, setDeleteSubmitting] = useState(false);
+
   const [settings, setSettings] = useState(() => {
     try {
       const saved = localStorage.getItem('boutididact_settings');
@@ -335,6 +340,49 @@ export default function AdminScreen({
     }
   };
 
+  const handleDeleteAccount = async () => {
+    setDeleteError('');
+    if (!deleteForm.shopName.trim() || !deleteForm.email.trim() || !deleteForm.password) {
+      setDeleteError('Veuillez remplir tous les champs.');
+      return;
+    }
+    setDeleteSubmitting(true);
+    try {
+      const res = await fetch(`${API}/api/saas/delete-account`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          shopName: deleteForm.shopName.trim(),
+          email: deleteForm.email.trim(),
+          password: deleteForm.password,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.ok) {
+        setDeleteError(data.message || 'Suppression impossible.');
+        setDeleteSubmitting(false);
+        return;
+      }
+      
+      // Vider toutes les données locales rattachées à cette borne
+      try {
+        localStorage.removeItem('boutididact_settings');
+        localStorage.removeItem('boutididact_admin_pin');
+        localStorage.removeItem('ai_products');
+        localStorage.removeItem('ai_categories');
+        localStorage.removeItem('boutididact_supplements');
+        sessionStorage.clear();
+      } catch (e) { /* ignore */ }
+
+      setDeleteSubmitting(false);
+      alert('Votre boutique a été définitivement supprimée. Redirection...');
+      window.location.reload();
+    } catch (e) {
+      setDeleteError('Erreur réseau lors de la suppression.');
+      setDeleteSubmitting(false);
+    }
+  };
+
   // Statut système simplifié
   const online = Boolean(health?.hiboutik?.reachable);
 
@@ -508,21 +556,43 @@ export default function AdminScreen({
                 )}
 
                 {activeTab === 'actions' && (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 md:gap-4">
-                    <ActionButton 
-                      icon={<RefreshCw size={20} className={loading ? 'animate-spin' : ''} />} 
-                      label={loading ? 'Mise à jour...' : 'Mise à jour catalogue'} 
-                      onClick={onReload} 
-                      disabled={loading}
-                    />
-                    <ActionButton icon={<Maximize2 size={20} />} label="Plein écran" onClick={requestFullscreen} />
-                    <ActionButton icon={<Power size={20} />} label="Redémarrer l'app" onClick={() => window.location.reload()} />
-                    <ActionButton
-                      icon={<Lock size={20} />}
-                      label="Verrouiller la borne"
-                      onClick={handleLockOut}
-                      variant="ghost"
-                    />
+                  <div className="space-y-6">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 md:gap-4">
+                      <ActionButton 
+                        icon={<RefreshCw size={20} className={loading ? 'animate-spin' : ''} />} 
+                        label={loading ? 'Mise à jour...' : 'Mise à jour catalogue'} 
+                        onClick={onReload} 
+                        disabled={loading}
+                      />
+                      <ActionButton icon={<Maximize2 size={20} />} label="Plein écran" onClick={requestFullscreen} />
+                      <ActionButton icon={<Power size={20} />} label="Redémarrer l'app" onClick={() => window.location.reload()} />
+                      <ActionButton
+                        icon={<Lock size={20} />}
+                        label="Verrouiller la borne"
+                        onClick={handleLockOut}
+                        variant="ghost"
+                      />
+                    </div>
+
+                    <div className="pt-6 border-t border-red-100">
+                      <h4 className="text-xs font-black text-red-650 uppercase tracking-widest mb-3">Zone de Danger</h4>
+                      <div className="bg-red-50/50 border border-red-100 rounded-2xl p-5">
+                        <p className="text-xs text-red-800 font-medium mb-4 leading-relaxed">
+                          La suppression de votre compte est définitive. Elle résiliera immédiatement votre abonnement Stripe et effacera toutes les données locales de votre borne.
+                        </p>
+                        <button
+                          onClick={() => {
+                            setDeleteForm({ shopName: session?.shopName || '', email: '', password: '' });
+                            setDeleteError('');
+                            setShowDeleteConfirm(true);
+                          }}
+                          className="w-full py-4 bg-red-600 hover:bg-red-700 text-white rounded-2xl font-black transition-all flex items-center justify-center gap-2 active:scale-95 shadow-md shadow-red-600/20"
+                        >
+                          <Trash2 size={18} />
+                          Supprimer mon compte Boutididact
+                        </button>
+                      </div>
+                    </div>
                   </div>
                 )}
 
@@ -711,6 +781,79 @@ export default function AdminScreen({
             refreshCatalog?.();
           }}
         />
+      )}
+
+      {showDeleteConfirm && (
+        <div className="fixed inset-0 z-[80] bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl w-full max-w-md flex flex-col overflow-hidden shadow-2xl p-6 md:p-8 space-y-6">
+            <div className="text-center">
+              <div className="w-16 h-16 mx-auto bg-red-50 border border-red-200 text-red-500 rounded-3xl flex items-center justify-center mb-4">
+                <Trash2 size={32} />
+              </div>
+              <h3 className="text-2xl font-black text-gray-900">Supprimer mon compte</h3>
+              <p className="text-sm text-gray-500 mt-2 leading-relaxed font-medium">
+                Cette action est <strong className="text-red-650 font-black">définitive</strong>. L'abonnement Stripe sera résilié et toutes vos données seront supprimées.
+              </p>
+            </div>
+
+            <div className="space-y-4 text-left">
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-black text-gray-400 uppercase tracking-wider ml-1">Nom de la boutique</label>
+                <input
+                  type="text"
+                  value={deleteForm.shopName}
+                  onChange={e => setDeleteForm({ ...deleteForm, shopName: e.target.value })}
+                  placeholder="Nom de votre boutique"
+                  className="w-full px-4 py-2.5 rounded-xl border border-gray-200 bg-white outline-none focus:ring-2 focus:ring-red-100 font-bold text-gray-700"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-black text-gray-400 uppercase tracking-wider ml-1">Email</label>
+                <input
+                  type="email"
+                  value={deleteForm.email}
+                  onChange={e => setDeleteForm({ ...deleteForm, email: e.target.value })}
+                  placeholder="Email de connexion"
+                  className="w-full px-4 py-2.5 rounded-xl border border-gray-200 bg-white outline-none focus:ring-2 focus:ring-red-100 font-bold text-gray-700"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-black text-gray-400 uppercase tracking-wider ml-1">Mot de passe</label>
+                <input
+                  type="password"
+                  value={deleteForm.password}
+                  onChange={e => setDeleteForm({ ...deleteForm, password: e.target.value })}
+                  placeholder="Mot de passe du compte"
+                  className="w-full px-4 py-2.5 rounded-xl border border-gray-200 bg-white outline-none focus:ring-2 focus:ring-red-100 font-bold text-gray-700"
+                />
+              </div>
+
+              {deleteError && (
+                <div className="px-4 py-3 rounded-xl bg-red-50 border border-red-200 text-red-700 text-sm font-bold">
+                  {deleteError}
+                </div>
+              )}
+            </div>
+
+            <div className="flex gap-3 pt-2">
+              <button
+                onClick={() => setShowDeleteConfirm(false)}
+                className="flex-1 py-4 rounded-2xl bg-gray-50 hover:bg-gray-100 font-black text-gray-700 border border-gray-200 transition-all active:scale-[0.98]"
+              >
+                Annuler
+              </button>
+              <button
+                onClick={handleDeleteAccount}
+                disabled={deleteSubmitting}
+                className="flex-1 py-4 rounded-2xl bg-red-600 hover:bg-red-700 text-white font-black transition-all active:scale-[0.98] disabled:opacity-50 flex items-center justify-center gap-2 shadow-lg shadow-red-600/20"
+              >
+                {deleteSubmitting ? 'Suppression...' : 'Confirmer'}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </motion.div>
   );

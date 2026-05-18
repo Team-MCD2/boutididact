@@ -17,8 +17,6 @@ export default function LandingScreen({ initialMode = 'hero', prefillShopName = 
   const [mode, setMode] = useState(initialMode);
   const [form, setForm] = useState({ name: '', email: '', password: '', phone: '', siret: '', tva: '', city: '', address: '' });
   const [loginForm, setLoginForm] = useState({ shopName: prefillShopName, password: '' });
-  const [deleteForm, setDeleteForm] = useState({ shopName: '', email: '', password: '' });
-  const [deleteSuccess, setDeleteSuccess] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
 
@@ -74,45 +72,7 @@ export default function LandingScreen({ initialMode = 'hero', prefillShopName = 
     }
   };
 
-  const handleDelete = async () => {
-    setErrorMsg('');
-    if (!deleteForm.shopName.trim() || !deleteForm.email.trim() || !deleteForm.password) {
-      setErrorMsg('Renseignez le nom de la boutique, l\'email et le mot de passe.');
-      return;
-    }
-    setSubmitting(true);
-    try {
-      const res = await fetch(`${API}/api/saas/delete-account`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          shopName: deleteForm.shopName.trim(),
-          email: deleteForm.email.trim(),
-          password: deleteForm.password,
-        }),
-      });
-      const data = await res.json();
-      if (!res.ok || !data.ok) {
-        setErrorMsg(data.message || 'Suppression impossible.');
-        setSubmitting(false);
-        return;
-      }
-      // Vider toutes les données locales rattachées à cette borne
-      try {
-        localStorage.removeItem('boutididact_settings');
-        localStorage.removeItem('boutididact_admin_pin');
-        localStorage.removeItem('ai_products');
-        localStorage.removeItem('ai_categories');
-        localStorage.removeItem('boutididact_supplements');
-        sessionStorage.clear();
-      } catch (e) { /* ignore */ }
-      setDeleteSuccess(true);
-      setSubmitting(false);
-    } catch (e) {
-      setErrorMsg('Erreur réseau lors de la suppression.');
-      setSubmitting(false);
-    }
-  };
+
 
   const handleLogin = async () => {
     setErrorMsg('');
@@ -167,12 +127,6 @@ export default function LandingScreen({ initialMode = 'hero', prefillShopName = 
       <Footer 
         onLogin={() => { setErrorMsg(''); setMode('login'); }} 
         onLegal={() => { setErrorMsg(''); setMode('legal'); }}
-        onDelete={() => { 
-          setErrorMsg(''); 
-          setDeleteSuccess(false); 
-          setDeleteForm({ shopName: '', email: '', password: '' }); 
-          setMode('delete'); 
-        }} 
       />
 
       {/* 4. Auth Modals Overlay */}
@@ -336,65 +290,6 @@ export default function LandingScreen({ initialMode = 'hero', prefillShopName = 
                         {submitting ? 'Connexion...' : 'Se connecter'}
                       </button>
                     </div>
-                  </div>
-                )}
-
-                {mode === 'delete' && (
-                  <div className="space-y-8">
-                    {deleteSuccess ? (
-                      <div className="text-center space-y-6">
-                        <div className="w-20 h-20 mx-auto bg-emerald-50 border border-emerald-200 text-emerald-600 rounded-3xl flex items-center justify-center">
-                          <Check size={40} />
-                        </div>
-                        <h2 className="text-3xl font-black text-slate-900">Boutique supprimée</h2>
-                        <p className="text-slate-650">
-                          Votre boutique et votre abonnement BOUTIDIDACT ont été définitivement supprimés.
-                        </p>
-                        <button
-                          onClick={() => { setErrorMsg(''); setDeleteSuccess(false); setMode('hero'); }}
-                          className="w-full py-5 bg-slate-900 text-white rounded-2xl font-black text-lg transition-all hover:bg-slate-800 active:scale-[0.98]"
-                        >
-                          Retour à l'accueil
-                        </button>
-                      </div>
-                    ) : (
-                      <div className="space-y-6">
-                        <div className="text-center">
-                          <div className="w-16 h-16 mx-auto bg-red-50 border border-red-200 text-red-500 rounded-3xl flex items-center justify-center mb-4">
-                            <AlertTriangle size={32} />
-                          </div>
-                          <h2 className="text-3xl font-black text-slate-900">Supprimer ma boutique</h2>
-                          <p className="text-slate-600 mt-2">
-                            Cette action est <strong className="text-red-600 font-extrabold">définitive</strong>. L'abonnement Stripe sera annulé et toutes les données locales seront effacées.
-                          </p>
-                        </div>
-
-                        <div className="space-y-4">
-                          <DarkInput
-                            icon={<Store size={20} />} placeholder="Nom de votre boutique"
-                            value={deleteForm.shopName} onChange={v => setDeleteForm({ ...deleteForm, shopName: v })}
-                          />
-                          <DarkInput
-                            icon={<Mail size={20} />} placeholder="Email associé à la boutique" type="email"
-                            value={deleteForm.email} onChange={v => setDeleteForm({ ...deleteForm, email: v })}
-                          />
-                          <DarkInput
-                            icon={<Lock size={20} />} placeholder="Mot de passe" type="password"
-                            value={deleteForm.password} onChange={v => setDeleteForm({ ...deleteForm, password: v })}
-                          />
-
-                          {errorMsg && <ErrorBox message={errorMsg} />}
-
-                          <button
-                            onClick={handleDelete}
-                            disabled={submitting}
-                            className="w-full py-5 bg-red-600 hover:bg-red-700 text-white rounded-2xl font-black text-lg transition-all active:scale-[0.98] disabled:opacity-50 mt-4 flex items-center justify-center gap-3"
-                          >
-                            {submitting ? 'Suppression...' : (<><Trash2 size={20} /> Supprimer définitivement</>)}
-                          </button>
-                        </div>
-                      </div>
-                    )}
                   </div>
                 )}
 
@@ -843,7 +738,7 @@ function CtaSection({ onPricing }) {
   );
 }
 
-function Footer({ onLogin, onLegal, onDelete }) {
+function Footer({ onLogin, onLegal }) {
   return (
     <footer className="bg-slate-900 text-slate-300">
       <div className="max-w-7xl mx-auto px-6 py-16 grid md:grid-cols-4 gap-12 border-b border-slate-800">
@@ -876,7 +771,6 @@ function Footer({ onLogin, onLegal, onDelete }) {
           <ul className="space-y-4 font-medium">
             <li><a href="/relay-guide" className="hover:text-indigo-400 transition-colors">Logiciel Relais (PC)</a></li>
             <li><button onClick={onLegal} className="hover:text-indigo-400 text-left transition-colors">Mentions Légales</button></li>
-            <li><button onClick={onDelete} className="hover:text-red-400 text-left transition-colors">Supprimer mon compte</button></li>
           </ul>
         </div>
       </div>
