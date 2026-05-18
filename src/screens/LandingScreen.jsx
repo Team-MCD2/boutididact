@@ -495,7 +495,7 @@ function Header({ onLogin, onPricing }) {
 function IntegrationMarqueeSection() {
   const items = [
     { text: "Propulsé par l'IA", icon: <BrainCircuit size={20} /> },
-    { text: "Intégration Hiboutik Native", icon: <Store size={20} /> },
+    { text: "Intégration Caisse Native", icon: <Store size={20} /> },
     { text: "Paiements Sécurisés Stripe", icon: <Shield size={20} /> },
     { text: "Mode Relais Zero-Touch", icon: <Printer size={20} /> },
     { text: "Temps réel Cloud", icon: <RefreshCw size={20} /> },
@@ -611,7 +611,7 @@ function HeroSection({ onPricing }) {
 
 function FeaturesSection() {
   const features = [
-    { icon: <BrainCircuit size={28} />, title: "Extraction IA", desc: "Notre IA télécharge vos produits Hiboutik et génère automatiquement un catalogue visuel magnifique.", color: "indigo" },
+    { icon: <BrainCircuit size={28} />, title: "Extraction IA", desc: "Notre IA télécharge vos produits et génère automatiquement un catalogue visuel magnifique.", color: "indigo" },
     { icon: <RefreshCw size={28} />, title: "Synchronisation Live", desc: "Les prix et les stocks sont mis à jour en temps réel entre votre caisse et toutes vos bornes.", color: "fuchsia" },
     { icon: <Printer size={28} />, title: "Zero-Touch Print", desc: "Plus de galère de réseau. Le Relais Boutididact imprime vos tickets depuis n'importe où via le Cloud.", color: "emerald" },
     { icon: <Shield size={28} />, title: "Paiement Sécurisé", desc: "Intégration Stripe fluide pour des paiements par carte bancaire rapides, sans friction et 100% sécurisés.", color: "amber" },
@@ -667,7 +667,7 @@ function FeaturesSection() {
 
 function HowItWorksSection() {
   const steps = [
-    { num: "01", title: "Connectez votre caisse", desc: "Entrez vos identifiants Hiboutik. Notre système se synchronise immédiatement." },
+    { num: "01", title: "Connectez votre caisse", desc: "Configurez les accès de votre caisse. Notre système se synchronise immédiatement." },
     { num: "02", title: "L'IA fait le reste", desc: "Elle classe vos produits, ajoute des images appétissantes et crée un menu magnifique." },
     { num: "03", title: "Encaissez en continu", desc: "Branchez votre borne. Les commandes et impressions arrivent toutes seules." }
   ];
@@ -712,7 +712,7 @@ function HowItWorksSection() {
 
 function ReviewsSection() {
   const reviews = [
-    { text: "L'installation a pris littéralement 2 minutes. L'IA a scanné tout mon menu Hiboutik. Mes clients adorent l'interface !", author: "Marc D.", source: "Restaurateur", rating: 5 },
+    { text: "L'installation a pris littéralement 2 minutes. L'IA a scanné tout mon menu. Mes clients adorent l'interface !", author: "Marc D.", source: "Restaurateur", rating: 5 },
     { text: "Nous avons réduit les files d'attente de moitié le midi. Le design est magnifique et le mode relais pour l'imprimante est magique.", author: "Sophie L.", source: "Gérante Food Truck", rating: 5 },
     { text: "Aucun paramétrage réseau compliqué. On branche, ça marche. Le support est ultra réactif. Le meilleur investissement de l'année.", author: "Thomas B.", source: "Snack Toulouse", rating: 5 },
   ];
@@ -773,7 +773,7 @@ function FaqSection() {
   const faqs = [
     { q: "Qu'est-ce que le Mode Relais ?", a: "C'est une exclusivité Boutididact. Vous n'avez pas besoin de relier vos tablettes à votre imprimante de cuisine en local. Le logiciel s'installe sur n'importe quel ordinateur et récupère les commandes du Cloud instantanément." },
     { q: "Puis-je utiliser mes propres tablettes ?", a: "Absolument. Boutididact tourne sur le web (PWA). Un simple iPad ou une tablette Android récente suffit pour transformer votre comptoir en borne de commande professionnelle." },
-    { q: "Comment se passe l'intégration avec Hiboutik ?", a: "Vous renseignez vos accès API Hiboutik et notre IA s'occupe de tout. Elle télécharge votre menu, vos prix, vos options, et assigne même des images automatiquement à vos produits." },
+    { q: "Comment se passe l'intégration avec votre caisse ?", a: "Vous renseignez vos accès API de caisse et notre IA s'occupe de tout. Elle télécharge votre menu, vos prix, vos options, et assigne même des images automatiquement à vos produits." },
     { q: "Y a-t-il des frais d'installation ?", a: "Aucun. Vous vous inscrivez, vous payez l'abonnement mensuel de 49.90€ et vous avez accès à l'ensemble du système. Vous pouvez résilier en un clic." },
   ];
 
