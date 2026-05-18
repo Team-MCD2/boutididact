@@ -208,7 +208,7 @@ export default function AdminScreen({
             const canvas = document.createElement('canvas');
             let width = img.width;
             let height = img.height;
-            const MAX = 1000;
+            const MAX = 1600;
             if (width > height) {
               if (width > MAX) { height *= MAX / width; width = MAX; }
             } else {
@@ -218,7 +218,7 @@ export default function AdminScreen({
             canvas.height = height;
             const ctx = canvas.getContext('2d');
             ctx.drawImage(img, 0, 0, width, height);
-            resolve(canvas.toDataURL('image/jpeg', 0.5));
+            resolve(canvas.toDataURL('image/jpeg', 0.7));
           };
           img.src = ev.target.result;
         };
@@ -226,8 +226,6 @@ export default function AdminScreen({
       });
 
       const base64 = await resizeImage(file);
-      console.log(`[IA] Envoi image compresse : ${(base64.length / 1024 / 1024).toFixed(2)} Mo`);
-      
       try {
         const res = await fetch(`${API}/api/saas/extract-menu`, {
           method: 'POST',
