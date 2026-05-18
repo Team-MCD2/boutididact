@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Store, Mail, Lock, ChevronRight, Rocket, Check, ArrowLeft, Zap, Clock, Inbox, Trash2, AlertTriangle, Phone, Smartphone, Monitor, Download, Info, ExternalLink, X, MapPin, Plus } from 'lucide-react';
+import { Store, Mail, Lock, ChevronRight, Rocket, Check, ArrowLeft, Zap, Clock, Inbox, Trash2, AlertTriangle, Phone, Smartphone, Monitor, Download, Info, ExternalLink, X, MapPin, Plus, BrainCircuit, RefreshCw, Printer, Shield, Star, ArrowRight, PlayCircle } from 'lucide-react';
 
 const API = import.meta.env.VITE_API_URL || '';
 
@@ -154,8 +154,11 @@ export default function LandingScreen({ initialMode = 'hero', prefillShopName = 
       {/* 2. Vitrine Content */}
       <main className="flex-1">
         <HeroSection onPricing={() => { setErrorMsg(''); setMode('pricing'); }} />
+        <FeaturesSection />
+        <HowItWorksSection />
         <ReviewsSection />
         <FaqSection />
+        <CtaSection onPricing={() => { setErrorMsg(''); setMode('pricing'); }} />
       </main>
 
       {/* 3. Footer */}
@@ -445,61 +448,186 @@ function HeroSection({ onPricing }) {
   return (
     <section className="relative pt-20 pb-32 overflow-hidden">
       <div className="absolute inset-0 pointer-events-none">
-        <div className="absolute -top-[20%] -left-[10%] w-[50%] h-[50%] bg-indigo-500/10 blur-[120px] rounded-full" />
-        <div className="absolute top-[20%] -right-[10%] w-[50%] h-[50%] bg-fuchsia-500/10 blur-[120px] rounded-full" />
+        <motion.div 
+          animate={{ scale: [1, 1.2, 1], opacity: [0.1, 0.2, 0.1] }} 
+          transition={{ duration: 8, repeat: Infinity }}
+          className="absolute -top-[20%] -left-[10%] w-[50%] h-[50%] bg-indigo-500 blur-[120px] rounded-full" 
+        />
+        <motion.div 
+          animate={{ scale: [1, 1.3, 1], opacity: [0.1, 0.3, 0.1] }} 
+          transition={{ duration: 10, repeat: Infinity, delay: 2 }}
+          className="absolute top-[20%] -right-[10%] w-[50%] h-[50%] bg-fuchsia-500 blur-[120px] rounded-full" 
+        />
       </div>
 
       <div className="max-w-7xl mx-auto px-6 grid lg:grid-cols-2 gap-12 items-center relative z-10">
-        <div className="text-center lg:text-left">
+        <motion.div 
+          initial={{ opacity: 0, x: -30 }} 
+          animate={{ opacity: 1, x: 0 }} 
+          transition={{ duration: 0.6 }}
+          className="text-center lg:text-left"
+        >
+          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-indigo-100/80 text-indigo-700 text-sm font-black uppercase tracking-wider mb-6 border border-indigo-200 shadow-sm">
+            <Star size={16} className="fill-indigo-700" /> Numéro 1 en France
+          </div>
           <h1 className="text-5xl md:text-6xl lg:text-7xl font-black tracking-tighter mb-6 text-slate-900 leading-tight">
             Votre point de vente <br/>
-            <span className="bg-clip-text text-transparent bg-gradient-to-r from-indigo-600 to-fuchsia-600">
+            <span className="bg-clip-text text-transparent bg-gradient-to-r from-indigo-600 via-purple-600 to-fuchsia-600">
               automatisé par l'IA.
             </span>
           </h1>
-          <p className="text-lg md:text-xl text-slate-600 font-medium mb-10 leading-relaxed max-w-2xl mx-auto lg:mx-0">
-            Fini les files d'attente interminables. Découvrez la borne de commande intelligente, élégante et sans configuration qui révolutionne la restauration.
+          <p className="text-lg md:text-xl text-slate-650 font-medium mb-10 leading-relaxed max-w-2xl mx-auto lg:mx-0">
+            Fini les files d'attente interminables. Découvrez la borne de commande intelligente, élégante et sans configuration qui révolutionne la restauration rapide.
           </p>
           <div className="flex flex-col sm:flex-row items-center gap-4 justify-center lg:justify-start">
             <button
               onClick={onPricing}
-              className="w-full sm:w-auto px-8 py-4 bg-indigo-600 hover:bg-indigo-700 text-white rounded-2xl font-black text-lg transition-all hover:scale-105 active:scale-95 shadow-xl shadow-indigo-600/20 flex items-center justify-center gap-3"
+              className="w-full sm:w-auto px-8 py-4 bg-gradient-to-r from-indigo-600 to-fuchsia-600 text-white rounded-2xl font-black text-lg transition-all hover:scale-105 active:scale-95 shadow-xl shadow-indigo-600/30 flex items-center justify-center gap-3"
             >
               Créer ma boutique <ChevronRight size={20} />
             </button>
             <a
               href="#avis"
-              className="w-full sm:w-auto px-8 py-4 bg-white text-slate-700 border border-slate-200 rounded-2xl font-black text-lg transition-all hover:bg-slate-50 active:scale-95 flex items-center justify-center gap-3"
+              className="w-full sm:w-auto px-8 py-4 bg-white text-slate-700 border border-slate-200 rounded-2xl font-black text-lg transition-all hover:bg-slate-50 hover:border-slate-300 active:scale-95 flex items-center justify-center gap-3 shadow-sm"
             >
-              Voir les avis
+              <PlayCircle size={20} className="text-indigo-600" /> Voir les avis
             </a>
           </div>
           <div className="mt-8 flex items-center justify-center lg:justify-start gap-4 text-sm font-bold text-slate-500">
             <div className="flex items-center gap-1.5"><Check size={16} className="text-emerald-500" /> Sans engagement</div>
             <div className="flex items-center gap-1.5"><Check size={16} className="text-emerald-500" /> Installation en 2 min</div>
           </div>
-        </div>
+        </motion.div>
 
         <div className="relative mx-auto w-full max-w-lg lg:max-w-none perspective-1000">
           <motion.div
             initial={{ rotateY: 15, rotateX: 5, opacity: 0, scale: 0.9 }}
             animate={{ rotateY: -5, rotateX: 5, opacity: 1, scale: 1 }}
             transition={{ duration: 1.5, ease: "easeOut" }}
-            className="relative rounded-[2.5rem] shadow-2xl shadow-indigo-900/20 border-8 border-white overflow-hidden bg-slate-100 transform-gpu"
+            className="relative rounded-[2.5rem] shadow-[0_30px_60px_-15px_rgba(79,70,229,0.3)] border-8 border-white overflow-hidden bg-slate-100 transform-gpu"
           >
             <img 
               src="/hero-mockup.png" 
               alt="Maquette de la borne Boutididact" 
               className="w-full h-auto object-cover"
             />
-            {/* Absolute overlay items to mimic UI interaction feeling */}
-            <div className="absolute top-6 right-6 px-4 py-2 bg-white/90 backdrop-blur rounded-full shadow-lg border border-white/20 flex items-center gap-2 text-sm font-bold text-slate-800">
-              <Zap size={16} className="text-amber-500" /> Numérisation IA
-            </div>
-            <div className="absolute bottom-6 left-6 px-4 py-2 bg-emerald-500 text-white rounded-full shadow-lg flex items-center gap-2 text-sm font-bold">
-              <Check size={16} /> Impression instantanée
-            </div>
+            
+            {/* Flotting badges */}
+            <motion.div 
+              animate={{ y: [0, -10, 0] }} transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
+              className="absolute top-6 right-6 px-4 py-2 bg-white/95 backdrop-blur-md rounded-full shadow-xl border border-white flex items-center gap-2 text-sm font-bold text-slate-800"
+            >
+              <Zap size={16} className="text-amber-500 fill-amber-500" /> Vitesse record
+            </motion.div>
+            
+            <motion.div 
+              animate={{ y: [0, 10, 0] }} transition={{ duration: 5, repeat: Infinity, ease: "easeInOut", delay: 1 }}
+              className="absolute bottom-6 left-6 px-4 py-2 bg-gradient-to-r from-emerald-500 to-teal-500 text-white rounded-full shadow-xl border border-emerald-400 flex items-center gap-2 text-sm font-bold"
+            >
+              <Check size={16} /> Commandes fluides
+            </motion.div>
           </motion.div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function FeaturesSection() {
+  const features = [
+    { icon: <BrainCircuit size={28} />, title: "Extraction IA", desc: "Notre IA télécharge vos produits Hiboutik et génère automatiquement un catalogue visuel magnifique.", color: "indigo" },
+    { icon: <RefreshCw size={28} />, title: "Synchronisation Live", desc: "Les prix et les stocks sont mis à jour en temps réel entre votre caisse et toutes vos bornes.", color: "fuchsia" },
+    { icon: <Printer size={28} />, title: "Zero-Touch Print", desc: "Plus de galère de réseau. Le Relais Boutididact imprime vos tickets depuis n'importe où via le Cloud.", color: "emerald" },
+    { icon: <Shield size={28} />, title: "Paiement Sécurisé", desc: "Intégration Stripe fluide pour des paiements par carte bancaire rapides, sans friction et 100% sécurisés.", color: "amber" },
+  ];
+
+  const colorStyles = {
+    indigo: "bg-indigo-100 text-indigo-600 border-indigo-200",
+    fuchsia: "bg-fuchsia-100 text-fuchsia-600 border-fuchsia-200",
+    emerald: "bg-emerald-100 text-emerald-600 border-emerald-200",
+    amber: "bg-amber-100 text-amber-600 border-amber-200"
+  };
+
+  return (
+    <section id="fonctionnalites" className="py-24 bg-white relative z-10 border-t border-slate-100">
+      <div className="max-w-7xl mx-auto px-6">
+        <motion.div 
+          initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }}
+          className="text-center mb-20"
+        >
+          <span className="px-4 py-1.5 bg-fuchsia-50 text-fuchsia-600 rounded-full text-xs font-black uppercase tracking-widest border border-fuchsia-100">
+            Pourquoi nous choisir
+          </span>
+          <h2 className="text-3xl md:text-5xl font-black text-slate-900 mt-4 mb-6">
+            Une puissance technologique <br/> <span className="text-indigo-600">sans précédent.</span>
+          </h2>
+          <p className="text-slate-600 text-lg max-w-2xl mx-auto font-medium">
+            Oubliez les installations complexes de plusieurs jours. Boutididact est conçu pour fonctionner en quelques minutes.
+          </p>
+        </motion.div>
+
+        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
+          {features.map((f, i) => (
+            <motion.div 
+              key={i}
+              initial={{ opacity: 0, y: 30 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ delay: i * 0.1 }}
+              className="p-8 rounded-3xl bg-slate-50 border border-slate-200 hover:-translate-y-2 hover:shadow-2xl hover:shadow-indigo-500/10 hover:border-indigo-200 transition-all duration-300 group"
+            >
+              <div className={`w-14 h-14 rounded-2xl flex items-center justify-center border mb-6 transition-transform group-hover:scale-110 ${colorStyles[f.color]}`}>
+                {f.icon}
+              </div>
+              <h3 className="text-xl font-black text-slate-900 mb-3">{f.title}</h3>
+              <p className="text-slate-600 font-medium leading-relaxed">{f.desc}</p>
+            </motion.div>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function HowItWorksSection() {
+  const steps = [
+    { num: "01", title: "Connectez votre caisse", desc: "Entrez vos identifiants Hiboutik. Notre système se synchronise immédiatement." },
+    { num: "02", title: "L'IA fait le reste", desc: "Elle classe vos produits, ajoute des images appétissantes et crée un menu magnifique." },
+    { num: "03", title: "Encaissez en continu", desc: "Branchez votre borne. Les commandes et impressions arrivent toutes seules." }
+  ];
+
+  return (
+    <section className="py-24 bg-slate-900 text-white relative overflow-hidden">
+      <div className="absolute inset-0 opacity-20 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-indigo-500 via-slate-900 to-slate-900"></div>
+      <div className="max-w-7xl mx-auto px-6 relative z-10">
+        <motion.div 
+          initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }}
+          className="text-center mb-16"
+        >
+          <h2 className="text-3xl md:text-5xl font-black mt-4 mb-4">Lancement en 3 étapes</h2>
+          <p className="text-indigo-200 text-lg">Si simple que vous n'en reviendrez pas.</p>
+        </motion.div>
+
+        <div className="grid md:grid-cols-3 gap-12 relative">
+          {/* Ligne connectrice sur desktop */}
+          <div className="hidden md:block absolute top-12 left-[15%] right-[15%] h-0.5 bg-gradient-to-r from-indigo-500/0 via-indigo-500/50 to-indigo-500/0"></div>
+          
+          {steps.map((s, i) => (
+            <motion.div 
+              key={i}
+              initial={{ opacity: 0, scale: 0.9 }}
+              whileInView={{ opacity: 1, scale: 1 }}
+              viewport={{ once: true }}
+              transition={{ delay: i * 0.2 }}
+              className="relative text-center"
+            >
+              <div className="w-24 h-24 mx-auto bg-slate-800 border-4 border-slate-900 rounded-full flex items-center justify-center mb-8 relative z-10 shadow-[0_0_30px_rgba(79,70,229,0.3)]">
+                <span className="text-3xl font-black bg-clip-text text-transparent bg-gradient-to-br from-indigo-400 to-fuchsia-400">{s.num}</span>
+              </div>
+              <h3 className="text-2xl font-black mb-4">{s.title}</h3>
+              <p className="text-slate-400 font-medium leading-relaxed">{s.desc}</p>
+            </motion.div>
+          ))}
         </div>
       </div>
     </section>
@@ -508,47 +636,56 @@ function HeroSection({ onPricing }) {
 
 function ReviewsSection() {
   const reviews = [
-    { text: "L'installation a pris littéralement 2 minutes. L'IA a scanné tout mon menu Hiboutik automatiquement. Mes clients adorent l'interface !", author: "Marc D.", source: "Restaurateur", rating: 5 },
+    { text: "L'installation a pris littéralement 2 minutes. L'IA a scanné tout mon menu Hiboutik. Mes clients adorent l'interface !", author: "Marc D.", source: "Restaurateur", rating: 5 },
     { text: "Nous avons réduit les files d'attente de moitié le midi. Le design est magnifique et le mode relais pour l'imprimante est magique.", author: "Sophie L.", source: "Gérante Food Truck", rating: 5 },
     { text: "Aucun paramétrage réseau compliqué. On branche, ça marche. Le support est ultra réactif. Le meilleur investissement de l'année.", author: "Thomas B.", source: "Snack Toulouse", rating: 5 },
   ];
 
   return (
-    <section id="avis" className="py-24 bg-white border-y border-slate-100 relative overflow-hidden">
+    <section id="avis" className="py-24 bg-slate-50 border-y border-slate-100 relative overflow-hidden">
       <div className="max-w-7xl mx-auto px-6">
-        <div className="text-center mb-16">
-          <span className="px-4 py-1.5 bg-indigo-50 text-indigo-600 rounded-full text-xs font-black uppercase tracking-widest border border-indigo-100">
+        <motion.div 
+          initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }}
+          className="text-center mb-16"
+        >
+          <span className="px-4 py-1.5 bg-emerald-50 text-emerald-600 rounded-full text-xs font-black uppercase tracking-widest border border-emerald-100">
             Avis Clients
           </span>
           <h2 className="text-3xl md:text-5xl font-black text-slate-900 mt-4 mb-4">Ils ont franchi le pas</h2>
           <div className="flex items-center justify-center gap-2">
             <div className="flex text-amber-400">
-              {[1,2,3,4,5].map(i => <svg key={i} className="h-6 w-6 fill-current" viewBox="0 0 20 20"><path d="M10 1.5l2.6 5.3 5.9.9-4.3 4.2 1 5.9L10 15l-5.3 2.8 1-5.9L1.4 7.7l5.9-.9z"/></svg>)}
+              {[1,2,3,4,5].map(i => <Star key={i} className="h-6 w-6 fill-amber-400 text-amber-400" />)}
             </div>
             <span className="font-bold text-slate-700">5.0 / 5</span>
           </div>
-        </div>
+        </motion.div>
 
         <div className="grid md:grid-cols-3 gap-8">
           {reviews.map((r, i) => (
-            <div key={i} className="p-8 rounded-3xl bg-slate-50 border border-slate-200 hover:border-indigo-200 hover:shadow-xl hover:shadow-indigo-500/5 transition-all">
+            <motion.div 
+              key={i}
+              initial={{ opacity: 0, y: 30 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: i * 0.15 }}
+              className="p-8 rounded-3xl bg-white border border-slate-200 hover:-translate-y-2 hover:border-indigo-300 hover:shadow-2xl hover:shadow-indigo-500/10 transition-all duration-300"
+            >
               <div className="flex items-center justify-between mb-4">
-                <div className="flex text-amber-400">
-                  {[...Array(r.rating)].map((_, j) => <svg key={j} className="h-4 w-4 fill-current" viewBox="0 0 20 20"><path d="M10 1.5l2.6 5.3 5.9.9-4.3 4.2 1 5.9L10 15l-5.3 2.8 1-5.9L1.4 7.7l5.9-.9z"/></svg>)}
+                <div className="flex text-amber-400 gap-0.5">
+                  {[...Array(r.rating)].map((_, j) => <Star key={j} className="h-4 w-4 fill-amber-400 text-amber-400" />)}
                 </div>
-                <span className="px-2 py-1 bg-white border border-slate-200 rounded-md text-xs font-bold text-slate-500">{r.source}</span>
+                <span className="px-2 py-1 bg-slate-100 rounded-md text-xs font-bold text-slate-600">{r.source}</span>
               </div>
               <p className="text-slate-700 font-medium leading-relaxed mb-6">« {r.text} »</p>
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center font-black">
+                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-indigo-500 to-fuchsia-500 text-white flex items-center justify-center font-black shadow-md">
                   {r.author.charAt(0)}
                 </div>
                 <div>
                   <div className="font-bold text-slate-900 text-sm">{r.author}</div>
-                  <div className="text-xs text-slate-500 font-medium">Achat Vérifié</div>
+                  <div className="text-xs text-emerald-600 font-bold flex items-center gap-1">
+                    <Check size={12} /> Client Vérifié
+                  </div>
                 </div>
               </div>
-            </div>
+            </motion.div>
           ))}
         </div>
       </div>
@@ -565,28 +702,35 @@ function FaqSection() {
   ];
 
   return (
-    <section id="faq" className="py-24 bg-slate-50">
+    <section id="faq" className="py-24 bg-white">
       <div className="max-w-4xl mx-auto px-6">
-        <div className="text-center mb-16">
+        <motion.div 
+          initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }}
+          className="text-center mb-16"
+        >
           <span className="px-4 py-1.5 bg-indigo-50 text-indigo-600 rounded-full text-xs font-black uppercase tracking-widest border border-indigo-100">
             Questions fréquentes
           </span>
-          <h2 className="text-3xl md:text-5xl font-black text-slate-900 mt-4">FAQ</h2>
-        </div>
+          <h2 className="text-3xl md:text-5xl font-black text-slate-900 mt-4">Tout ce que vous devez savoir</h2>
+        </motion.div>
 
         <div className="space-y-4">
           {faqs.map((f, i) => (
-            <details key={i} className="group bg-white border border-slate-200 rounded-2xl overflow-hidden [&_summary::-webkit-details-marker]:hidden transition-all hover:border-indigo-200">
+            <motion.details 
+              key={i} 
+              initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: i * 0.1 }}
+              className="group bg-slate-50 border border-slate-200 rounded-2xl overflow-hidden [&_summary::-webkit-details-marker]:hidden transition-all hover:border-indigo-300 hover:shadow-md"
+            >
               <summary className="flex cursor-pointer items-center justify-between p-6 font-bold text-lg text-slate-800">
                 <span>{f.q}</span>
-                <span className="flex h-8 w-8 items-center justify-center rounded-full bg-slate-100 text-slate-500 transition-transform group-open:rotate-45">
+                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-white text-indigo-600 shadow-sm border border-slate-200 transition-transform group-open:rotate-45 group-open:bg-indigo-600 group-open:text-white group-open:border-indigo-600">
                   <Plus size={18} />
                 </span>
               </summary>
               <div className="px-6 pb-6 pt-2 text-slate-600 leading-relaxed font-medium">
                 {f.a}
               </div>
-            </details>
+            </motion.details>
           ))}
         </div>
       </div>
@@ -594,49 +738,78 @@ function FaqSection() {
   );
 }
 
+function CtaSection({ onPricing }) {
+  return (
+    <section className="py-24 bg-white">
+      <div className="max-w-5xl mx-auto px-6">
+        <motion.div 
+          initial={{ opacity: 0, scale: 0.95 }} whileInView={{ opacity: 1, scale: 1 }} viewport={{ once: true }}
+          className="bg-gradient-to-br from-indigo-600 via-indigo-700 to-fuchsia-700 rounded-[3rem] p-12 text-center text-white shadow-2xl shadow-indigo-600/30 relative overflow-hidden"
+        >
+          <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 blur-[80px] rounded-full"></div>
+          <div className="absolute bottom-0 left-0 w-64 h-64 bg-fuchsia-400/20 blur-[80px] rounded-full"></div>
+          
+          <div className="relative z-10">
+            <h2 className="text-4xl md:text-5xl font-black mb-6">Prêt à transformer votre restaurant ?</h2>
+            <p className="text-xl text-indigo-100 font-medium max-w-2xl mx-auto mb-10">
+              Rejoignez des dizaines de restaurateurs qui ont déjà automatisé leurs prises de commandes et boosté leur chiffre d'affaires.
+            </p>
+            <button 
+              onClick={onPricing}
+              className="px-10 py-5 bg-white text-indigo-600 rounded-2xl font-black text-xl hover:bg-slate-50 transition-all hover:scale-105 active:scale-95 shadow-xl flex items-center justify-center gap-3 mx-auto"
+            >
+              Démarrer l'essai <ArrowRight size={24} />
+            </button>
+          </div>
+        </motion.div>
+      </div>
+    </section>
+  );
+}
+
 function Footer({ onLogin, onDelete }) {
   return (
-    <footer className="bg-white border-t border-slate-200">
-      <div className="max-w-7xl mx-auto px-6 py-12 grid md:grid-cols-4 gap-8">
+    <footer className="bg-slate-900 text-slate-300">
+      <div className="max-w-7xl mx-auto px-6 py-16 grid md:grid-cols-4 gap-12 border-b border-slate-800">
         <div className="md:col-span-2">
-          <div className="flex items-center gap-3 mb-4">
-            <div className="w-8 h-8 bg-gradient-to-tr from-indigo-600 to-fuchsia-600 rounded-lg flex items-center justify-center">
-              <Rocket size={16} className="text-white" />
+          <div className="flex items-center gap-3 mb-6">
+            <div className="w-10 h-10 bg-gradient-to-tr from-indigo-500 to-fuchsia-500 rounded-xl flex items-center justify-center shadow-lg">
+              <Rocket size={20} className="text-white" />
             </div>
-            <span className="font-black text-xl tracking-tight text-slate-900">
+            <span className="font-black text-2xl tracking-tight text-white">
               BOUTIDIDACT
             </span>
           </div>
-          <p className="text-slate-500 font-medium max-w-sm mb-6 leading-relaxed">
+          <p className="text-slate-400 font-medium max-w-sm mb-6 leading-relaxed">
             La solution de borne de commande ultra-moderne propulsée par l'intelligence artificielle pour la restauration rapide.
           </p>
         </div>
 
         <div>
-          <h4 className="font-black uppercase tracking-widest text-slate-900 mb-4 text-sm">Navigation</h4>
-          <ul className="space-y-3 text-slate-500 font-medium">
-            <li><a href="#fonctionnalites" className="hover:text-indigo-600 transition-colors">Fonctionnalités</a></li>
-            <li><a href="#avis" className="hover:text-indigo-600 transition-colors">Avis Clients</a></li>
-            <li><a href="#faq" className="hover:text-indigo-600 transition-colors">FAQ</a></li>
-            <li><button onClick={onLogin} className="hover:text-indigo-600 transition-colors">Se connecter</button></li>
+          <h4 className="font-black uppercase tracking-widest text-white mb-6 text-sm">Navigation</h4>
+          <ul className="space-y-4 font-medium">
+            <li><a href="#fonctionnalites" className="hover:text-indigo-400 transition-colors">Fonctionnalités</a></li>
+            <li><a href="#avis" className="hover:text-indigo-400 transition-colors">Avis Clients</a></li>
+            <li><a href="#faq" className="hover:text-indigo-400 transition-colors">FAQ</a></li>
+            <li><button onClick={onLogin} className="hover:text-indigo-400 transition-colors">Espace Client</button></li>
           </ul>
         </div>
 
         <div>
-          <h4 className="font-black uppercase tracking-widest text-slate-900 mb-4 text-sm">Mentions</h4>
-          <ul className="space-y-3 text-slate-500 font-medium">
-            <li><a href="/relay-guide" className="hover:text-indigo-600 transition-colors">Télécharger le relais</a></li>
-            <li><button onClick={onDelete} className="hover:text-red-500 transition-colors">Supprimer mon compte</button></li>
+          <h4 className="font-black uppercase tracking-widest text-white mb-6 text-sm">Ressources</h4>
+          <ul className="space-y-4 font-medium">
+            <li><a href="/relay-guide" className="hover:text-indigo-400 transition-colors">Logiciel Relais (PC)</a></li>
+            <li><button onClick={onDelete} className="hover:text-red-400 transition-colors">Supprimer mon compte</button></li>
           </ul>
         </div>
       </div>
 
-      <div className="border-t border-slate-100 py-6">
+      <div className="py-8 bg-slate-950">
         <div className="max-w-7xl mx-auto px-6 flex flex-col md:flex-row items-center justify-between gap-4 text-sm font-medium text-slate-500">
           <div>&copy; {new Date().getFullYear()} BOUTIDIDACT. Tous droits réservés.</div>
           <div className="flex items-center gap-2">
             Développée par 
-            <a href="https://microdidact.com/" target="_blank" rel="noopener noreferrer" className="font-black text-indigo-600 hover:text-indigo-800 transition-colors flex items-center gap-1">
+            <a href="https://microdidact.com/" target="_blank" rel="noopener noreferrer" className="font-black text-indigo-400 hover:text-indigo-300 transition-colors flex items-center gap-1 bg-indigo-900/30 px-3 py-1.5 rounded-lg">
               Microdidact <ExternalLink size={14} />
             </a>
           </div>
