@@ -613,18 +613,24 @@ export default function AdminScreen({
                           Pour que vos tickets s'impriment automatiquement depuis n'importe quelle tablette, vous devez installer le logiciel relais sur un appareil connecté à votre imprimante.
                         </p>
                         
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                           <a 
                             href="/downloads/Boutididact-Print-Server.exe" download
-                            className="flex items-center justify-center gap-3 px-6 py-5 bg-white text-indigo-900 rounded-2xl font-black transition-all hover:scale-[1.02] active:scale-95 shadow-lg"
+                            className="flex items-center justify-center gap-3 px-4 py-4 bg-white text-indigo-900 rounded-2xl font-black transition-all hover:scale-[1.02] active:scale-95 shadow-lg text-sm text-center"
                           >
-                            <Monitor size={24} /> Télécharger pour Windows
+                            <Monitor size={20} /> Windows (.exe)
                           </a>
                           <a 
                             href="/downloads/Boutididact-Print-Server.apk" download
-                            className="flex items-center justify-center gap-3 px-6 py-5 bg-indigo-500 text-white rounded-2xl font-black transition-all hover:scale-[1.02] active:scale-95 border border-white/20 shadow-lg"
+                            className="flex items-center justify-center gap-3 px-4 py-4 bg-indigo-500 text-white rounded-2xl font-black transition-all hover:scale-[1.02] active:scale-95 border border-white/20 shadow-lg text-sm text-center"
                           >
-                            <Smartphone size={24} /> Télécharger pour Android
+                            <Smartphone size={20} /> Android (.apk)
+                          </a>
+                          <a 
+                            href="/relais"
+                            className="flex items-center justify-center gap-3 px-4 py-4 bg-amber-500 text-slate-950 rounded-2xl font-black transition-all hover:scale-[1.02] active:scale-95 shadow-lg text-sm text-center"
+                          >
+                            <ExternalLink size={20} /> iPad / iPhone (Web)
                           </a>
                         </div>
                       </div>
