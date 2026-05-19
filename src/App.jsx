@@ -12,6 +12,7 @@ import LoadingScreen from './components/LoadingScreen';
 import LandingScreen from './screens/LandingScreen.jsx';
 import AdminSetupScreen from './screens/AdminSetupScreen.jsx';
 import RelayGuideScreen from './screens/RelayGuideScreen.jsx';
+import WebRelayScreen from './screens/WebRelayScreen.jsx';
 
 import useCatalog from './hooks/useCatalog';
 import useCart from './hooks/useCart';
@@ -218,6 +219,9 @@ export default function App() {
   }
   if (window.location.pathname === '/relay-guide') {
     return <RelayGuideScreen onBack={() => { window.location.href = '/'; }} />;
+  }
+  if (window.location.pathname === '/relais') {
+    return <WebRelayScreen onBack={() => { window.location.href = '/'; }} />;
   }
 
   // ---- Rendus selon état d'auth ----

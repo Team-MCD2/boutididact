@@ -31,11 +31,12 @@ export default function RelayGuideScreen({ onBack }) {
     ios: {
       title: 'iPhone / iPad',
       icon: <Smartphone size={24} />,
+      link: '/relais',
       steps: [
-        { t: 'Safari', d: 'Ouvrez ce site dans le navigateur Safari de votre iPhone.' },
-        { t: 'Menu Partage', d: 'Appuyez sur le bouton "Partager" (carré avec flèche en haut).' },
-        { t: 'Écran d\'accueil', d: 'Choisissez "Sur l\'écran d\'accueil" dans la liste.' },
-        { t: 'Installation', d: 'L\'icône Boutididact apparaît. Note: iOS ne supporte pas le relais direct, utilisez un PC ou Android pour l\'impression.' }
+        { t: 'Relais Web Actif', d: 'Pour iOS, nous avons conçu un Relais Web direct. Ouvrez cette page sur votre iPad ou iPhone.' },
+        { t: 'Configuration', d: 'Entrez le nom de votre boutique et choisissez le mode (Cuisine KDS ou AirPrint).' },
+        { t: 'Démarrage', d: 'Cliquez sur "Démarrer le relais". L\'écran de l\'iPad restera allumé automatiquement.' },
+        { t: 'Intégration', d: 'Vous pouvez ajouter cette page sur votre écran d\'accueil iOS via le bouton "Partager" de Safari.' }
       ]
     }
   };
@@ -99,12 +100,21 @@ export default function RelayGuideScreen({ onBack }) {
             ))}
 
             {g.link && (
-              <a 
-                href={g.link} download
-                className="inline-flex items-center gap-3 px-8 py-4 bg-indigo-600 hover:bg-indigo-750 text-white font-black rounded-2xl transition-all hover:scale-[1.02] active:scale-95 shadow-xl shadow-indigo-600/15"
-              >
-                <Download size={20} /> Télécharger pour {g.title}
-              </a>
+              g.link.startsWith('/relais') ? (
+                <a 
+                  href={g.link}
+                  className="inline-flex items-center gap-3 px-8 py-4 bg-amber-500 hover:bg-amber-600 text-slate-950 font-black rounded-2xl transition-all hover:scale-[1.02] active:scale-95 shadow-xl shadow-amber-500/15"
+                >
+                  <ExternalLink size={20} /> Ouvrir le Relais Web iOS
+                </a>
+              ) : (
+                <a 
+                  href={g.link} download
+                  className="inline-flex items-center gap-3 px-8 py-4 bg-indigo-600 hover:bg-indigo-750 text-white font-black rounded-2xl transition-all hover:scale-[1.02] active:scale-95 shadow-xl shadow-indigo-600/15"
+                >
+                  <Download size={20} /> Télécharger pour {g.title}
+                </a>
+              )
             )}
           </motion.div>
 
