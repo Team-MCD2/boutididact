@@ -29,19 +29,6 @@ export default function WebRelayScreen({ onBack }) {
   useEffect(() => { printerIpRef.current = printerIp; }, [printerIp]);
   useEffect(() => { soundEnabledRef.current = soundEnabled; }, [soundEnabled]);
 
-  // Change manifest for PWA when entering/leaving Web Relay page
-  useEffect(() => {
-    const manifestEl = document.querySelector('link[rel="manifest"]');
-    if (manifestEl) {
-      manifestEl.setAttribute('href', '/manifest-relais.json');
-    }
-    return () => {
-      const manifestElBack = document.querySelector('link[rel="manifest"]');
-      if (manifestElBack) {
-        manifestElBack.setAttribute('href', '/manifest.json');
-      }
-    };
-  }, []);
 
   // Save settings on changes
   useEffect(() => {
