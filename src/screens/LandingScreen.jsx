@@ -358,12 +358,12 @@ function Header({ onLogin, onPricing }) {
 
   return (
     <header className={`fixed top-0 w-full z-50 transition-all duration-300 ${isScrolled ? 'bg-white/80 backdrop-blur-md border-b border-slate-200 shadow-sm' : 'bg-transparent border-transparent'}`}>
-      <div className={`max-w-7xl mx-auto px-6 flex items-center justify-between transition-all duration-300 ${isScrolled ? 'h-16' : 'h-24'}`}>
-        <a href="#" className="flex items-center gap-3 group">
-          <div className="w-10 h-10 flex items-center justify-center group-hover:scale-105 transition-transform">
+      <div className={`max-w-7xl mx-auto px-4 sm:px-6 flex items-center justify-between transition-all duration-300 ${isScrolled ? 'h-16' : 'h-24'}`}>
+        <a href="#" className="flex items-center gap-2 sm:gap-3 group">
+          <div className="w-8 h-8 sm:w-10 sm:h-10 flex items-center justify-center group-hover:scale-105 transition-transform">
             <img src={logoUrl} alt="BOUTIDIDACT" className="w-full h-full object-contain" />
           </div>
-          <span className="font-black text-2xl tracking-tighter bg-clip-text text-transparent bg-gradient-to-r from-slate-900 to-indigo-900">
+          <span className="font-black text-lg sm:text-2xl tracking-tighter bg-clip-text text-transparent bg-gradient-to-r from-slate-900 to-indigo-900">
             BOUTIDIDACT
           </span>
         </a>
@@ -374,11 +374,11 @@ function Header({ onLogin, onPricing }) {
           <a href="#faq" className="text-sm font-bold text-slate-600 hover:text-indigo-600 uppercase tracking-widest transition-colors">FAQ</a>
         </nav>
 
-        <div className="flex items-center gap-4">
-          <button onClick={onLogin} className="hidden md:block px-5 py-2 text-sm font-black text-slate-700 bg-white border border-slate-200 hover:border-slate-300 hover:bg-slate-50 shadow-sm rounded-xl transition-all">
+        <div className="flex items-center gap-2 sm:gap-4">
+          <button onClick={onLogin} className="px-3 py-2 sm:px-5 sm:py-2 text-xs sm:text-sm font-black text-slate-700 bg-white border border-slate-200 hover:border-slate-300 hover:bg-slate-50 shadow-sm rounded-xl transition-all">
             Espace Client
           </button>
-          <button onClick={onPricing} className="px-5 py-2 text-sm font-black text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl transition-all shadow-md shadow-indigo-600/20 active:scale-95">
+          <button onClick={onPricing} className="px-3 py-2 sm:px-5 sm:py-2 text-xs sm:text-sm font-black text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl transition-all shadow-md shadow-indigo-600/20 active:scale-95">
             Activer ma borne
           </button>
         </div>
