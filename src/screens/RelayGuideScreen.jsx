@@ -34,9 +34,9 @@ export default function RelayGuideScreen({ onBack }) {
       link: '/relais',
       steps: [
         { t: 'Relais Web Actif', d: 'Pour iOS, nous avons conçu un Relais Web direct. Ouvrez cette page sur votre iPad ou iPhone.' },
-        { t: 'Configuration', d: 'Entrez le nom de votre boutique et choisissez le mode (Cuisine KDS ou AirPrint).' },
-        { t: 'Démarrage', d: 'Cliquez sur "Démarrer le relais". L\'écran de l\'iPad restera allumé automatiquement.' },
-        { t: 'Intégration', d: 'Vous pouvez ajouter cette page sur votre écran d\'accueil iOS via le bouton "Partager" de Safari.' }
+        { t: 'Configuration & Mode', d: 'Entrez le nom de votre boutique et choisissez votre mode : Epson HTTPS (sécurisé pour iPad), Epson HTTP standard, ou AirPrint.' },
+        { t: 'Sécurité SSL iPad (Si Epson HTTPS)', d: 'Safari nécessite d\'accepter une fois le certificat SSL de l\'imprimante. Cliquez sur le bouton "Autoriser le Certificat" puis validez la connexion pour contourner le blocage.' },
+        { t: 'Intégration & Démarrage', d: 'Ajoutez la page sur votre écran d\'accueil iOS via le bouton "Partager" de Safari pour l\'avoir en plein écran natif, puis démarrez le relais !' }
       ]
     }
   };
