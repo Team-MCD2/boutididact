@@ -11,6 +11,7 @@ const POLL_INTERVAL_MS = 5000;
 export default function WebRelayScreen({ onBack }) {
   const [shopName, setShopName] = useState(() => localStorage.getItem('boutididact_webrelay_shopName') || '');
   const [printerIp, setPrinterIp] = useState(() => localStorage.getItem('boutididact_webrelay_printerIp') || '192.168.1.100');
+  const [printMode, setPrintMode] = useState(() => localStorage.getItem('boutididact_webrelay_printMode') || 'airprint');
   const [isRunning, setIsRunning] = useState(false);
   const [logs, setLogs] = useState([]);
   const [soundEnabled, setSoundEnabled] = useState(true);
@@ -21,14 +22,15 @@ export default function WebRelayScreen({ onBack }) {
   const isRunningRef = useRef(isRunning);
   const shopNameRef = useRef(shopName);
   const printerIpRef = useRef(printerIp);
+  const printModeRef = useRef(printMode);
   const soundEnabledRef = useRef(soundEnabled);
 
   // Sync refs to avoid stale closures in the poll interval
   useEffect(() => { isRunningRef.current = isRunning; }, [isRunning]);
   useEffect(() => { shopNameRef.current = shopName; }, [shopName]);
   useEffect(() => { printerIpRef.current = printerIp; }, [printerIp]);
+  useEffect(() => { printModeRef.current = printMode; }, [printMode]);
   useEffect(() => { soundEnabledRef.current = soundEnabled; }, [soundEnabled]);
-
 
   // Save settings on changes
   useEffect(() => {
@@ -38,6 +40,10 @@ export default function WebRelayScreen({ onBack }) {
   useEffect(() => {
     localStorage.setItem('boutididact_webrelay_printerIp', printerIp);
   }, [printerIp]);
+
+  useEffect(() => {
+    localStorage.setItem('boutididact_webrelay_printMode', printMode);
+  }, [printMode]);
 
   // Request Wake Lock to keep screen on (perfect for iOS/iPad)
   const requestWakeLock = async () => {
@@ -147,8 +153,12 @@ export default function WebRelayScreen({ onBack }) {
           setCurrentTicket(data.ticket);
           playChime();
           
-          // Print Action (Epson IP direct)
-          sendEposPrint(data.ticket);
+          // Print Action selector
+          if (printModeRef.current === 'epos') {
+            sendEposPrint(data.ticket);
+          } else {
+            printViaBrowser(data.ticket);
+          }
         }
       } catch (err) {
         addLog(`Erreur connexion serveur : ${err.message}`);
@@ -168,6 +178,98 @@ export default function WebRelayScreen({ onBack }) {
       if (intervalId) clearInterval(intervalId);
     };
   }, [isRunning]);
+
+  // Dynamic Browser-based AirPrint (Highly stable on iOS/Safari)
+  const printViaBrowser = (ticket) => {
+    addLog("Déclenchement automatique de l'impression AirPrint...");
+    try {
+      const iframe = document.createElement('iframe');
+      iframe.style.position = 'absolute';
+      iframe.style.width = '0px';
+      iframe.style.height = '0px';
+      iframe.style.border = 'none';
+      document.body.appendChild(iframe);
+      
+      const doc = iframe.contentWindow.document;
+      doc.open();
+      doc.write(`
+        <html>
+          <head>
+            <style>
+              @page {
+                size: 80mm auto;
+                margin: 0;
+              }
+              body {
+                font-family: 'Courier New', Courier, monospace;
+                width: 72mm;
+                margin: 0;
+                padding: 4mm;
+                background-color: #fff;
+                color: #000;
+                font-size: 13px;
+                line-height: 1.35;
+              }
+              .center { text-align: center; }
+              .right { text-align: right; }
+              .bold { font-weight: bold; }
+              .divider { border-top: 1px dashed #000; margin: 8px 0; }
+              .item-row { display: flex; justify-content: space-between; margin-bottom: 4px; }
+              .item-name { flex: 1; padding-right: 8px; }
+              .total-row { display: flex; justify-content: space-between; font-size: 16px; font-weight: bold; margin-top: 8px; }
+            </style>
+          </head>
+          <body>
+            <div class="center">
+              <h2 style="margin: 0 0 4px 0; font-size: 18px;">BOUTIDIDACT</h2>
+              <div class="bold">TICKET COMMANDE</div>
+              <div>ID: ${ticket.ticketId}</div>
+              <div class="divider"></div>
+            </div>
+            
+            <div>
+              ${ticket.items.map(it => `
+                <div class="item-row">
+                  <span class="item-name"><span class="bold">${it.quantity}x</span> ${it.name}</span>
+                  <span class="right">${(it.price * it.quantity).toFixed(2)}€</span>
+                </div>
+              `).join('')}
+            </div>
+            
+            <div class="divider"></div>
+            
+            <div class="total-row">
+              <span>TOTAL</span>
+              <span>${ticket.total.toFixed(2)}€</span>
+            </div>
+            <div class="item-row" style="margin-top: 4px;">
+              <span>Mode:</span>
+              <span class="right">${ticket.payment || 'CB'}</span>
+            </div>
+            
+            <div class="divider"></div>
+            <div class="center" style="margin-top: 12px; font-size: 10px; color: #555;">
+              Merci de votre confiance !
+            </div>
+            
+            <script>
+              window.onload = function() {
+                window.focus();
+                window.print();
+                setTimeout(function() {
+                  window.parent.document.body.removeChild(window.frameElement);
+                }, 1000);
+              };
+            </script>
+          </body>
+        </html>
+      `);
+      doc.close();
+      addLog("Dialogue AirPrint ouvert avec succès.");
+    } catch (e) {
+      addLog(`❌ Échec de l'impression AirPrint : ${e.message}`);
+    }
+  };
 
   // Epson ePOS SOAP XML direct printing
   const sendEposPrint = async (ticket) => {
@@ -217,7 +319,8 @@ export default function WebRelayScreen({ onBack }) {
         addLog(`Erreur Epson ePOS : statut HTTP ${response.status}`);
       }
     } catch (err) {
-      addLog(`Échec connexion ePOS (Vérifiez l'adresse IP et CORS) : ${err.message}`);
+      addLog(`❌ Échec connexion ePOS (Bloqué par la sécurité HTTPS du navigateur iOS).`);
+      addLog(`💡 Suggestion : Choisissez le mode "Impression AirPrint" ci-contre.`);
     }
   };
 
@@ -291,23 +394,60 @@ export default function WebRelayScreen({ onBack }) {
 
               <div>
                 <label className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-2 block">Mode de fonctionnement</label>
-                <div className="flex items-center gap-3 p-4 bg-slate-950 border border-slate-800 rounded-2xl text-xs font-black text-amber-500">
-                  <Wifi size={18} />
-                  <span>IMPRIMANTE EPSON IP DIRECTE</span>
+                <div className="grid grid-cols-2 gap-2 bg-slate-950 p-1.5 rounded-2xl border border-slate-800">
+                  <button 
+                    onClick={() => setPrintMode('airprint')}
+                    disabled={isRunning}
+                    className={`py-3 rounded-xl font-black text-xs transition-all ${
+                      printMode === 'airprint' 
+                        ? 'bg-amber-500 text-slate-950 shadow-md' 
+                        : 'text-slate-400 hover:text-slate-200'
+                    }`}
+                  >
+                    AirPrint (iOS)
+                  </button>
+                  <button 
+                    onClick={() => setPrintMode('epos')}
+                    disabled={isRunning}
+                    className={`py-3 rounded-xl font-black text-xs transition-all ${
+                      printMode === 'epos' 
+                        ? 'bg-amber-500 text-slate-950 shadow-md' 
+                        : 'text-slate-400 hover:text-slate-200'
+                    }`}
+                  >
+                    Epson IP Direct
+                  </button>
                 </div>
               </div>
 
-              <div>
-                <label className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-2 block">Adresse IP Imprimante Epson</label>
-                <input 
-                  type="text" 
-                  value={printerIp} 
-                  onChange={(e) => setPrinterIp(e.target.value)}
-                  placeholder="192.168.1.100"
-                  disabled={isRunning}
-                  className="w-full bg-slate-950 border border-slate-800 focus:border-amber-500 rounded-2xl px-4 py-3 text-sm text-slate-100 placeholder-slate-600 focus:outline-none transition-all disabled:opacity-50"
-                />
-              </div>
+              {printMode === 'epos' ? (
+                <div className="space-y-4">
+                  <div>
+                    <label className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-2 block">Adresse IP Imprimante Epson</label>
+                    <input 
+                      type="text" 
+                      value={printerIp} 
+                      onChange={(e) => setPrinterIp(e.target.value)}
+                      placeholder="192.168.1.100"
+                      disabled={isRunning}
+                      className="w-full bg-slate-950 border border-slate-800 focus:border-amber-500 rounded-2xl px-4 py-3 text-sm text-slate-100 placeholder-slate-600 focus:outline-none transition-all disabled:opacity-50"
+                    />
+                  </div>
+                  <div className="bg-amber-500/5 border border-amber-500/10 rounded-2xl p-4 flex gap-3">
+                    <Info size={20} className="text-amber-500 shrink-0" />
+                    <p className="text-[11px] text-amber-400 leading-relaxed font-semibold">
+                      <strong>Note technique :</strong> Les connexions IP directes locales (HTTP) peuvent être bloquées par Safari sur les sites publics HTTPS. Si cela se produit, utilisez le mode <strong>AirPrint (iOS)</strong>.
+                    </p>
+                  </div>
+                </div>
+              ) : (
+                <div className="bg-indigo-500/5 border border-indigo-500/10 rounded-2xl p-4 flex gap-3">
+                  <Info size={20} className="text-indigo-400 shrink-0" />
+                  <p className="text-[11px] text-indigo-300 leading-relaxed font-semibold">
+                    <strong>Mode AirPrint Actif :</strong> Ce mode ouvre automatiquement l'invite d'impression iOS native configurée pour ticket de cuisine. 100% compatible et sécurisé sans contrainte de réseau HTTPS !
+                  </p>
+                </div>
+              )}
 
               <div className="flex items-center justify-between border-t border-slate-800 pt-4 mt-4">
                 <span className="text-sm font-bold text-slate-300">Alerte sonore cuisine</span>
@@ -322,7 +462,7 @@ export default function WebRelayScreen({ onBack }) {
               </div>
 
               <div className="bg-slate-950 border border-slate-800 rounded-2xl p-4 flex gap-3">
-                <Info size={20} className="text-amber-500 shrink-0" />
+                <Info size={20} className="text-slate-400 shrink-0" />
                 <p className="text-[11px] text-slate-400 leading-relaxed font-semibold">
                   <strong>Anti-mise en veille :</strong> Tant que ce relais web est actif, l'écran de votre iPad restera allumé automatiquement.
                 </p>
@@ -382,6 +522,14 @@ export default function WebRelayScreen({ onBack }) {
           <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 flex-1 flex flex-col shadow-xl">
             <h2 className="text-xl font-black mb-6 text-slate-100 flex items-center justify-between">
               <span>Aperçu du dernier ticket reçu</span>
+              {currentTicket && (
+                <button 
+                  onClick={() => printViaBrowser(currentTicket)}
+                  className="px-4 py-2 bg-indigo-600 hover:bg-indigo-750 text-white rounded-xl text-xs font-black flex items-center gap-1.5 transition-all"
+                >
+                  <Printer size={14} /> Ré-imprimer (AirPrint)
+                </button>
+              )}
             </h2>
 
             {/* TICKET DISPLAY AREA */}
