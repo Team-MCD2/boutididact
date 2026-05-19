@@ -287,7 +287,7 @@ export default function WebRelayScreen({ onBack }) {
     // Choose custom port, or default 8043 (HTTPS) / 80 (HTTP)
     const portString = port ? `:${port}` : (isHttps ? ':8043' : '');
     const protocol = isHttps ? 'https' : 'http';
-    const targetUrl = `${protocol}://${ip}${portString}/cgi-bin/epos/service.cgi?devid=local_printer&timeout=5000`;
+    const targetUrl = `${protocol}://${ip}${portString}/cgi-bin/epos/service.cgi?devid=localprinter&timeout=5000`;
     
     addLog(`Envoi ePOS (${protocol.toUpperCase()}) vers ${targetUrl}...`);
     
