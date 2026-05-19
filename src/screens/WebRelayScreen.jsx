@@ -11,6 +11,7 @@ const POLL_INTERVAL_MS = 5000;
 export default function WebRelayScreen({ onBack }) {
   const [shopName, setShopName] = useState(() => localStorage.getItem('boutididact_webrelay_shopName') || '');
   const [printerIp, setPrinterIp] = useState(() => localStorage.getItem('boutididact_webrelay_printerIp') || '192.168.1.100');
+  const [printerPort, setPrinterPort] = useState(() => localStorage.getItem('boutididact_webrelay_printerPort') || '8043');
   const [printMode, setPrintMode] = useState(() => localStorage.getItem('boutididact_webrelay_printMode') || 'epos_https');
   const [isRunning, setIsRunning] = useState(false);
   const [logs, setLogs] = useState([]);
@@ -22,6 +23,7 @@ export default function WebRelayScreen({ onBack }) {
   const isRunningRef = useRef(isRunning);
   const shopNameRef = useRef(shopName);
   const printerIpRef = useRef(printerIp);
+  const printerPortRef = useRef(printerPort);
   const printModeRef = useRef(printMode);
   const soundEnabledRef = useRef(soundEnabled);
 
@@ -29,6 +31,7 @@ export default function WebRelayScreen({ onBack }) {
   useEffect(() => { isRunningRef.current = isRunning; }, [isRunning]);
   useEffect(() => { shopNameRef.current = shopName; }, [shopName]);
   useEffect(() => { printerIpRef.current = printerIp; }, [printerIp]);
+  useEffect(() => { printerPortRef.current = printerPort; }, [printerPort]);
   useEffect(() => { printModeRef.current = printMode; }, [printMode]);
   useEffect(() => { soundEnabledRef.current = soundEnabled; }, [soundEnabled]);
 
@@ -40,6 +43,10 @@ export default function WebRelayScreen({ onBack }) {
   useEffect(() => {
     localStorage.setItem('boutididact_webrelay_printerIp', printerIp);
   }, [printerIp]);
+
+  useEffect(() => {
+    localStorage.setItem('boutididact_webrelay_printerPort', printerPort);
+  }, [printerPort]);
 
   useEffect(() => {
     localStorage.setItem('boutididact_webrelay_printMode', printMode);
@@ -274,14 +281,15 @@ export default function WebRelayScreen({ onBack }) {
   // Epson ePOS SOAP XML direct printing
   const sendEposPrint = async (ticket) => {
     const ip = printerIpRef.current.trim();
+    const port = printerPortRef.current.trim();
     const isHttps = printModeRef.current === 'epos_https';
     
-    // Choose secure port 8043 for Epson ePOS HTTPS, or port 80 for HTTP
-    const port = isHttps ? ':8043' : '';
+    // Choose custom port, or default 8043 (HTTPS) / 80 (HTTP)
+    const portString = port ? `:${port}` : (isHttps ? ':8043' : '');
     const protocol = isHttps ? 'https' : 'http';
-    const targetUrl = `${protocol}://${ip}${port}/cgi-bin/epos/service.cgi?devid=local_printer&timeout=5000`;
+    const targetUrl = `${protocol}://${ip}${portString}/cgi-bin/epos/service.cgi?devid=local_printer&timeout=5000`;
     
-    addLog(`Envoi ePOS-Print (${protocol.toUpperCase()}) à l'adresse IP ${ip}...`);
+    addLog(`Envoi ePOS (${protocol.toUpperCase()}) vers ${targetUrl}...`);
     
     // Construct EPSON ePOS XML print request
     let xml = `<?xml version="1.0" encoding="utf-8"?>
@@ -442,65 +450,67 @@ export default function WebRelayScreen({ onBack }) {
                 </div>
               </div>
 
-              {printMode === 'epos_https' && (
+              {(printMode === 'epos_https' || printMode === 'epos_http') && (
                 <div className="space-y-4 border-t border-slate-800/50 pt-4">
-                  <div>
-                    <label className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-2 block">Adresse IP Imprimante Epson</label>
-                    <input 
-                      type="text" 
-                      value={printerIp} 
-                      onChange={(e) => setPrinterIp(e.target.value)}
-                      placeholder="192.168.1.100"
-                      disabled={isRunning}
-                      className="w-full bg-slate-950 border border-slate-800 focus:border-amber-500 rounded-2xl px-4 py-3 text-sm text-slate-100 placeholder-slate-600 focus:outline-none transition-all disabled:opacity-50"
-                    />
-                  </div>
-
-                  <div className="bg-amber-500/10 border border-amber-500/20 rounded-2xl p-4 space-y-3">
-                    <div className="flex gap-2">
-                      <Lock size={18} className="text-amber-500 shrink-0 mt-0.5" />
-                      <span className="text-xs font-black uppercase tracking-wider text-amber-500">Procédure Sécurité iPad</span>
+                  <div className="grid grid-cols-3 gap-3">
+                    <div className="col-span-2">
+                      <label className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-2 block">Adresse IP Imprimante</label>
+                      <input 
+                        type="text" 
+                        value={printerIp} 
+                        onChange={(e) => setPrinterIp(e.target.value)}
+                        placeholder="192.168.1.100"
+                        disabled={isRunning}
+                        className="w-full bg-slate-950 border border-slate-800 focus:border-amber-500 rounded-2xl px-4 py-3 text-sm text-slate-100 placeholder-slate-600 focus:outline-none transition-all disabled:opacity-50"
+                      />
                     </div>
-                    <p className="text-[11px] text-slate-300 leading-relaxed font-medium">
-                      Safari nécessite que vous acceptiez une fois le certificat SSL auto-signé de votre imprimante Epson pour autoriser l'impression directe sécurisée :
-                    </p>
-                    <ol className="text-[11px] text-slate-400 space-y-1.5 list-decimal pl-4 font-semibold">
-                      <li>Cliquez sur le bouton ci-dessous pour ouvrir la page de l'imprimante dans un nouvel onglet.</li>
-                      <li>Safari affichera <strong>"Connexion non privée"</strong>. Cliquez sur <strong>"Détails"</strong> (ou Afficher les détails), puis en bas sur <strong>"Visiter ce site"</strong> et confirmez.</li>
-                      <li>Revenez sur cette page de Relais et lancez le service !</li>
-                    </ol>
-                    
-                    <a 
-                      href={`https://${printerIp.trim()}:8043/cgi-bin/epos/service.cgi`} 
-                      target="_blank" 
-                      rel="noopener noreferrer"
-                      className="flex items-center justify-center gap-2 w-full py-3 bg-amber-500 text-slate-950 hover:bg-amber-600 rounded-xl font-black text-xs transition-all hover:scale-[1.02] shadow-lg shadow-amber-500/10"
-                    >
-                      1. Autoriser le Certificat <ExternalLink size={14} />
-                    </a>
+                    <div className="col-span-1">
+                      <label className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-2 block">Port</label>
+                      <input 
+                        type="text" 
+                        value={printerPort} 
+                        onChange={(e) => setPrinterPort(e.target.value)}
+                        placeholder={printMode === 'epos_https' ? '8043' : '80'}
+                        disabled={isRunning}
+                        className="w-full bg-slate-950 border border-slate-800 focus:border-amber-500 rounded-2xl px-4 py-3 text-sm text-slate-100 placeholder-slate-600 focus:outline-none transition-all text-center disabled:opacity-50"
+                      />
+                    </div>
                   </div>
-                </div>
-              )}
 
-              {printMode === 'epos_http' && (
-                <div className="space-y-4 border-t border-slate-800/50 pt-4">
-                  <div>
-                    <label className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-2 block">Adresse IP Imprimante Epson</label>
-                    <input 
-                      type="text" 
-                      value={printerIp} 
-                      onChange={(e) => setPrinterIp(e.target.value)}
-                      placeholder="192.168.1.100"
-                      disabled={isRunning}
-                      className="w-full bg-slate-950 border border-slate-800 focus:border-amber-500 rounded-2xl px-4 py-3 text-sm text-slate-100 placeholder-slate-600 focus:outline-none transition-all disabled:opacity-50"
-                    />
-                  </div>
-                  <div className="bg-red-500/5 border border-red-500/10 rounded-2xl p-4 flex gap-3">
-                    <Info size={20} className="text-red-400 shrink-0" />
-                    <p className="text-[11px] text-red-300 leading-relaxed font-semibold">
-                      <strong>Attention :</strong> Ce mode HTTP standard est bloqué sur iOS Safari lorsque l'application tourne sur un domaine sécurisé HTTPS. Utilisez le mode <strong>Epson HTTPS</strong> ci-dessus !
-                    </p>
-                  </div>
+                  {printMode === 'epos_https' && (
+                    <div className="bg-amber-500/10 border border-amber-500/20 rounded-2xl p-4 space-y-3">
+                      <div className="flex gap-2">
+                        <Lock size={18} className="text-amber-500 shrink-0 mt-0.5" />
+                        <span className="text-xs font-black uppercase tracking-wider text-amber-500">Procédure Sécurité iPad</span>
+                      </div>
+                      <p className="text-[11px] text-slate-300 leading-relaxed font-medium">
+                        Safari nécessite que vous acceptiez une fois le certificat SSL auto-signé de votre imprimante Epson pour autoriser l'impression directe sécurisée :
+                      </p>
+                      <ol className="text-[11px] text-slate-400 space-y-1.5 list-decimal pl-4 font-semibold">
+                        <li>Cliquez sur le bouton ci-dessous pour ouvrir la page de l'imprimante dans un nouvel onglet.</li>
+                        <li>Safari affichera <strong>"Connexion non privée"</strong>. Cliquez sur <strong>"Détails"</strong>, puis en bas sur <strong>"Visiter ce site"</strong> et confirmez.</li>
+                        <li>Revenez sur cette page de Relais et lancez le service !</li>
+                      </ol>
+                      
+                      <a 
+                        href={`https://${printerIp.trim()}:${printerPort.trim()}/cgi-bin/epos/service.cgi`} 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="flex items-center justify-center gap-2 w-full py-3 bg-amber-500 text-slate-950 hover:bg-amber-600 rounded-xl font-black text-xs transition-all hover:scale-[1.02] shadow-lg shadow-amber-500/10"
+                      >
+                        1. Autoriser le Certificat <ExternalLink size={14} />
+                      </a>
+                    </div>
+                  )}
+
+                  {printMode === 'epos_http' && (
+                    <div className="bg-red-500/5 border border-red-500/10 rounded-2xl p-4 flex gap-3">
+                      <Info size={20} className="text-red-400 shrink-0" />
+                      <p className="text-[11px] text-red-300 leading-relaxed font-semibold">
+                        <strong>Attention :</strong> Ce mode HTTP standard est bloqué sur iOS Safari lorsque l'application tourne sur un domaine sécurisé HTTPS. Utilisez le mode <strong>Epson HTTPS</strong> ci-dessus !
+                      </p>
+                    </div>
+                  )}
                 </div>
               )}
 
