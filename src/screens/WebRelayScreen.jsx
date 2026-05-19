@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
-  ChevronLeft, Play, Square, Info, ShieldAlert, Wifi, 
-  WifiOff, Volume2, VolumeX, Eye, Printer, Terminal, Sparkles
+  ChevronLeft, Play, Square, Info, Wifi, 
+  Volume2, VolumeX, Printer, Terminal, Sparkles
 } from 'lucide-react';
 
 const CLOUD_URL = 'https://boutididact-backendd.vercel.app';
@@ -14,7 +14,6 @@ export default function WebRelayScreen({ onBack }) {
   const [isRunning, setIsRunning] = useState(false);
   const [logs, setLogs] = useState([]);
   const [soundEnabled, setSoundEnabled] = useState(true);
-  const [printMode, setPrintMode] = useState('kds'); // 'kds' (kitchen display only), 'airprint' (browser print), 'epos' (Epson XML)
   const [wakeLockActive, setWakeLockActive] = useState(false);
   const [currentTicket, setCurrentTicket] = useState(null);
 
@@ -22,14 +21,12 @@ export default function WebRelayScreen({ onBack }) {
   const isRunningRef = useRef(isRunning);
   const shopNameRef = useRef(shopName);
   const printerIpRef = useRef(printerIp);
-  const printModeRef = useRef(printMode);
   const soundEnabledRef = useRef(soundEnabled);
 
   // Sync refs to avoid stale closures in the poll interval
   useEffect(() => { isRunningRef.current = isRunning; }, [isRunning]);
   useEffect(() => { shopNameRef.current = shopName; }, [shopName]);
   useEffect(() => { printerIpRef.current = printerIp; }, [printerIp]);
-  useEffect(() => { printModeRef.current = printMode; }, [printMode]);
   useEffect(() => { soundEnabledRef.current = soundEnabled; }, [soundEnabled]);
 
   // Save settings on changes
@@ -149,8 +146,8 @@ export default function WebRelayScreen({ onBack }) {
           setCurrentTicket(data.ticket);
           playChime();
           
-          // Print Actions
-          handlePrintAction(data.ticket);
+          // Print Action (Epson IP direct)
+          sendEposPrint(data.ticket);
         }
       } catch (err) {
         addLog(`Erreur connexion serveur : ${err.message}`);
@@ -170,19 +167,6 @@ export default function WebRelayScreen({ onBack }) {
       if (intervalId) clearInterval(intervalId);
     };
   }, [isRunning]);
-
-  const handlePrintAction = (ticket) => {
-    const mode = printModeRef.current;
-    
-    if (mode === 'airprint') {
-      addLog("Lancement de l'impression système AirPrint...");
-      setTimeout(() => {
-        window.print();
-      }, 500);
-    } else if (mode === 'epos') {
-      sendEposPrint(ticket);
-    }
-  };
 
   // Epson ePOS SOAP XML direct printing
   const sendEposPrint = async (ticket) => {
@@ -241,7 +225,30 @@ export default function WebRelayScreen({ onBack }) {
       alert("Veuillez renseigner le nom de la boutique.");
       return;
     }
-    setIsRunning(!isRunning);
+
+    if (isRunning) {
+      setIsRunning(false);
+      addLog("Relais ARRETÉ");
+    } else {
+      addLog(`Vérification de la boutique "${shopName.trim()}"...`);
+      try {
+        const url = `${CLOUD_URL}/api/saas/check-shop?shopName=${encodeURIComponent(shopName.trim())}`;
+        const res = await fetch(url);
+        const data = await res.json();
+        
+        if (!res.ok || !data.ok) {
+          addLog(`❌ Erreur : ${data.message || 'Boutique introuvable ou inactive.'}`);
+          return;
+        }
+
+        const validName = data.name || shopName.trim();
+        setShopName(validName);
+        addLog(`✅ Boutique "${validName}" validée et connectée avec succès.`);
+        setIsRunning(true);
+      } catch (err) {
+        addLog(`❌ Erreur réseau lors de la vérification : ${err.message}`);
+      }
+    }
   };
 
   return (
@@ -283,41 +290,23 @@ export default function WebRelayScreen({ onBack }) {
 
               <div>
                 <label className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-2 block">Mode de fonctionnement</label>
-                <div className="grid grid-cols-3 gap-2">
-                  {[
-                    { id: 'kds', label: 'Cuisine (Écran)', icon: <Eye size={16} /> },
-                    { id: 'airprint', label: 'AirPrint', icon: <Printer size={16} /> },
-                    { id: 'epos', label: 'Epson IP', icon: <Wifi size={16} /> },
-                  ].map(mode => (
-                    <button
-                      key={mode.id}
-                      onClick={() => setPrintMode(mode.id)}
-                      className={`flex flex-col items-center justify-center gap-2 p-3 rounded-2xl border text-xs font-black transition-all ${
-                        printMode === mode.id 
-                          ? 'border-amber-500 bg-amber-500/5 text-amber-500' 
-                          : 'border-slate-800 hover:border-slate-700 text-slate-400'
-                      }`}
-                    >
-                      {mode.icon}
-                      {mode.label}
-                    </button>
-                  ))}
+                <div className="flex items-center gap-3 p-4 bg-slate-950 border border-slate-800 rounded-2xl text-xs font-black text-amber-500">
+                  <Wifi size={18} />
+                  <span>IMPRIMANTE EPSON IP DIRECTE</span>
                 </div>
               </div>
 
-              {printMode === 'epos' && (
-                <div className="mt-3">
-                  <label className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-2 block">Adresse IP Imprimante Epson</label>
-                  <input 
-                    type="text" 
-                    value={printerIp} 
-                    onChange={(e) => setPrinterIp(e.target.value)}
-                    placeholder="192.168.1.100"
-                    disabled={isRunning}
-                    className="w-full bg-slate-950 border border-slate-800 focus:border-amber-500 rounded-2xl px-4 py-3 text-sm text-slate-100 placeholder-slate-600 focus:outline-none transition-all disabled:opacity-50"
-                  />
-                </div>
-              )}
+              <div>
+                <label className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-2 block">Adresse IP Imprimante Epson</label>
+                <input 
+                  type="text" 
+                  value={printerIp} 
+                  onChange={(e) => setPrinterIp(e.target.value)}
+                  placeholder="192.168.1.100"
+                  disabled={isRunning}
+                  className="w-full bg-slate-950 border border-slate-800 focus:border-amber-500 rounded-2xl px-4 py-3 text-sm text-slate-100 placeholder-slate-600 focus:outline-none transition-all disabled:opacity-50"
+                />
+              </div>
 
               <div className="flex items-center justify-between border-t border-slate-800 pt-4 mt-4">
                 <span className="text-sm font-bold text-slate-300">Alerte sonore cuisine</span>
@@ -391,15 +380,7 @@ export default function WebRelayScreen({ onBack }) {
 
           <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 flex-1 flex flex-col shadow-xl">
             <h2 className="text-xl font-black mb-6 text-slate-100 flex items-center justify-between">
-              <span>Affichage Cuisine (KDS)</span>
-              {currentTicket && (
-                <button 
-                  onClick={() => window.print()}
-                  className="px-3 py-1.5 bg-amber-500/10 border border-amber-500/20 rounded-xl text-xs font-black text-amber-500 flex items-center gap-1.5"
-                >
-                  <Printer size={12} /> AirPrint Manuel
-                </button>
-              )}
+              <span>Aperçu du dernier ticket reçu</span>
             </h2>
 
             {/* TICKET DISPLAY AREA */}
@@ -411,9 +392,8 @@ export default function WebRelayScreen({ onBack }) {
                     initial={{ opacity: 0, scale: 0.95, y: 10 }}
                     animate={{ opacity: 1, scale: 1, y: 0 }}
                     exit={{ opacity: 0, scale: 0.95 }}
-                    className="w-full max-w-md bg-white text-slate-950 p-6 rounded-3xl shadow-2xl relative border-2 border-amber-500/30 ticket-print-element"
+                    className="w-full max-w-md bg-white text-slate-950 p-6 rounded-3xl shadow-2xl relative border-2 border-amber-500/30"
                   >
-                    {/* Retro ticket borders */}
                     <div className="border-b-2 border-dashed border-slate-200 pb-4 mb-4 text-center">
                       <h3 className="text-2xl font-black uppercase tracking-tight text-slate-900">Boutididact Ticket</h3>
                       <p className="text-xs text-slate-500 font-bold mt-1">ID Unique : {currentTicket.ticketId}</p>
@@ -474,31 +454,6 @@ export default function WebRelayScreen({ onBack }) {
         </section>
 
       </main>
-
-      {/* STYLES PRE-RENDER AIRPRINT FOR TICKET */}
-      <style>{`
-        @media print {
-          body * {
-            visibility: hidden;
-            background: white !important;
-            color: black !important;
-          }
-          .ticket-print-element, .ticket-print-element * {
-            visibility: visible;
-          }
-          .ticket-print-element {
-            position: absolute;
-            left: 0;
-            top: 0;
-            width: 80mm !important;
-            padding: 0 !important;
-            margin: 0 !important;
-            border: none !important;
-            box-shadow: none !important;
-            font-size: 14px !important;
-          }
-        }
-      `}</style>
     </div>
   );
 }
