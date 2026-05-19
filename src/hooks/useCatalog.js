@@ -194,8 +194,8 @@ export default function useCatalog({ enabled = true, shopId = '', shopName = '' 
     }
   }, [enabled, shopId, shopName]);
 
-  const pushToCloud = useCallback(() => {
-    if (shopId || shopName) syncToCloud(shopId, shopName);
+  const pushToCloud = useCallback(async () => {
+    if (shopId || shopName) await syncToCloud(shopId, shopName);
   }, [shopId, shopName]);
 
   useEffect(() => {

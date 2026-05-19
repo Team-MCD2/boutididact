@@ -334,9 +334,9 @@ export default function App() {
             }}
             onCatalogChange={async () => {
               setSetupComplete(isSetupComplete());
+              await catalog.pushToCloud();
               await catalog.reload();
               supplementsState.reload();
-              catalog.pushToCloud();
             }}
             onLogout={handleLogout}
           />
