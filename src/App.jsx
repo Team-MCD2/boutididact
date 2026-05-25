@@ -125,12 +125,14 @@ export default function App() {
       currentSettings = {
         adminPin: currentSettings.adminPin,
         printerIp: currentSettings.printerIp,
-        relayMode: currentSettings.relayMode,
+        printerPort: currentSettings.printerPort,
+        isRelayMode: currentSettings.isRelayMode !== false,
       };
     }
 
     const cloudSettings = shop?.settings || {};
     const newSettings = {
+      isRelayMode: true,
       ...currentSettings,
       ...cloudSettings,
       hiboutikAccount: cloudSettings.hiboutikAccount || (isSameShop ? currentSettings.hiboutikAccount : '') || '',

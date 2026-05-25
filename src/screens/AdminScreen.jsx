@@ -386,6 +386,24 @@ export default function AdminScreen({
   // Statut système simplifié
   const online = Boolean(health?.hiboutik?.reachable);
 
+  const connectionDetail = (() => {
+    if (online) return null;
+    if (!isSetupComplete(settings)) {
+      return 'Renseignez Compte, Utilisateur API et Clé API, puis cliquez sur « Enregistrer & redémarrer ».';
+    }
+    if (!health) {
+      return settings.isRelayMode === false
+        ? 'Serveur local (localhost:3001) injoignable. Activez le Mode Relais ou lancez le relais Windows (.exe).'
+        : 'Impossible de joindre le serveur cloud. Vérifiez votre connexion internet.';
+    }
+    const hb = health.hiboutik || {};
+    if (!hb.configured) return 'Identifiants Hiboutik non transmis au serveur — enregistrez vos réglages.';
+    if (hb.reason === 'not_configured') return 'Configuration Hiboutik incomplète côté serveur.';
+    if (hb.message) return hb.message;
+    if (hb.reason) return `Erreur Hiboutik (${hb.reason})`;
+    return 'Connexion Hiboutik impossible.';
+  })();
+
   return (
     <motion.div
       initial={{ opacity: 0 }}
@@ -477,6 +495,21 @@ export default function AdminScreen({
                       value={online ? 'Système en ligne' : 'Non connecté'}
                       ok={online}
                     />
+                    {connectionDetail && (
+                      <div className="p-4 bg-red-50 border border-red-100 rounded-2xl text-sm text-red-800 font-medium leading-relaxed">
+                        {connectionDetail}
+                      </div>
+                    )}
+                    {onReload && (
+                      <button
+                        onClick={onReload}
+                        disabled={loading}
+                        className="flex items-center justify-center gap-2 w-full py-3 rounded-2xl bg-gray-100 hover:bg-gray-200 text-gray-800 font-bold text-sm transition disabled:opacity-50"
+                      >
+                        <RefreshCw size={16} className={loading ? 'animate-spin' : ''} />
+                        {loading ? 'Test en cours...' : 'Tester la connexion'}
+                      </button>
+                    )}
                     {!settings.localServerUrl ? (
                       <Status
                         icon={<Cloud size={20} />}

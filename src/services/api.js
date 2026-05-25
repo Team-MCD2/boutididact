@@ -16,13 +16,9 @@ client.interceptors.request.use((config) => {
     if (saved) {
       const s = JSON.parse(saved);
       
-      // Mode Relais : si activé, on force l'URL Cloud (Vercel)
-      // Sinon, on utilise le serveur local par défaut.
-      if (s.isRelayMode) {
-        config.baseURL = import.meta.env.VITE_API_URL || 'https://boutididact-backendd.vercel.app';
-      } else {
-        config.baseURL = 'http://localhost:3001';
-      }
+      // Mode Relais : par défaut activé (cloud Vercel). Désactivé uniquement si isRelayMode === false.
+      const cloudUrl = import.meta.env.VITE_API_URL || 'https://boutididact-backendd.vercel.app';
+      config.baseURL = s.isRelayMode === false ? 'http://localhost:3001' : cloudUrl;
 
       // Hiboutik Auth
       if (s.hiboutikAccount) config.headers['X-Hiboutik-Account'] = s.hiboutikAccount;
