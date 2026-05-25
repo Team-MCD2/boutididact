@@ -20,13 +20,14 @@ export default function RelayGuideScreen({ onBack }) {
     android: {
       title: 'Android (APK)',
       icon: <Smartphone size={24} />,
-      link: '/relais',
+      link: '/downloads/Boutididact-Print.apk',
+      altLink: '/relais',
       steps: [
-        { t: 'Application APK (recommande)', d: 'Installez l\'APK Boutididact Print — boutique + IP + port 9100, comme avant.' },
-        { t: 'Meme WiFi', d: 'Telephone et imprimante sur le meme reseau. IP ex: 192.168.1.26 — port 9100.' },
-        { t: 'Relais web (alternative)', d: 'Sinon ouvrez /relais dans Chrome sur le meme WiFi.' },
-        { t: 'Demarrage', d: 'Demarrez le relais et laissez l\'application ouverte en cuisine.' }
-      ]
+        { t: 'Telecharger l\'APK', d: 'Installez Boutididact Print sur le telephone du magasin (bouton ci-dessous).' },
+        { t: 'Autoriser l\'installation', d: 'Si Android bloque : Parametres > Securite > Autoriser les sources inconnues pour Chrome ou Fichiers.' },
+        { t: 'Configuration', d: 'Nom boutique + IP imprimante + port 9100. Meme WiFi que l\'imprimante (ex: 192.168.1.26).' },
+        { t: 'Demarrage', d: 'Demarrez le relais et laissez l\'application ouverte en cuisine (notification persistante).' },
+      ],
     },
     ios: {
       title: 'iPhone / iPad',
@@ -108,12 +109,22 @@ export default function RelayGuideScreen({ onBack }) {
                   <ExternalLink size={20} /> Ouvrir le Relais Web
                 </a>
               ) : (
-                <a 
-                  href={g.link} download
-                  className="inline-flex items-center gap-3 px-8 py-4 bg-indigo-600 hover:bg-indigo-750 text-white font-black rounded-2xl transition-all hover:scale-[1.02] active:scale-95 shadow-xl shadow-indigo-600/15"
-                >
-                  <Download size={20} /> Télécharger pour {g.title}
-                </a>
+                <div className="flex flex-col sm:flex-row gap-3">
+                  <a 
+                    href={g.link} download
+                    className="inline-flex items-center gap-3 px-8 py-4 bg-indigo-600 hover:bg-indigo-750 text-white font-black rounded-2xl transition-all hover:scale-[1.02] active:scale-95 shadow-xl shadow-indigo-600/15"
+                  >
+                    <Download size={20} /> Telecharger l&apos;APK
+                  </a>
+                  {g.altLink && (
+                    <a 
+                      href={g.altLink}
+                      className="inline-flex items-center gap-3 px-8 py-4 bg-slate-100 hover:bg-slate-200 text-slate-800 font-black rounded-2xl transition-all hover:scale-[1.02] active:scale-95 border border-slate-200"
+                    >
+                      <ExternalLink size={20} /> Relais web (alternative)
+                    </a>
+                  )}
+                </div>
               )
             )}
           </motion.div>
