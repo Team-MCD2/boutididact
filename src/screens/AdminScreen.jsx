@@ -621,10 +621,10 @@ export default function AdminScreen({
                             <Monitor size={20} /> Windows (.exe)
                           </a>
                           <a 
-                            href="/downloads/Boutididact-Print-Server.apk" download
+                            href="/relais"
                             className="flex items-center justify-center gap-3 px-4 py-4 bg-indigo-500 text-white rounded-2xl font-black transition-all hover:scale-[1.02] active:scale-95 border border-white/20 shadow-lg text-sm text-center"
                           >
-                            <Smartphone size={20} /> Android (.apk)
+                            <Smartphone size={20} /> Chrome / Android (Web)
                           </a>
                           <a 
                             href="/relais"
@@ -638,7 +638,7 @@ export default function AdminScreen({
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                      <RelayStep icon="1" title="Installez" desc="Installez le relais sur le PC (Windows) ou la tablette Android reliée à l'imprimante." />
+                      <RelayStep icon="1" title="Installez" desc="Installez le relais Windows (.exe) ou ouvrez le Relais Web sur Chrome/Android/iPad relié à l'imprimante." />
                       <RelayStep icon="2" title="Configurez" desc={`Entrez le nom de votre boutique : "${session?.shopName}" et l'IP de l'imprimante.`} />
                       <RelayStep icon="3" title="Imprimez" desc="Laissez le relais tourner en arrière-plan. L'impression sera automatique." />
                     </div>
@@ -646,7 +646,7 @@ export default function AdminScreen({
                     <div className="p-6 bg-amber-50 border border-amber-100 rounded-2xl flex items-start gap-4">
                       <Info size={24} className="text-amber-600 shrink-0" />
                       <p className="text-sm text-amber-900 leading-relaxed font-medium">
-                        <strong>Important :</strong> Si Windows ou Android affiche une alerte de sécurité, cliquez sur "Informations complémentaires" puis "Exécuter quand même". Nos logiciels sont auto-signés.
+                        <strong>Important :</strong> Sur Windows, si une alerte de sécurité s'affiche, cliquez sur "Informations complémentaires" puis "Exécuter quand même". Sur Chrome/Android, utilisez le Relais Web et gardez l'onglet ouvert en plein écran.
                       </p>
                     </div>
                   </div>

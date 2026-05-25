@@ -386,7 +386,7 @@ export default function WebRelayScreen({ onBack }) {
           <ChevronLeft size={20} /> Retour Borne
         </button>
         <div className="flex items-center gap-2 bg-amber-500/10 border border-amber-500/20 px-3 py-1 rounded-full text-xs font-black text-amber-500 uppercase tracking-widest">
-          <Sparkles size={12} /> Solution iOS & iPad
+          <Sparkles size={12} /> Relais Web (Chrome, Android, iOS)
         </div>
       </header>
 
@@ -481,14 +481,14 @@ export default function WebRelayScreen({ onBack }) {
                     <div className="bg-amber-500/10 border border-amber-500/20 rounded-2xl p-4 space-y-3">
                       <div className="flex gap-2">
                         <Lock size={18} className="text-amber-500 shrink-0 mt-0.5" />
-                        <span className="text-xs font-black uppercase tracking-wider text-amber-500">Procédure Sécurité iPad</span>
+                        <span className="text-xs font-black uppercase tracking-wider text-amber-500">Procédure Sécurité SSL</span>
                       </div>
                       <p className="text-[11px] text-slate-300 leading-relaxed font-medium">
-                        Safari nécessite que vous acceptiez une fois le certificat SSL auto-signé de votre imprimante Epson pour autoriser l'impression directe sécurisée :
+                        Chrome et Safari nécessitent d'accepter une fois le certificat SSL auto-signé de votre imprimante Epson :
                       </p>
                       <ol className="text-[11px] text-slate-400 space-y-1.5 list-decimal pl-4 font-semibold">
                         <li>Cliquez sur le bouton ci-dessous pour ouvrir la page de l'imprimante dans un nouvel onglet.</li>
-                        <li>Safari affichera <strong>"Connexion non privée"</strong>. Cliquez sur <strong>"Détails"</strong>, puis en bas sur <strong>"Visiter ce site"</strong> et confirmez.</li>
+                        <li>Acceptez l'avertissement de sécurité (<strong>"Avancé"</strong> puis <strong>"Continuer"</strong> sur Chrome, ou <strong>"Visiter ce site"</strong> sur Safari).</li>
                         <li>Revenez sur cette page de Relais et lancez le service !</li>
                       </ol>
                       
@@ -538,7 +538,7 @@ export default function WebRelayScreen({ onBack }) {
               <div className="bg-slate-950 border border-slate-800 rounded-2xl p-4 flex gap-3">
                 <Info size={20} className="text-slate-400 shrink-0" />
                 <p className="text-[11px] text-slate-400 leading-relaxed font-semibold">
-                  <strong>Anti-mise en veille :</strong> Tant que ce relais web est actif, l'écran de votre iPad restera allumé automatiquement.
+                  <strong>Anti-mise en veille :</strong> Tant que ce relais web est actif, l'écran restera allumé. Sur Chrome/Android, ajoutez cette page à l'écran d'accueil (menu ⋮ → Ajouter à l'écran d'accueil) pour un affichage plein écran.
                 </p>
               </div>
             </div>

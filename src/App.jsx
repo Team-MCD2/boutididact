@@ -33,6 +33,14 @@ const IDLE_MS = Number(import.meta.env.VITE_IDLE_TIMEOUT_MS || 60000);
 const API = import.meta.env.VITE_API_URL || '';
 
 const SESSION_KEY = 'boutididact_session';
+const SETTINGS_KEY = 'boutididact_settings';
+const LAST_SHOP_KEY = 'boutididact_lastShopId';
+
+function clearShopLocalData() {
+  localStorage.removeItem('ai_products');
+  localStorage.removeItem('ai_categories');
+  localStorage.removeItem('boutididact_supplements');
+}
 
 const isSetupComplete = () => {
   try {
@@ -103,29 +111,39 @@ export default function App() {
     const sess = { shopId: shop?.id, shopName: shop?.name, email: shop?.email, loggedAt: Date.now() };
     sessionStorage.setItem(SESSION_KEY, JSON.stringify(sess));
     
-    // Récupération des réglages existants ou création par défaut
     let currentSettings = {};
     try {
-      currentSettings = JSON.parse(localStorage.getItem('boutididact_settings') || '{}');
+      currentSettings = JSON.parse(localStorage.getItem(SETTINGS_KEY) || '{}');
     } catch (e) {}
 
-    // Fusion intelligente : on ne laisse pas le Cloud vider nos accès Hiboutik locaux s'ils existent déjà
+    const lastShopId = localStorage.getItem(LAST_SHOP_KEY) || '';
+    const newShopId = shop?.id || '';
+    const isSameShop = Boolean(lastShopId && newShopId && lastShopId === newShopId);
+
+    if (lastShopId && newShopId && !isSameShop) {
+      clearShopLocalData();
+      currentSettings = {
+        adminPin: currentSettings.adminPin,
+        printerIp: currentSettings.printerIp,
+        relayMode: currentSettings.relayMode,
+      };
+    }
+
     const cloudSettings = shop?.settings || {};
     const newSettings = {
       ...currentSettings,
       ...cloudSettings,
-      // On protège les accès Hiboutik : priorité au local s'ils sont remplis et que le cloud est vide
-      hiboutikAccount: cloudSettings.hiboutikAccount || currentSettings.hiboutikAccount || '',
-      hiboutikUser: cloudSettings.hiboutikUser || currentSettings.hiboutikUser || '',
-      hiboutikApiKey: cloudSettings.hiboutikApiKey || currentSettings.hiboutikApiKey || '',
-      // Priorité aux données de la fiche client Cloud pour les infos légales
-      shopName: shop?.name || cloudSettings.shopName || currentSettings.shopName || '',
-      shopAddress: shop?.address || cloudSettings.shopAddress || currentSettings.shopAddress || '',
-      shopSiret: shop?.siret || cloudSettings.shopSiret || currentSettings.shopSiret || '',
-      shopTva: shop?.tva || cloudSettings.shopTva || currentSettings.shopTva || '',
+      hiboutikAccount: cloudSettings.hiboutikAccount || (isSameShop ? currentSettings.hiboutikAccount : '') || '',
+      hiboutikUser: cloudSettings.hiboutikUser || (isSameShop ? currentSettings.hiboutikUser : '') || '',
+      hiboutikApiKey: cloudSettings.hiboutikApiKey || (isSameShop ? currentSettings.hiboutikApiKey : '') || '',
+      shopName: shop?.name || cloudSettings.shopName || '',
+      shopAddress: shop?.address || cloudSettings.shopAddress || '',
+      shopSiret: shop?.siret || cloudSettings.shopSiret || '',
+      shopTva: shop?.tva || cloudSettings.shopTva || '',
     };
 
-    localStorage.setItem('boutididact_settings', JSON.stringify(newSettings));
+    localStorage.setItem(SETTINGS_KEY, JSON.stringify(newSettings));
+    if (newShopId) localStorage.setItem(LAST_SHOP_KEY, newShopId);
     
     // SYNC PIN dédié
     if (newSettings.adminPin) {

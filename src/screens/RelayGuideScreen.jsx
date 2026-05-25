@@ -18,14 +18,14 @@ export default function RelayGuideScreen({ onBack }) {
       ]
     },
     android: {
-      title: 'Android',
+      title: 'Chrome / Android',
       icon: <Smartphone size={24} />,
-      link: '/downloads/Boutididact-Print-Server.apk',
+      link: '/relais',
       steps: [
-        { t: 'Téléchargement', d: 'Téléchargez l\'APK sur votre tablette ou téléphone Android.' },
-        { t: 'Autorisation', d: 'Autorisez l\'installation de sources inconnues si demandé par le système.' },
-        { t: 'Arrière-plan', d: 'Au premier lancement, autorisez le fonctionnement sans restrictions de batterie.' },
-        { t: 'Prêt', d: 'Lancez le relais et les tickets s\'imprimeront automatiquement.' }
+        { t: 'Relais Web', d: 'Ouvrez le Relais Web sur votre tablette Android ou dans Chrome (même solution que iOS, sans APK).' },
+        { t: 'Configuration & Mode', d: 'Entrez le nom de votre boutique et choisissez votre mode : Epson HTTPS (recommandé), Epson HTTP, ou AirPrint si disponible.' },
+        { t: 'Ajouter à l\'écran d\'accueil', d: 'Dans Chrome : menu ⋮ → "Ajouter à l\'écran d\'accueil" pour l\'avoir en plein écran comme une app.' },
+        { t: 'Démarrage', d: 'Lancez le relais et laissez Chrome ouvert en plein écran. Les tickets s\'imprimeront automatiquement.' }
       ]
     },
     ios: {
@@ -105,7 +105,7 @@ export default function RelayGuideScreen({ onBack }) {
                   href={g.link}
                   className="inline-flex items-center gap-3 px-8 py-4 bg-amber-500 hover:bg-amber-600 text-slate-950 font-black rounded-2xl transition-all hover:scale-[1.02] active:scale-95 shadow-xl shadow-amber-500/15"
                 >
-                  <ExternalLink size={20} /> Ouvrir le Relais Web iOS
+                  <ExternalLink size={20} /> Ouvrir le Relais Web
                 </a>
               ) : (
                 <a 
