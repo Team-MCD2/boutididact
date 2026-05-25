@@ -22,10 +22,10 @@ export default function RelayGuideScreen({ onBack }) {
       icon: <Smartphone size={24} />,
       link: '/relais',
       steps: [
-        { t: 'Relais Web', d: 'Ouvrez le Relais Web sur votre tablette Android ou dans Chrome (même solution que iOS, sans APK).' },
-        { t: 'Configuration & Mode', d: 'Entrez le nom de votre boutique et choisissez votre mode : Epson HTTPS (recommandé), Epson HTTP, ou AirPrint si disponible.' },
-        { t: 'Ajouter à l\'écran d\'accueil', d: 'Dans Chrome : menu ⋮ → "Ajouter à l\'écran d\'accueil" pour l\'avoir en plein écran comme une app.' },
-        { t: 'Démarrage', d: 'Lancez le relais et laissez Chrome ouvert en plein écran. Les tickets s\'imprimeront automatiquement.' }
+        { t: 'Relais 100% autonome', d: 'Ouvrez /relais sur le telephone (Chrome ou Safari). Aucun .exe, aucun PC requis.' },
+        { t: 'Meme WiFi', d: 'Telephone et imprimante sur le meme reseau WiFi. IP imprimante ex: 192.168.1.26 — port 9100.' },
+        { t: 'Certificat SSL (1 fois)', d: 'Appuyez sur « Autoriser certificat imprimante », acceptez dans Chrome, revenez sur le relais.' },
+        { t: 'Demarrage', d: 'Ajoutez a l\'ecran d\'accueil, demarrez le relais, laissez l\'onglet ouvert en cuisine.' }
       ]
     },
     ios: {

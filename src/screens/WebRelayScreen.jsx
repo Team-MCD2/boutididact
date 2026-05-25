@@ -1,258 +1,212 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { 
-  ChevronLeft, Play, Square, Info, Wifi, 
-  Volume2, VolumeX, Printer, Terminal, Sparkles, ExternalLink, Lock
+import {
+  ChevronLeft, Play, Square, Info, Volume2, VolumeX,
+  Printer, Terminal, Sparkles, ExternalLink, Lock,
 } from 'lucide-react';
+import {
+  generateEscPosBytes,
+  escPosToHex,
+  buildEposEscPosSoap,
+  buildEposTextSoap,
+  isPrivateIp,
+} from '../utils/escpos';
 
 const CLOUD_URL = 'https://boutididact-backendd.vercel.app';
 const POLL_INTERVAL_MS = 5000;
-const MODE_PORTS = { epos_https: '8043', epos_http: '80' };
-const RAW_TCP_PORT = '9100';
+const PRINTER_PORT = '9100';
+const EPOS_PORT = '8043';
 const EPOS_DEVIDS = ['local_printer', 'localprinter'];
 
-async function requeueTicket(shopName, ticket) {
-  await fetch(`${CLOUD_URL}/api/saas/push-ticket`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ shopName, ticketData: ticket }),
-  });
-}
-
-function stripAccents(str) {
-  return String(str ?? '').normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-}
-
-function escapeXml(str) {
-  return stripAccents(str)
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;');
-}
-
-function eposLine(text, extraAttrs = '') {
-  return `<text lang="fr"${extraAttrs}>${escapeXml(text)}&#10;</text>`;
-}
-
-function buildEposXml(ticket) {
-  const shopName = escapeXml((ticket.shop?.name || 'BOUTIDIDACT').toUpperCase());
-  const lines = [
-    '<align align="center"/>',
-    `<text width="2" height="2" lang="fr">${shopName}&#10;</text>`,
-    eposLine('--------------------------------'),
-    eposLine(`TICKET : ${ticket.ticketId || 'N/A'}`),
-    eposLine('--------------------------------'),
-    '<align align="left"/>',
-  ];
-
-  (ticket.items || []).forEach((it) => {
-    const qty = Number(it.quantity) || 1;
-    const total = (Number(it.price || 0) * qty).toFixed(2);
-    lines.push(eposLine(`${qty}x ${it.name}  ${total} EUR`));
-  });
-
-  lines.push(
-    '<align align="center"/>',
-    eposLine('--------------------------------'),
-    `<text width="2" height="2" lang="fr">TOTAL: ${Number(ticket.total || 0).toFixed(2)} EUR&#10;</text>`,
-    eposLine(`Paiement : ${ticket.payment || 'CB'}`),
-    eposLine('--------------------------------'),
-    '<cut type="feed"/>',
-  );
-
-  return `<?xml version="1.0" encoding="utf-8"?>
-<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/">
-<soapenv:Body>
-<epos-print xmlns="http://www.epson-pos.com/schemas/2011/03/epos-print">
-${lines.join('\n')}
-</epos-print>
-</soapenv:Body>
-</soapenv:Envelope>`;
-}
-
-function buildEposTestXml() {
-  return buildEposXml({
-    ticketId: 'TEST',
-    total: 0,
-    payment: 'TEST',
-    items: [{ name: 'Connexion OK', quantity: 1, price: 0 }],
-  });
-}
-
-function isChromeOrAndroid() {
-  const ua = navigator.userAgent || '';
-  return /Android/i.test(ua) || /Chrome/i.test(ua) && !/Edg/i.test(ua);
-}
-
-function normalizePortForMode(mode, port) {
-  const p = String(port || '').trim();
-  if (p === RAW_TCP_PORT) return MODE_PORTS[mode] || '8043';
-  if (!p && mode in MODE_PORTS) return MODE_PORTS[mode];
-  return p || MODE_PORTS[mode] || '8043';
-}
-
 export default function WebRelayScreen({ onBack }) {
-  const [shopName, setShopName] = useState(() => localStorage.getItem('boutididact_webrelay_shopName') || '');
-  const [printerIp, setPrinterIp] = useState(() => localStorage.getItem('boutididact_webrelay_printerIp') || '192.168.1.100');
-  const initialMode = (() => {
-    const saved = localStorage.getItem('boutididact_webrelay_printMode');
-    if (saved) return saved;
-    const savedPort = localStorage.getItem('boutididact_webrelay_printerPort') || '';
-    if (String(savedPort).trim() === RAW_TCP_PORT) return 'windows_exe';
-    return 'epos_https';
-  })();
-  const [printMode, setPrintMode] = useState(initialMode);
-  const [relayPcUrl, setRelayPcUrl] = useState(
-    () => localStorage.getItem('boutididact_webrelay_pcUrl') || 'http://192.168.1.47:3001'
+  const [shopName, setShopName] = useState(
+    () => localStorage.getItem('boutididact_webrelay_shopName') || ''
   );
-  const [printerPort, setPrinterPort] = useState(() => {
-    const savedPort = localStorage.getItem('boutididact_webrelay_printerPort') || '';
-    const savedMode = localStorage.getItem('boutididact_webrelay_printMode') || initialMode;
-    return normalizePortForMode(savedMode, savedPort);
-  });
+  const [printerIp, setPrinterIp] = useState(
+    () => localStorage.getItem('boutididact_webrelay_printerIp') || '192.168.1.26'
+  );
   const [isRunning, setIsRunning] = useState(false);
   const [logs, setLogs] = useState([]);
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [wakeLockActive, setWakeLockActive] = useState(false);
   const [currentTicket, setCurrentTicket] = useState(null);
+  const [certAccepted, setCertAccepted] = useState(false);
 
   const wakeLockRef = useRef(null);
   const isRunningRef = useRef(isRunning);
   const shopNameRef = useRef(shopName);
   const printerIpRef = useRef(printerIp);
-  const printerPortRef = useRef(printerPort);
-  const printModeRef = useRef(printMode);
-  const relayPcUrlRef = useRef(relayPcUrl);
   const soundEnabledRef = useRef(soundEnabled);
-  const lastSeenTicketIdRef = useRef(null);
+  const lastPrintedTicketIdRef = useRef(null);
 
-  // Sync refs to avoid stale closures in the poll interval
   useEffect(() => { isRunningRef.current = isRunning; }, [isRunning]);
   useEffect(() => { shopNameRef.current = shopName; }, [shopName]);
   useEffect(() => { printerIpRef.current = printerIp; }, [printerIp]);
-  useEffect(() => { printerPortRef.current = printerPort; }, [printerPort]);
-  useEffect(() => { printModeRef.current = printMode; }, [printMode]);
-  useEffect(() => { relayPcUrlRef.current = relayPcUrl; }, [relayPcUrl]);
   useEffect(() => { soundEnabledRef.current = soundEnabled; }, [soundEnabled]);
 
-  // Save settings on changes
   useEffect(() => {
     localStorage.setItem('boutididact_webrelay_shopName', shopName);
   }, [shopName]);
-
   useEffect(() => {
     localStorage.setItem('boutididact_webrelay_printerIp', printerIp);
   }, [printerIp]);
-
   useEffect(() => {
-    localStorage.setItem('boutididact_webrelay_printerPort', printerPort);
-  }, [printerPort]);
+    localStorage.setItem('boutididact_webrelay_printerPort', PRINTER_PORT);
+  }, []);
 
-  useEffect(() => {
-    localStorage.setItem('boutididact_webrelay_printMode', printMode);
-  }, [printMode]);
+  const addLog = useCallback((msg) => {
+    const time = new Date().toLocaleTimeString();
+    setLogs((prev) => [`[${time}] ${msg}`, ...prev].slice(0, 50));
+  }, []);
 
-  useEffect(() => {
-    localStorage.setItem('boutididact_webrelay_pcUrl', relayPcUrl);
-  }, [relayPcUrl]);
-
-  const selectPrintMode = (mode) => {
-    setPrintMode(mode);
-    if (mode === 'epos_https' || mode === 'epos_http') {
-      setPrinterPort((prev) => normalizePortForMode(mode, prev));
-    } else if (mode === 'windows_exe' || mode === 'escpos_pc') {
-      setPrinterPort(RAW_TCP_PORT);
-    }
-  };
-
-  const portWarning = (printMode === 'epos_https' || printMode === 'epos_http') && String(printerPort).trim() === RAW_TCP_PORT
-    ? `Le port ${RAW_TCP_PORT} est réservé au relais Windows/APK (TCP brut). En relais web Chrome, utilisez le port ${MODE_PORTS[printMode]} (ePOS).`
-    : null;
-
-  // Request Wake Lock to keep screen on (perfect for iOS/iPad)
   const requestWakeLock = async () => {
-    if ('wakeLock' in navigator) {
-      try {
-        wakeLockRef.current = await navigator.wakeLock.request('screen');
-        setWakeLockActive(true);
-        addLog("Anti-veille iOS/Safari activé avec succès.");
-      } catch (err) {
-        console.warn("Wake Lock failed:", err);
-        setWakeLockActive(false);
-      }
-    } else {
+    if (!('wakeLock' in navigator)) {
+      setWakeLockActive(false);
+      return;
+    }
+    try {
+      wakeLockRef.current = await navigator.wakeLock.request('screen');
+      setWakeLockActive(true);
+      addLog('Anti-veille active.');
+    } catch {
       setWakeLockActive(false);
     }
   };
 
   const releaseWakeLock = async () => {
-    if (wakeLockRef.current) {
-      try {
-        await wakeLockRef.current.release();
-        wakeLockRef.current = null;
-        setWakeLockActive(false);
-        addLog("Anti-veille désactivé.");
-      } catch (err) {
-        console.error(err);
-      }
-    }
+    if (!wakeLockRef.current) return;
+    try {
+      await wakeLockRef.current.release();
+      wakeLockRef.current = null;
+      setWakeLockActive(false);
+    } catch { /* ignore */ }
   };
 
-  // Re-request wake lock when page becomes visible again
   useEffect(() => {
-    const handleVisibilityChange = () => {
-      if (document.visibilityState === 'visible' && isRunning) {
-        requestWakeLock();
-      }
+    const onVisible = () => {
+      if (document.visibilityState === 'visible' && isRunning) requestWakeLock();
     };
-    document.addEventListener('visibilitychange', handleVisibilityChange);
+    document.addEventListener('visibilitychange', onVisible);
     return () => {
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      document.removeEventListener('visibilitychange', onVisible);
       releaseWakeLock();
     };
   }, [isRunning]);
 
-  const addLog = (msg) => {
-    const time = new Date().toLocaleTimeString();
-    setLogs(prev => [`[${time}] ${msg}`, ...prev].slice(0, 50));
-  };
-
-  // Web Audio Synth Chime for iOS
   const playChime = () => {
     if (!soundEnabledRef.current) return;
     try {
       const ctx = new (window.AudioContext || window.webkitAudioContext)();
-      
-      // Beep 1
-      const osc1 = ctx.createOscillator();
-      const gain1 = ctx.createGain();
-      osc1.connect(gain1);
-      gain1.connect(ctx.destination);
-      osc1.type = 'sine';
-      osc1.frequency.setValueAtTime(587.33, ctx.currentTime); // D5
-      gain1.gain.setValueAtTime(0.08, ctx.currentTime);
-      osc1.start();
-      osc1.stop(ctx.currentTime + 0.12);
-      
-      // Beep 2
-      setTimeout(() => {
-        const osc2 = ctx.createOscillator();
-        const gain2 = ctx.createGain();
-        osc2.connect(gain2);
-        gain2.connect(ctx.destination);
-        osc2.type = 'sine';
-        osc2.frequency.setValueAtTime(880.00, ctx.currentTime); // A5
-        gain2.gain.setValueAtTime(0.08, ctx.currentTime);
-        osc2.start();
-        osc2.stop(ctx.currentTime + 0.22);
-      }, 120);
-    } catch (e) {
-      console.warn("Audio play failed (waiting for user interaction):", e);
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.frequency.setValueAtTime(880, ctx.currentTime);
+      gain.gain.setValueAtTime(0.08, ctx.currentTime);
+      osc.start();
+      osc.stop(ctx.currentTime + 0.15);
+    } catch { /* ignore */ }
+  };
+
+  /** Impression directe depuis le telephone (WiFi local) via ePOS HTTPS */
+  const sendDirectFromPhone = async (ticket, ip) => {
+    const hex = escPosToHex(generateEscPosBytes(ticket));
+    const payloads = [
+      buildEposEscPosSoap(hex),
+      buildEposTextSoap(ticket),
+    ];
+
+    for (const devid of EPOS_DEVIDS) {
+      const url = `https://${ip}:${EPOS_PORT}/cgi-bin/epos/service.cgi?devid=${devid}&timeout=15000`;
+      for (const body of payloads) {
+        try {
+          const res = await fetch(url, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'text/xml; charset=utf-8',
+              'If-Modified-Since': 'Thu, 01 Jan 1970 00:00:00 GMT',
+              'SOAPAction': '""',
+            },
+            body,
+          });
+          const text = await res.text();
+          if (res.ok && !/success="false"/i.test(text)) {
+            addLog(`✅ Impression directe OK (${ip}:${PRINTER_PORT} via WiFi)`);
+            return true;
+          }
+        } catch {
+          /* essai suivant */
+        }
+      }
+    }
+    return false;
+  };
+
+  /** Impression via cloud (imprimante IP publique ou routeur avec redirection port 9100) */
+  const sendViaCloud = async (ticket, ip) => {
+    try {
+      const res = await fetch(`${CLOUD_URL}/api/saas/relay-print`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          shopName: shopNameRef.current.trim(),
+          printerIp: ip,
+          printerPort: PRINTER_PORT,
+          ticket,
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok && data.ok) {
+        addLog(`✅ Impression cloud OK (${ip}:${PRINTER_PORT})`);
+        return true;
+      }
+      return false;
+    } catch {
+      return false;
     }
   };
 
-  // The Main Web Polling Loop
+  const sendPrint = async (ticket) => {
+    const ip = printerIpRef.current.trim();
+    if (!ip) {
+      addLog('❌ IP imprimante manquante.');
+      return false;
+    }
+
+    addLog(`Impression ticket → ${ip}:${PRINTER_PORT}...`);
+
+    if (isPrivateIp(ip)) {
+      addLog('WiFi local : envoi direct depuis le telephone...');
+      const direct = await sendDirectFromPhone(ticket, ip);
+      if (direct) return true;
+
+      addLog('❌ Impression directe echouee.');
+      if (!certAccepted) {
+        addLog('👉 Acceptez le certificat SSL de l\'imprimante (bouton ci-dessous), puis retestez.');
+      } else {
+        addLog('👉 Verifiez que le telephone est sur le MEME WiFi que l\'imprimante.');
+        addLog('👉 Imprimante Epson recommandee (ePOS). Autres marques : IP publique + redirection port 9100.');
+      }
+      return false;
+    }
+
+    addLog('IP publique : envoi via cloud...');
+    const cloud = await sendViaCloud(ticket, ip);
+    if (cloud) return true;
+
+    addLog('❌ Cloud injoignable ou imprimante inaccessible.');
+    return false;
+  };
+
+  const testPrinter = async () => {
+    await sendPrint({
+      ticketId: 'TEST',
+      total: 0,
+      payment: 'TEST',
+      items: [{ name: 'Test Boutididact', quantity: 1, price: 0 }],
+    });
+  };
+
   useEffect(() => {
     let intervalId = null;
 
@@ -262,52 +216,36 @@ export default function WebRelayScreen({ onBack }) {
       if (!currentShop) return;
 
       try {
-        const peek = printModeRef.current === 'windows_exe' ? '&peek=1' : '';
-        const url = `${CLOUD_URL}/api/saas/poll-ticket?shopName=${encodeURIComponent(currentShop)}${peek}`;
-        const res = await fetch(url, { method: 'GET', headers: { 'Accept': 'application/json' } });
+        const url = `${CLOUD_URL}/api/saas/poll-ticket?shopName=${encodeURIComponent(currentShop)}`;
+        const res = await fetch(url, { headers: { Accept: 'application/json' } });
         if (!res.ok) {
           if (res.status === 404) {
-            addLog("Boutique inconnue sur le serveur.");
+            addLog('Boutique inconnue.');
             setIsRunning(false);
           }
           return;
         }
 
         const data = await res.json();
-        if (data && data.ticket) {
-          const tid = data.ticket.ticketId || 'Inconnu';
-          if (lastSeenTicketIdRef.current === tid) return;
-          lastSeenTicketIdRef.current = tid;
+        if (!data?.ticket) return;
 
-          addLog(`🎟️ TICKET REÇU : ID ${tid}`);
-          setCurrentTicket(data.ticket);
-          playChime();
+        const tid = data.ticket.ticketId || 'Inconnu';
+        if (lastPrintedTicketIdRef.current === tid) return;
+        lastPrintedTicketIdRef.current = tid;
 
-          if (printModeRef.current === 'windows_exe') {
-            addLog('En attente impression par le relais Windows (.exe) sur le PC...');
-            return;
-          }
-
-          const ok = await handlePrintTicket(data.ticket);
-          if (!ok) {
-            try {
-              await requeueTicket(currentShop, data.ticket);
-              lastSeenTicketIdRef.current = null;
-              addLog('Ticket remis en file — nouvelle tentative au prochain cycle.');
-            } catch {
-              addLog('❌ Impossible de remettre le ticket en file. Relancez une commande test.');
-            }
-          }
-        }
+        addLog(`🎟️ TICKET REÇU : ID ${tid}`);
+        setCurrentTicket(data.ticket);
+        playChime();
+        await sendPrint(data.ticket);
       } catch (err) {
-        addLog(`Erreur connexion serveur : ${err.message}`);
+        addLog(`Erreur cloud : ${err.message}`);
       }
     };
 
     if (isRunning) {
-      addLog(`Démarrage du relais web pour "${shopName}"...`);
+      addLog(`Relais Chrome actif — port ${PRINTER_PORT} — autonome (telephone/PC)`);
       requestWakeLock();
-      poll(); // Immediate run
+      poll();
       intervalId = setInterval(poll, POLL_INTERVAL_MS);
     } else {
       releaseWakeLock();
@@ -316,695 +254,216 @@ export default function WebRelayScreen({ onBack }) {
     return () => {
       if (intervalId) clearInterval(intervalId);
     };
-  }, [isRunning]);
-
-  // Dynamic Browser-based AirPrint (Highly stable on iOS/Safari)
-  const printViaBrowser = (ticket) => {
-    addLog("Déclenchement automatique de l'impression AirPrint...");
-    try {
-      const iframe = document.createElement('iframe');
-      iframe.style.position = 'absolute';
-      iframe.style.width = '0px';
-      iframe.style.height = '0px';
-      iframe.style.border = 'none';
-      document.body.appendChild(iframe);
-      
-      const doc = iframe.contentWindow.document;
-      doc.open();
-      doc.write(`
-        <html>
-          <head>
-            <style>
-              @page {
-                size: 80mm auto;
-                margin: 0;
-              }
-              body {
-                font-family: 'Courier New', Courier, monospace;
-                width: 72mm;
-                margin: 0;
-                padding: 4mm;
-                background-color: #fff;
-                color: #000;
-                font-size: 13px;
-                line-height: 1.35;
-              }
-              .center { text-align: center; }
-              .right { text-align: right; }
-              .bold { font-weight: bold; }
-              .divider { border-top: 1px dashed #000; margin: 8px 0; }
-              .item-row { display: flex; justify-content: space-between; margin-bottom: 4px; }
-              .item-name { flex: 1; padding-right: 8px; }
-              .total-row { display: flex; justify-content: space-between; font-size: 16px; font-weight: bold; margin-top: 8px; }
-            </style>
-          </head>
-          <body>
-            <div class="center">
-              <h2 style="margin: 0 0 4px 0; font-size: 18px;">BOUTIDIDACT</h2>
-              <div class="bold">TICKET COMMANDE</div>
-              <div>ID: ${ticket.ticketId}</div>
-              <div class="divider"></div>
-            </div>
-            
-            <div>
-              ${ticket.items.map(it => `
-                <div class="item-row">
-                  <span class="item-name"><span class="bold">${it.quantity}x</span> ${it.name}</span>
-                  <span class="right">${(it.price * it.quantity).toFixed(2)}€</span>
-                </div>
-              `).join('')}
-            </div>
-            
-            <div class="divider"></div>
-            
-            <div class="total-row">
-              <span>TOTAL</span>
-              <span>${ticket.total.toFixed(2)}€</span>
-            </div>
-            <div class="item-row" style="margin-top: 4px;">
-              <span>Mode:</span>
-              <span class="right">${ticket.payment || 'CB'}</span>
-            </div>
-            
-            <div class="divider"></div>
-            <div class="center" style="margin-top: 12px; font-size: 10px; color: #555;">
-              Merci de votre confiance !
-            </div>
-            
-            <script>
-              window.onload = function() {
-                window.focus();
-                window.print();
-                setTimeout(function() {
-                  window.parent.document.body.removeChild(window.frameElement);
-                }, 1000);
-              };
-            </script>
-          </body>
-        </html>
-      `);
-      doc.close();
-      addLog("Dialogue AirPrint ouvert avec succès.");
-    } catch (e) {
-      addLog(`❌ Échec de l'impression AirPrint : ${e.message}`);
-    }
-  };
-
-  // Impression via le relais Windows sur le réseau local (port 9100)
-  const sendPcRelayPrint = async (ticket) => {
-    const pcUrl = relayPcUrlRef.current.replace(/\/$/, '');
-    const ip = printerIpRef.current.trim();
-    const port = printerPortRef.current.trim() || RAW_TCP_PORT;
-
-    if (window.location.protocol === 'https:' && pcUrl.startsWith('http:')) {
-      addLog('❌ Page HTTPS : impossible d\'appeler le PC en HTTP.');
-      addLog('👉 Utilisez le mode « Windows (.exe) » et lancez le relais sur le PC.');
-      return false;
-    }
-
-    addLog(`Envoi ESC/POS via PC relais ${pcUrl} → ${ip}:${port}...`);
-    try {
-      const res = await fetch(`${pcUrl}/api/print`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          ticketId: ticket.ticketId,
-          items: ticket.items,
-          total: ticket.total,
-          payment: ticket.payment,
-          paiement: ticket.payment,
-          printerIp: ip,
-          printerPort: port,
-          shop: ticket.shop,
-          saleId: ticket.saleId,
-          taxBreakdown: ticket.taxBreakdown,
-        }),
-      });
-      const data = await res.json().catch(() => ({}));
-      if (res.ok && data.success) {
-        addLog('Impression ESC/POS reussie via PC relais !');
-        return true;
-      }
-      addLog(`❌ Erreur PC relais : ${data.error || `HTTP ${res.status}`}`);
-      return false;
-    } catch (err) {
-      addLog(`❌ PC relais injoignable (${pcUrl}). Lancez le .exe sur le PC.`);
-      return false;
-    }
-  };
-
-  const handlePrintTicket = async (ticket) => {
-    const mode = printModeRef.current;
-    if (mode === 'epos_https' || mode === 'epos_http') return sendEposPrint(ticket);
-    if (mode === 'escpos_pc') return sendPcRelayPrint(ticket);
-    printViaBrowser(ticket);
-    return true;
-  };
-
-  // Epson ePOS SOAP XML direct printing
-  const sendEposPrint = async (ticket) => {
-    const ip = printerIpRef.current.trim();
-    const mode = printModeRef.current;
-    let port = printerPortRef.current.trim();
-    const isHttps = mode === 'epos_https';
-
-    if (port === RAW_TCP_PORT) {
-      addLog(`❌ Port ${RAW_TCP_PORT} incompatible avec le relais web Chrome.`);
-      addLog(`👉 Passez en mode "Epson HTTPS" avec le port ${MODE_PORTS.epos_https}, ou utilisez le relais Windows (.exe).`);
-      return;
-    }
-
-    port = normalizePortForMode(mode, port);
-    
-    const portString = port ? `:${port}` : (isHttps ? ':8043' : '');
-    const protocol = isHttps ? 'https' : 'http';
-    const xml = buildEposXml(ticket);
-
-    for (const devid of EPOS_DEVIDS) {
-      const targetUrl = `${protocol}://${ip}${portString}/cgi-bin/epos/service.cgi?devid=${devid}&timeout=10000`;
-      addLog(`Envoi ePOS (${protocol.toUpperCase()}) vers ${targetUrl}...`);
-
-      try {
-        const response = await fetch(targetUrl, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'text/xml; charset=utf-8',
-            'If-Modified-Since': 'Thu, 01 Jan 1970 00:00:00 GMT',
-            'SOAPAction': '""',
-          },
-          body: xml,
-        });
-        const responseText = await response.text();
-        const refused = /success="false"/i.test(responseText);
-        const accepted = response.ok && !refused;
-
-        if (accepted) {
-          addLog('Impression ePOS reussie !');
-          return true;
-        }
-        if (response.ok && refused) {
-          addLog(`Refus ePOS (devid=${devid}) — essai suivant...`);
-        } else {
-          addLog(`Erreur ePOS HTTP ${response.status} (devid=${devid})`);
-        }
-      } catch (err) {
-        addLog(`Echec connexion ePOS (devid=${devid})`);
-      }
-    }
-
-    addLog('❌ Impression ePOS impossible sur tous les identifiants.');
-    if (isHttps) {
-      addLog('👉 Autorisez le certificat SSL, ou passez en mode « Windows (.exe) » pour imprimante port 9100.');
-    } else {
-      addLog(`👉 Utilisez Epson HTTPS port ${MODE_PORTS.epos_https}, ou le relais Windows (.exe).`);
-    }
-    return false;
-  };
-
-  const testPrinter = async () => {
-    const ip = printerIp.trim();
-    const mode = printMode;
-    const port = normalizePortForMode(mode, printerPort.trim());
-
-    if (!ip) {
-      alert('Renseignez l\'adresse IP de l\'imprimante.');
-      return;
-    }
-    if ((mode === 'epos_https' || mode === 'epos_http') && port === RAW_TCP_PORT) {
-      alert(`Le port ${RAW_TCP_PORT} est pour le relais Windows/APK uniquement.\n\nEn relais web Chrome, mettez le port ${MODE_PORTS.epos_https} (Epson HTTPS).`);
-      return;
-    }
-    if (mode === 'airprint') {
-      addLog('Test AirPrint : utilisez « Ré-imprimer » sur un ticket reçu.');
-      return;
-    }
-
-    addLog(`Test connexion imprimante (${mode}, port ${port})...`);
-    if (mode === 'windows_exe') {
-      addLog('Mode Windows (.exe) : lancez le relais sur le PC, puis passez une commande test.');
-      return;
-    }
-    if (mode === 'escpos_pc') {
-      await sendPcRelayPrint({
-        ticketId: 'TEST',
-        total: 0,
-        payment: 'TEST',
-        items: [{ name: 'Test connexion', quantity: 1, price: 0 }],
-      });
-      return;
-    }
-
-    const protocol = mode === 'epos_https' ? 'https' : 'http';
-    const xml = buildEposTestXml();
-
-    for (const devid of EPOS_DEVIDS) {
-      const targetUrl = `${protocol}://${ip}:${port}/cgi-bin/epos/service.cgi?devid=${devid}&timeout=10000`;
-      try {
-        const res = await fetch(targetUrl, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'text/xml; charset=utf-8',
-            'If-Modified-Since': 'Thu, 01 Jan 1970 00:00:00 GMT',
-            'SOAPAction': '""',
-          },
-          body: xml,
-        });
-        const body = await res.text();
-        if (res.ok && !/success="false"/i.test(body)) {
-          addLog(`✅ Imprimante ePOS joignable (devid=${devid}) — ticket test envoye !`);
-          return;
-        }
-      } catch {
-        /* try next devid */
-      }
-    }
-    addLog('❌ Test ePOS echoue — essayez le mode Windows (.exe) pour port 9100.');
-    if (mode === 'epos_https') {
-      addLog('👉 Cliquez « Autoriser le Certificat », acceptez l\'avertissement Chrome, puis retestez.');
-    }
-  };
+  }, [isRunning, addLog]);
 
   const toggleService = async () => {
     if (!shopName.trim()) {
-      alert("Veuillez renseigner le nom de la boutique.");
+      alert('Renseignez le nom de la boutique.');
       return;
     }
-
-    if (!isRunning && (printMode === 'epos_https' || printMode === 'epos_http')) {
-      if (String(printerPort).trim() === RAW_TCP_PORT) {
-        alert(`Le port ${RAW_TCP_PORT} ne fonctionne pas dans Chrome.\n\nUtilisez le mode « Epson HTTPS » avec le port ${MODE_PORTS.epos_https}.\n\nLe port ${RAW_TCP_PORT} est réservé au relais Windows (.exe).`);
-        setPrintMode('epos_https');
-        setPrinterPort(MODE_PORTS.epos_https);
-        return;
-      }
+    if (!printerIp.trim()) {
+      alert('Renseignez l\'IP de l\'imprimante.');
+      return;
     }
 
     if (isRunning) {
       setIsRunning(false);
-      lastSeenTicketIdRef.current = null;
-      addLog("Relais ARRETÉ");
-    } else {
-      addLog(`Vérification de la boutique "${shopName.trim()}"...`);
-      try {
-        const url = `${CLOUD_URL}/api/saas/check-shop?shopName=${encodeURIComponent(shopName.trim())}`;
-        const res = await fetch(url);
-        const data = await res.json();
-        
-        if (!res.ok || !data.ok) {
-          addLog(`❌ Erreur : ${data.message || 'Boutique introuvable ou inactive.'}`);
-          return;
-        }
+      lastPrintedTicketIdRef.current = null;
+      addLog('Relais ARRETÉ');
+      return;
+    }
 
-        const validName = data.name || shopName.trim();
-        setShopName(validName);
-        addLog(`✅ Boutique "${validName}" validée et connectée avec succès.`);
-        setIsRunning(true);
-      } catch (err) {
-        addLog(`❌ Erreur réseau lors de la vérification : ${err.message}`);
+    addLog(`Verification boutique "${shopName.trim()}"...`);
+    try {
+      const res = await fetch(
+        `${CLOUD_URL}/api/saas/check-shop?shopName=${encodeURIComponent(shopName.trim())}`
+      );
+      const data = await res.json();
+      if (!res.ok || !data.ok) {
+        addLog(`❌ ${data.message || 'Boutique introuvable.'}`);
+        return;
       }
+      setShopName(data.name || shopName.trim());
+      addLog(`✅ Boutique "${data.name || shopName}" connectee.`);
+      lastPrintedTicketIdRef.current = null;
+      setIsRunning(true);
+    } catch (err) {
+      addLog(`❌ Erreur reseau : ${err.message}`);
     }
   };
 
+  const certUrl = `https://${printerIp.trim()}:${EPOS_PORT}/cgi-bin/epos/service.cgi?devid=local_printer`;
+
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 font-sans flex flex-col selection:bg-amber-500/10">
-      
-      {/* HEADER BAR */}
-      <header className="border-b border-slate-900 bg-slate-950/80 backdrop-blur-md px-6 py-4 flex items-center justify-between sticky top-0 z-20">
-        <button 
-          onClick={onBack}
-          className="flex items-center gap-2 text-slate-400 hover:text-slate-100 transition-colors font-bold text-sm"
-        >
-          <ChevronLeft size={20} /> Retour Borne
+    <div className="min-h-screen bg-slate-950 text-slate-100 font-sans flex flex-col">
+      <header className="border-b border-slate-900 px-6 py-4 flex items-center justify-between sticky top-0 z-20 bg-slate-950/90 backdrop-blur-md">
+        <button onClick={onBack} className="flex items-center gap-2 text-slate-400 hover:text-white font-bold text-sm">
+          <ChevronLeft size={20} /> Retour
         </button>
-        <div className="flex items-center gap-2 bg-amber-500/10 border border-amber-500/20 px-3 py-1 rounded-full text-xs font-black text-amber-500 uppercase tracking-widest">
-          <Sparkles size={12} /> Relais Web (Chrome, Android, iOS)
+        <div className="flex items-center gap-2 bg-amber-500/10 border border-amber-500/20 px-3 py-1 rounded-full text-xs font-black text-amber-500 uppercase">
+          <Sparkles size={12} /> Relais Chrome / Mobile
         </div>
       </header>
 
-      {/* DASHBOARD LAYOUT */}
       <main className="flex-1 max-w-7xl w-full mx-auto p-6 grid lg:grid-cols-3 gap-6">
-        
-        {/* PANEL LEFT: CONTROLS */}
-        <section className="lg:col-span-1 flex flex-col gap-6">
-          <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 flex flex-col shadow-xl">
-            <h2 className="text-xl font-black mb-6 text-slate-100">Configuration</h2>
-            
-            <div className="space-y-5 flex-1">
-              <div>
-                <label className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-2 block">Nom de la boutique</label>
-                <input 
-                  type="text" 
-                  value={shopName} 
-                  onChange={(e) => setShopName(e.target.value)}
-                  placeholder="ex: Restaurant Le Gourmet"
-                  disabled={isRunning}
-                  className="w-full bg-slate-950 border border-slate-800 focus:border-amber-500 rounded-2xl px-4 py-3 text-sm text-slate-100 placeholder-slate-600 focus:outline-none transition-all disabled:opacity-50"
-                />
-              </div>
+        <section className="lg:col-span-1">
+          <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-xl space-y-5">
+            <h2 className="text-xl font-black">Configuration</h2>
 
-              <div>
-                <label className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-2 block">Mode de fonctionnement</label>
-                <div className="grid grid-cols-2 gap-1 bg-slate-950 p-1 rounded-2xl border border-slate-800">
-                  <button 
-                    onClick={() => selectPrintMode('windows_exe')}
-                    disabled={isRunning}
-                    className={`py-2 px-1 rounded-xl font-black text-[10px] transition-all text-center leading-tight ${
-                      printMode === 'windows_exe' 
-                        ? 'bg-emerald-500 text-slate-950 shadow-md' 
-                        : 'text-slate-400 hover:text-slate-200'
-                    }`}
-                  >
-                    Windows (.exe)
-                  </button>
-                  <button 
-                    onClick={() => selectPrintMode('escpos_pc')}
-                    disabled={isRunning}
-                    className={`py-2 px-1 rounded-xl font-black text-[10px] transition-all text-center leading-tight ${
-                      printMode === 'escpos_pc' 
-                        ? 'bg-emerald-500 text-slate-950 shadow-md' 
-                        : 'text-slate-400 hover:text-slate-200'
-                    }`}
-                  >
-                    PC relais 9100
-                  </button>
-                  <button 
-                    onClick={() => selectPrintMode('epos_https')}
-                    disabled={isRunning}
-                    className={`py-2 px-1 rounded-xl font-black text-[10px] transition-all text-center leading-tight ${
-                      printMode === 'epos_https' 
-                        ? 'bg-amber-500 text-slate-950 shadow-md' 
-                        : 'text-slate-400 hover:text-slate-200'
-                    }`}
-                  >
-                    Epson HTTPS
-                  </button>
-                  <button 
-                    onClick={() => selectPrintMode('airprint')}
-                    disabled={isRunning}
-                    className={`py-2 px-1 rounded-xl font-black text-[10px] transition-all text-center leading-tight ${
-                      printMode === 'airprint' 
-                        ? 'bg-amber-500 text-slate-950 shadow-md' 
-                        : 'text-slate-400 hover:text-slate-200'
-                    }`}
-                  >
-                    AirPrint
-                  </button>
-                </div>
-              </div>
-
-              {printMode === 'windows_exe' && (
-                <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-2xl p-4 flex gap-3">
-                  <Info size={20} className="text-emerald-400 shrink-0" />
-                  <p className="text-[11px] text-emerald-200 leading-relaxed font-semibold">
-                    <strong>Recommande port {RAW_TCP_PORT} :</strong> Chrome affiche les tickets. Lancez le relais <strong>Windows (.exe)</strong> sur le PC — c&apos;est lui qui imprime. Ne fermez pas le .exe.
-                  </p>
-                </div>
-              )}
-
-              {(printMode === 'windows_exe' || printMode === 'escpos_pc') && (
-                <div className="space-y-4 border-t border-slate-800/50 pt-4">
-                  <div className="grid grid-cols-3 gap-3">
-                    <div className="col-span-2">
-                      <label className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-2 block">IP Imprimante</label>
-                      <input 
-                        type="text" 
-                        value={printerIp} 
-                        onChange={(e) => setPrinterIp(e.target.value)}
-                        placeholder="192.168.1.26"
-                        disabled={isRunning}
-                        className="w-full bg-slate-950 border border-slate-800 focus:border-emerald-500 rounded-2xl px-4 py-3 text-sm text-slate-100 placeholder-slate-600 focus:outline-none transition-all disabled:opacity-50"
-                      />
-                    </div>
-                    <div className="col-span-1">
-                      <label className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-2 block">Port</label>
-                      <input 
-                        type="text" 
-                        value={printerPort} 
-                        onChange={(e) => setPrinterPort(e.target.value)}
-                        placeholder={RAW_TCP_PORT}
-                        disabled={isRunning}
-                        className="w-full bg-slate-950 border border-slate-800 focus:border-emerald-500 rounded-2xl px-4 py-3 text-sm text-slate-100 placeholder-slate-600 focus:outline-none transition-all text-center disabled:opacity-50"
-                      />
-                    </div>
-                  </div>
-                  {printMode === 'escpos_pc' && (
-                    <div>
-                      <label className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-2 block">URL du PC relais (.exe)</label>
-                      <input 
-                        type="text" 
-                        value={relayPcUrl} 
-                        onChange={(e) => setRelayPcUrl(e.target.value)}
-                        placeholder="http://192.168.1.47:3001"
-                        disabled={isRunning}
-                        className="w-full bg-slate-950 border border-slate-800 focus:border-emerald-500 rounded-2xl px-4 py-3 text-sm text-slate-100 placeholder-slate-600 focus:outline-none transition-all disabled:opacity-50"
-                      />
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {(printMode === 'epos_https' || printMode === 'epos_http') && (
-                <div className="space-y-4 border-t border-slate-800/50 pt-4">
-                  <div className="grid grid-cols-3 gap-3">
-                    <div className="col-span-2">
-                      <label className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-2 block">Adresse IP Imprimante</label>
-                      <input 
-                        type="text" 
-                        value={printerIp} 
-                        onChange={(e) => setPrinterIp(e.target.value)}
-                        placeholder="192.168.1.100"
-                        disabled={isRunning}
-                        className="w-full bg-slate-950 border border-slate-800 focus:border-amber-500 rounded-2xl px-4 py-3 text-sm text-slate-100 placeholder-slate-600 focus:outline-none transition-all disabled:opacity-50"
-                      />
-                    </div>
-                    <div className="col-span-1">
-                      <label className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-2 block">Port</label>
-                      <input 
-                        type="text" 
-                        value={printerPort} 
-                        onChange={(e) => setPrinterPort(e.target.value)}
-                        placeholder={printMode === 'epos_https' ? '8043' : '80'}
-                        disabled={isRunning}
-                        className="w-full bg-slate-950 border border-slate-800 focus:border-amber-500 rounded-2xl px-4 py-3 text-sm text-slate-100 placeholder-slate-600 focus:outline-none transition-all text-center disabled:opacity-50"
-                      />
-                    </div>
-                  </div>
-
-                  {portWarning && (
-                    <div className="bg-red-500/10 border border-red-500/30 rounded-2xl p-4 flex gap-3">
-                      <Info size={20} className="text-red-400 shrink-0" />
-                      <p className="text-[11px] text-red-300 leading-relaxed font-semibold">{portWarning}</p>
-                    </div>
-                  )}
-
-                  <button
-                    type="button"
-                    onClick={testPrinter}
-                    disabled={isRunning}
-                    className="w-full py-3 rounded-xl border border-slate-700 text-slate-300 hover:bg-slate-800 font-black text-xs transition disabled:opacity-50"
-                  >
-                    Tester la connexion imprimante
-                  </button>
-
-                  {printMode === 'epos_https' && (
-                    <div className="bg-amber-500/10 border border-amber-500/20 rounded-2xl p-4 space-y-3">
-                      <div className="flex gap-2">
-                        <Lock size={18} className="text-amber-500 shrink-0 mt-0.5" />
-                        <span className="text-xs font-black uppercase tracking-wider text-amber-500">Procédure Sécurité SSL</span>
-                      </div>
-                      <p className="text-[11px] text-slate-300 leading-relaxed font-medium">
-                        Chrome et Safari nécessitent d'accepter une fois le certificat SSL auto-signé de votre imprimante Epson :
-                      </p>
-                      <ol className="text-[11px] text-slate-400 space-y-1.5 list-decimal pl-4 font-semibold">
-                        <li>Cliquez sur le bouton ci-dessous pour ouvrir la page de l'imprimante dans un nouvel onglet.</li>
-                        <li>Acceptez l'avertissement de sécurité (<strong>"Avancé"</strong> puis <strong>"Continuer"</strong> sur Chrome, ou <strong>"Visiter ce site"</strong> sur Safari).</li>
-                        <li>Revenez sur cette page de Relais et lancez le service !</li>
-                      </ol>
-                      
-                      <a 
-                        href={`https://${printerIp.trim()}:${printerPort.trim()}/cgi-bin/epos/service.cgi?devid=local_printer`} 
-                        target="_blank" 
-                        rel="noopener noreferrer"
-                        className="flex items-center justify-center gap-2 w-full py-3 bg-amber-500 text-slate-950 hover:bg-amber-600 rounded-xl font-black text-xs transition-all hover:scale-[1.02] shadow-lg shadow-amber-500/10"
-                      >
-                        1. Autoriser le Certificat <ExternalLink size={14} />
-                      </a>
-                    </div>
-                  )}
-
-                  {printMode === 'epos_http' && (
-                    <div className="bg-red-500/5 border border-red-500/10 rounded-2xl p-4 flex gap-3">
-                      <Info size={20} className="text-red-400 shrink-0" />
-                      <p className="text-[11px] text-red-300 leading-relaxed font-semibold">
-                        <strong>Chrome / Android :</strong> le mode HTTP est souvent bloqué depuis une page HTTPS. Préférez <strong>Epson HTTPS</strong> port <strong>{MODE_PORTS.epos_https}</strong>.
-                      </p>
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {printMode === 'airprint' && (
-                <div className="bg-indigo-500/5 border border-indigo-500/10 rounded-2xl p-4 flex gap-3 border-t border-slate-800/50 pt-4">
-                  <Info size={20} className="text-indigo-400 shrink-0" />
-                  <p className="text-[11px] text-indigo-300 leading-relaxed font-semibold">
-                    <strong>Mode AirPrint Actif :</strong> Ouvre automatiquement l'invite d'impression iOS native configurée pour ticket de cuisine. 100% compatible et sécurisé sans contrainte de réseau HTTPS !
-                  </p>
-                </div>
-              )}
-
-              <div className="flex items-center justify-between border-t border-slate-800 pt-4 mt-4">
-                <span className="text-sm font-bold text-slate-300">Alerte sonore cuisine</span>
-                <button 
-                  onClick={() => setSoundEnabled(!soundEnabled)}
-                  className={`p-2.5 rounded-xl border transition-all ${
-                    soundEnabled ? 'border-amber-500/20 bg-amber-500/5 text-amber-500' : 'border-slate-800 text-slate-500'
-                  }`}
-                >
-                  {soundEnabled ? <Volume2 size={20} /> : <VolumeX size={20} />}
-                </button>
-              </div>
-
-              <div className="bg-slate-950 border border-slate-800 rounded-2xl p-4 flex gap-3">
-                <Info size={20} className="text-slate-400 shrink-0" />
-                <p className="text-[11px] text-slate-400 leading-relaxed font-semibold">
-                  <strong>Imprimante port {RAW_TCP_PORT} ?</strong> Choisissez « Windows (.exe) » et lancez le relais sur le PC. Chrome seul ne peut pas imprimer en TCP brut.
-                </p>
-              </div>
+            <div>
+              <label className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-2 block">Nom boutique</label>
+              <input
+                type="text"
+                value={shopName}
+                onChange={(e) => setShopName(e.target.value)}
+                disabled={isRunning}
+                className="w-full bg-slate-950 border border-slate-800 rounded-2xl px-4 py-3 text-sm disabled:opacity-50"
+              />
             </div>
 
-            <button 
+            <div>
+              <label className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-2 block">IP imprimante (WiFi)</label>
+              <input
+                type="text"
+                value={printerIp}
+                onChange={(e) => setPrinterIp(e.target.value)}
+                placeholder="192.168.1.26"
+                disabled={isRunning}
+                className="w-full bg-slate-950 border border-slate-800 rounded-2xl px-4 py-3 text-sm disabled:opacity-50"
+              />
+            </div>
+
+            <div>
+              <label className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-2 block">Port impression</label>
+              <input
+                type="text"
+                value={PRINTER_PORT}
+                readOnly
+                className="w-full bg-slate-950 border border-slate-800 rounded-2xl px-4 py-3 text-sm text-center opacity-70"
+              />
+            </div>
+
+            <div className="bg-amber-500/10 border border-amber-500/20 rounded-2xl p-4 space-y-3">
+              <div className="flex gap-2 items-center">
+                <Lock size={16} className="text-amber-500" />
+                <span className="text-xs font-black text-amber-500 uppercase">Certificat SSL (1 fois)</span>
+              </div>
+              <p className="text-[11px] text-slate-300 leading-relaxed">
+                Sur telephone : ouvrez le lien, acceptez le certificat (<strong>Avance / Continuer</strong>), revenez ici.
+              </p>
+              <a
+                href={certUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={() => setCertAccepted(true)}
+                className="flex items-center justify-center gap-2 w-full py-3 bg-amber-500 text-slate-950 rounded-xl font-black text-xs"
+              >
+                Autoriser certificat imprimante <ExternalLink size={14} />
+              </a>
+            </div>
+
+            <div className="bg-slate-950 border border-slate-800 rounded-2xl p-4 flex gap-3">
+              <Info size={18} className="text-slate-400 shrink-0" />
+              <p className="text-[11px] text-slate-400 leading-relaxed">
+                <strong>100% autonome</strong> — fonctionne sur telephone Android/iPhone via Chrome/Safari.
+                Aucun .exe, aucun PC. Le telephone envoie le ticket ESC/POS port {PRINTER_PORT} via le WiFi local.
+              </p>
+            </div>
+
+            <button
+              type="button"
+              onClick={testPrinter}
+              disabled={isRunning}
+              className="w-full py-3 rounded-xl border border-slate-700 text-sm font-black disabled:opacity-50"
+            >
+              Tester l&apos;impression
+            </button>
+
+            <button
               onClick={toggleService}
-              className={`w-full py-4 rounded-2xl font-black mt-6 flex items-center justify-center gap-3 transition-all active:scale-95 shadow-xl ${
-                isRunning 
-                  ? 'bg-red-500 hover:bg-red-650 text-white shadow-red-500/10' 
-                  : 'bg-amber-500 hover:bg-amber-600 text-slate-950 shadow-amber-500/10'
+              className={`w-full py-4 rounded-2xl font-black flex items-center justify-center gap-3 ${
+                isRunning ? 'bg-red-500 text-white' : 'bg-amber-500 text-slate-950'
               }`}
             >
-              {isRunning ? (
-                <>
-                  <Square size={20} fill="currentColor" />
-                  Arrêter le relais
-                </>
-              ) : (
-                <>
-                  <Play size={20} fill="currentColor" />
-                  Démarrer le relais
-                </>
-              )}
+              {isRunning ? <><Square size={18} fill="currentColor" /> Arreter</> : <><Play size={18} fill="currentColor" /> Demarrer</>}
             </button>
           </div>
         </section>
 
-        {/* PANEL MIDDLE: KITCHEN DISPLAY SYSTEM */}
-        <section className="lg:col-span-2 flex flex-col gap-6">
-          
-          {/* STATS STRIP */}
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-            <div className="bg-slate-900 border border-slate-800 rounded-3xl p-5 flex flex-col shadow-sm">
-              <span className="text-[10px] font-black uppercase tracking-wider text-slate-500 mb-2">Statut</span>
-              <div className="flex items-center gap-2">
+        <section className="lg:col-span-2 space-y-6">
+          <div className="grid grid-cols-3 gap-4">
+            <div className="bg-slate-900 border border-slate-800 rounded-3xl p-5">
+              <span className="text-[10px] font-black uppercase text-slate-500">Statut</span>
+              <div className="flex items-center gap-2 mt-2">
                 <span className={`w-2.5 h-2.5 rounded-full ${isRunning ? 'bg-emerald-500 animate-pulse' : 'bg-red-500'}`} />
-                <span className="text-sm font-black">{isRunning ? 'ACTIF (EN LIGNE)' : 'INACTIF'}</span>
+                <span className="text-sm font-black">{isRunning ? 'ACTIF' : 'INACTIF'}</span>
               </div>
             </div>
-
-            <div className="bg-slate-900 border border-slate-800 rounded-3xl p-5 flex flex-col shadow-sm">
-              <span className="text-[10px] font-black uppercase tracking-wider text-slate-500 mb-2">Anti-Veille iOS</span>
-              <div className="flex items-center gap-2">
-                <span className={`w-2.5 h-2.5 rounded-full ${wakeLockActive ? 'bg-emerald-500' : 'bg-slate-700'}`} />
-                <span className="text-sm font-black">{wakeLockActive ? 'VIGILANT' : 'ÉCO'}</span>
+            <div className="bg-slate-900 border border-slate-800 rounded-3xl p-5">
+              <span className="text-[10px] font-black uppercase text-slate-500">Anti-veille</span>
+              <div className="flex items-center gap-2 mt-2">
+                <span className={`w-2.5 h-2.5 rounded-full ${wakeLockActive ? 'bg-emerald-500' : 'bg-slate-600'}`} />
+                <span className="text-sm font-black">{wakeLockActive ? 'ON' : 'OFF'}</span>
               </div>
             </div>
-
-            <div className="bg-slate-900 border border-slate-800 rounded-3xl p-5 flex flex-col shadow-sm col-span-2 md:col-span-1">
-              <span className="text-[10px] font-black uppercase tracking-wider text-slate-500 mb-2">Dernier ticket</span>
-              <span className="text-sm font-black truncate">{currentTicket ? `ID: ${currentTicket.ticketId}` : 'Aucun'}</span>
+            <div className="bg-slate-900 border border-slate-800 rounded-3xl p-5">
+              <span className="text-[10px] font-black uppercase text-slate-500">Dernier ticket</span>
+              <p className="text-sm font-black mt-2 truncate">{currentTicket?.ticketId || '—'}</p>
             </div>
           </div>
 
-          <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 flex-1 flex flex-col shadow-xl">
-            <h2 className="text-xl font-black mb-6 text-slate-100 flex items-center justify-between">
-              <span>Aperçu du dernier ticket reçu</span>
-              {currentTicket && (
-                <button 
-                  onClick={() => printViaBrowser(currentTicket)}
-                  className="px-4 py-2 bg-indigo-600 hover:bg-indigo-750 text-white rounded-xl text-xs font-black flex items-center gap-1.5 transition-all"
+          <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 min-h-[320px]">
+            <h2 className="text-lg font-black mb-4">Apercu ticket</h2>
+            <AnimatePresence mode="wait">
+              {currentTicket ? (
+                <motion.div
+                  key={currentTicket.ticketId}
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="max-w-md mx-auto bg-white text-slate-900 rounded-2xl p-6"
                 >
-                  <Printer size={14} /> Ré-imprimer (AirPrint)
-                </button>
-              )}
-            </h2>
-
-            {/* TICKET DISPLAY AREA */}
-            <div className="flex-1 flex items-center justify-center p-4">
-              <AnimatePresence mode="wait">
-                {currentTicket ? (
-                  <motion.div 
-                    key={currentTicket.ticketId}
-                    initial={{ opacity: 0, scale: 0.95, y: 10 }}
-                    animate={{ opacity: 1, scale: 1, y: 0 }}
-                    exit={{ opacity: 0, scale: 0.95 }}
-                    className="w-full max-w-md bg-white text-slate-950 p-6 rounded-3xl shadow-2xl relative border-2 border-amber-500/30"
-                  >
-                    <div className="border-b-2 border-dashed border-slate-200 pb-4 mb-4 text-center">
-                      <h3 className="text-2xl font-black uppercase tracking-tight text-slate-900">Boutididact Ticket</h3>
-                      <p className="text-xs text-slate-500 font-bold mt-1">ID Unique : {currentTicket.ticketId}</p>
+                  <p className="font-black text-center text-lg mb-4">#{currentTicket.ticketId}</p>
+                  {(currentTicket.items || []).map((it, i) => (
+                    <div key={i} className="flex justify-between text-sm py-1">
+                      <span>{it.quantity}x {it.name}</span>
+                      <span>{(it.price * it.quantity).toFixed(2)} EUR</span>
                     </div>
-
-                    <div className="space-y-4">
-                      {currentTicket.items.map((it, idx) => (
-                        <div key={idx} className="flex justify-between items-start">
-                          <div className="flex items-center gap-3">
-                            <span className="w-7 h-7 rounded-lg bg-amber-100 text-amber-700 font-black text-xs flex items-center justify-center">{it.quantity}</span>
-                            <span className="font-extrabold text-sm text-slate-800">{it.name}</span>
-                          </div>
-                          <span className="font-bold text-sm text-slate-600">{(it.price * it.quantity).toFixed(2)} €</span>
-                        </div>
-                      ))}
-                    </div>
-
-                    <div className="border-t-2 border-dashed border-slate-200 pt-4 mt-6 space-y-2">
-                      <div className="flex justify-between font-black text-lg text-slate-900">
-                        <span>TOTAL</span>
-                        <span>{currentTicket.total.toFixed(2)} €</span>
-                      </div>
-                      <div className="flex justify-between text-xs text-slate-500 font-extrabold uppercase tracking-wider">
-                        <span>Paiement</span>
-                        <span>{currentTicket.payment || 'Carte Bancaire'}</span>
-                      </div>
-                    </div>
-                  </motion.div>
-                ) : (
-                  <div className="text-center space-y-3">
-                    <div className="w-16 h-16 rounded-full bg-slate-950 flex items-center justify-center mx-auto text-slate-700">
-                      <Printer size={32} />
-                    </div>
-                    <p className="text-slate-500 text-sm font-medium">En attente de tickets de commande...</p>
+                  ))}
+                  <div className="border-t mt-3 pt-3 flex justify-between font-black">
+                    <span>TOTAL</span>
+                    <span>{Number(currentTicket.total || 0).toFixed(2)} EUR</span>
                   </div>
-                )}
-              </AnimatePresence>
-            </div>
+                </motion.div>
+              ) : (
+                <div className="text-center text-slate-500 py-16">
+                  <Printer size={40} className="mx-auto mb-3 opacity-40" />
+                  En attente de commandes...
+                </div>
+              )}
+            </AnimatePresence>
 
-            {/* TERMINAL LOGS */}
-            <div className="border-t border-slate-800 pt-6 mt-6 flex flex-col h-44">
-              <div className="flex items-center gap-2 mb-3 text-slate-400">
+            <div className="mt-8 border-t border-slate-800 pt-4">
+              <div className="flex items-center gap-2 text-slate-400 mb-2">
                 <Terminal size={14} />
-                <span className="text-xs font-black uppercase tracking-widest">Journal des actions (Relais)</span>
+                <span className="text-xs font-black uppercase">Journal</span>
+                <button
+                  type="button"
+                  onClick={() => setSoundEnabled(!soundEnabled)}
+                  className="ml-auto p-1.5 rounded-lg border border-slate-700"
+                >
+                  {soundEnabled ? <Volume2 size={16} /> : <VolumeX size={16} />}
+                </button>
               </div>
-              <div className="flex-1 bg-slate-950 rounded-2xl p-4 font-mono text-[10px] overflow-y-auto space-y-1.5 border border-slate-800 text-emerald-500 selection:bg-emerald-500/10">
+              <div className="bg-slate-950 rounded-xl p-3 font-mono text-[10px] text-emerald-500 h-36 overflow-y-auto space-y-1">
                 {logs.length === 0 ? (
-                  <div className="text-slate-700 italic">Prêt. Appuyez sur démarrer...</div>
+                  <span className="text-slate-600">Pret.</span>
                 ) : (
-                  logs.map((log, idx) => (
-                    <div key={idx} className="leading-relaxed">{log}</div>
-                  ))
+                  logs.map((log, i) => <div key={i}>{log}</div>)
                 )}
               </div>
             </div>
-
           </div>
         </section>
-
       </main>
     </div>
   );
