@@ -159,6 +159,7 @@ export function guessBridgeCandidates(printerIp) {
   if (parts.length !== 4) return [];
   const base = `${parts[0]}.${parts[1]}.${parts[2]}`;
   const host = parseInt(parts[3], 10);
-  const extras = [host, 1, 47, 100, 20, 50, 10, 2, 3];
-  return [...new Set(extras.map((n) => `http://${base}.${n}:3001`))];
+  const extras = new Set([host, 1, 2, 3, 10, 20, 47, 50, 100, 254]);
+  for (let i = 1; i <= 40; i++) extras.add(i);
+  return [...extras].map((n) => `http://${base}.${n}:3001`);
 }

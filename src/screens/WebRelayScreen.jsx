@@ -114,13 +114,21 @@ export default function WebRelayScreen({ onBack }) {
 
   const testPrinter = async () => {
     resolvedBridgeRef.current = { current: '' };
-    const { printTicket } = await import('../utils/relayEngine');
+    const { printTicket, discoverLanBridge } = await import('../utils/relayEngine');
+    addLog('Recherche du pont WiFi local...');
+    const bridge = await discoverLanBridge(printerIp, configRef.current.bridgeUrl || '');
+    if (bridge) {
+      resolvedBridgeRef.current.current = bridge;
+      addLog(`Pont trouve : ${bridge}`);
+    } else {
+      addLog('Aucun pont local — lancez print-server sur un PC du WiFi.');
+    }
     const result = await printTicket(
       { ticketId: 'TEST', total: 0, payment: 'TEST', items: [{ name: 'Test', quantity: 1, price: 0 }] },
       configRef.current,
       resolvedBridgeRef.current,
     );
-    addLog(result.ok ? '✅ Test OK' : '❌ Test echoue');
+    addLog(result.ok ? `✅ Test OK (${result.method})` : `❌ Test : ${result.detail || result.reason}`);
   };
 
   const requestNotif = async () => {
@@ -145,6 +153,16 @@ export default function WebRelayScreen({ onBack }) {
     const config = { ...configRef.current, active: true };
 
     addLog(`Relais actif — ${printerIp}:${printerPort}`);
+    import('../utils/relayEngine').then(({ discoverLanBridge }) => {
+      discoverLanBridge(printerIp, configRef.current.bridgeUrl || '').then((bridge) => {
+        if (bridge) {
+          resolvedBridgeRef.current.current = bridge;
+          addLog(`Pont WiFi detecte : ${bridge}`);
+        } else {
+          addLog('Pont WiFi absent — demarrez print-server sur le PC du magasin.');
+        }
+      });
+    });
     addLog('Installez en PWA (ecran accueil) pour l\'arriere-plan.');
     requestWakeLock();
     showRelayNotification(shopName, true);
@@ -165,14 +183,16 @@ export default function WebRelayScreen({ onBack }) {
         setCurrentTicket(ticket);
         playChime();
       },
-      onPrintSuccess: (ticket) => {
+      onPrintSuccess: (ticket, result) => {
         lastHandledTicketIdRef.current = ticket.ticketId;
         lastFailedTicketRef.current = { id: null, at: 0 };
-        addLog(`✅ Ticket ${ticket.ticketId} imprime.`);
+        const via = result?.method ? ` via ${result.method}` : '';
+        addLog(`✅ Ticket ${ticket.ticketId} imprime${via}.`);
       },
-      onPrintFail: (ticket) => {
+      onPrintFail: (ticket, result) => {
         lastFailedTicketRef.current = { id: ticket.ticketId, at: Date.now() };
-        addLog(`⚠️ Ticket ${ticket.ticketId} remis en file.`);
+        addLog(`❌ Impression echouee : ${result.detail || result.reason || 'erreur'}`);
+        addLog('Nouvel essai automatique dans 15 s (ticket non perdu).');
       },
       onShopNotFound: () => {
         addLog('Boutique inconnue.');
@@ -272,9 +292,9 @@ export default function WebRelayScreen({ onBack }) {
             <div className="bg-indigo-500/10 border border-indigo-500/20 rounded-2xl p-4 flex gap-3">
               <Info size={18} className="text-indigo-400 shrink-0" />
               <p className="text-[11px] text-indigo-200 leading-relaxed">
-                <strong>1.</strong> Ajoutez cette page a l&apos;ecran d&apos;accueil (PWA).
-                <br /><strong>2.</strong> Demarrez le relais — vous pouvez utiliser d&apos;autres apps.
-                <br />Meme config que l&apos;APK : boutique + IP + port 9100.
+                <strong>1.</strong> Sur un PC du WiFi : <code className="text-amber-300">node server.js</code> dans print-server.
+                <br /><strong>2.</strong> Ajoutez cette page a l&apos;ecran d&apos;accueil (PWA).
+                <br /><strong>3.</strong> Demarrez le relais — boutique + IP + port 9100.
               </p>
             </div>
 
