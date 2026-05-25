@@ -9,6 +9,69 @@ const CLOUD_URL = 'https://boutididact-backendd.vercel.app';
 const POLL_INTERVAL_MS = 5000;
 const MODE_PORTS = { epos_https: '8043', epos_http: '80' };
 const RAW_TCP_PORT = '9100';
+const EPOS_DEVID = 'local_printer';
+
+function stripAccents(str) {
+  return String(str ?? '').normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+}
+
+function escapeXml(str) {
+  return stripAccents(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+function eposLine(text, extraAttrs = '') {
+  return `<text lang="fr"${extraAttrs}>${escapeXml(text)}&#10;</text>`;
+}
+
+function buildEposXml(ticket) {
+  const shopName = escapeXml((ticket.shop?.name || 'BOUTIDIDACT').toUpperCase());
+  const lines = [
+    '<align align="center"/>',
+    `<text dw="true" dh="true" lang="fr">${shopName}&#10;</text>`,
+    eposLine('--------------------------------'),
+    eposLine(`TICKET : ${ticket.ticketId || 'N/A'}`),
+    eposLine('--------------------------------'),
+    '<align align="left"/>',
+  ];
+
+  (ticket.items || []).forEach((it) => {
+    const qty = Number(it.quantity) || 1;
+    const total = (Number(it.price || 0) * qty).toFixed(2);
+    lines.push(eposLine(`${qty}x ${it.name}  ${total} EUR`));
+  });
+
+  lines.push(
+    '<align align="center"/>',
+    eposLine('--------------------------------'),
+    `<text dw="true" dh="true" lang="fr">TOTAL: ${Number(ticket.total || 0).toFixed(2)} EUR&#10;</text>`,
+    eposLine(`Paiement : ${ticket.payment || 'CB'}`),
+    eposLine('--------------------------------'),
+    '<feed line="3"/>',
+    '<cut type="feed"/>',
+  );
+
+  return `<?xml version="1.0" encoding="utf-8"?>
+<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/">
+<soapenv:Body>
+<epos-print xmlns="http://www.epson-pos.com/schemas/2011/03/epos-print">
+${lines.join('\n')}
+</epos-print>
+</soapenv:Body>
+</soapenv:Envelope>`;
+}
+
+function buildEposTestXml() {
+  return buildEposXml({
+    ticketId: 'TEST',
+    total: 0,
+    payment: 'TEST',
+    items: [{ name: 'Connexion OK', quantity: 1, price: 0 }],
+  });
+}
 
 function isChromeOrAndroid() {
   const ua = navigator.userAgent || '';
@@ -330,36 +393,11 @@ export default function WebRelayScreen({ onBack }) {
     // Choose custom port, or default 8043 (HTTPS) / 80 (HTTP)
     const portString = port ? `:${port}` : (isHttps ? ':8043' : '');
     const protocol = isHttps ? 'https' : 'http';
-    const targetUrl = `${protocol}://${ip}${portString}/cgi-bin/epos/service.cgi?devid=localprinter&timeout=5000`;
+    const targetUrl = `${protocol}://${ip}${portString}/cgi-bin/epos/service.cgi?devid=${EPOS_DEVID}&timeout=10000`;
     
     addLog(`Envoi ePOS (${protocol.toUpperCase()}) vers ${targetUrl}...`);
     
-    // Construct EPSON ePOS XML print request
-    let xml = `<?xml version="1.0" encoding="utf-8"?>
-<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/">
-<soapenv:Body>
-<epos-print xmlns="http://www.epson-pos.com/schemas/2011/03/epos-print">
-<text lang="fr"/>
-<align align="center"/>
-<text font="font_a" width="2" height="2">BOUTIDIDACT\n</text>
-<text font="font_a">--------------------------------\n</text>
-<text font="font_a">TICKET CLIENT\nID: ${ticket.ticketId}\n</text>
-<text font="font_a">--------------------------------\n</text>
-<align align="left"/>`;
-
-    ticket.items.forEach(it => {
-      xml += `<text font="font_a">${it.quantity}x ${it.name.padEnd(20)} ${(it.price * it.quantity).toFixed(2)}€\n</text>`;
-    });
-
-    xml += `<align align="center"/>
-<text font="font_a">--------------------------------\n</text>
-<text font="font_a" width="2" height="2">TOTAL: ${ticket.total.toFixed(2)}€\n</text>
-<text font="font_a">Mode: ${ticket.payment || 'CB'}\n</text>
-<text font="font_a">--------------------------------\n</text>
-<cut type="feed"/>
-</epos-print>
-</soapenv:Body>
-</soapenv:Envelope>`;
+    const xml = buildEposXml(ticket);
 
     try {
       const response = await fetch(targetUrl, {
@@ -367,12 +405,18 @@ export default function WebRelayScreen({ onBack }) {
         headers: {
           'Content-Type': 'text/xml; charset=utf-8',
           'If-Modified-Since': 'Thu, 01 Jan 1970 00:00:00 GMT',
-          'SOAPAction': '""'
+          'SOAPAction': '""',
         },
-        body: xml
+        body: xml,
       });
-      if (response.ok) {
-        addLog("Impression ePOS Epson réussie !");
+      const responseText = await response.text();
+      if (response.ok && /success="true"/i.test(responseText)) {
+        addLog('Impression ePOS Epson reussie !');
+      } else if (response.ok && /success="false"/i.test(responseText)) {
+        addLog('❌ Imprimante ePOS a refuse le ticket (format ou devid incorrect).');
+        addLog('👉 Verifiez que c\'est une Epson compatible ePOS. Sinon utilisez le relais Windows (.exe).');
+      } else if (response.ok) {
+        addLog('Impression envoyee (reponse imprimante ambigue).');
       } else {
         addLog(`Erreur Epson ePOS : statut HTTP ${response.status}`);
       }
@@ -408,7 +452,7 @@ export default function WebRelayScreen({ onBack }) {
 
     addLog(`Test connexion imprimante (${mode}, port ${port})...`);
     const protocol = mode === 'epos_https' ? 'https' : 'http';
-    const targetUrl = `${protocol}://${ip}:${port}/cgi-bin/epos/service.cgi?devid=localprinter&timeout=5000`;
+    const targetUrl = `${protocol}://${ip}:${port}/cgi-bin/epos/service.cgi?devid=${EPOS_DEVID}&timeout=10000`;
     try {
       const res = await fetch(targetUrl, {
         method: 'POST',
@@ -417,10 +461,13 @@ export default function WebRelayScreen({ onBack }) {
           'If-Modified-Since': 'Thu, 01 Jan 1970 00:00:00 GMT',
           'SOAPAction': '""',
         },
-        body: `<?xml version="1.0" encoding="utf-8"?><soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/"><soapenv:Body><epos-print xmlns="http://www.epson-pos.com/schemas/2011/03/epos-print"><text>TEST BOUTIDIDACT\n</text><cut type="feed"/></epos-print></soapenv:Body></soapenv:Envelope>`,
+        body: buildEposTestXml(),
       });
-      if (res.ok) {
-        addLog('✅ Imprimante ePOS joignable — test OK !');
+      const body = await res.text();
+      if (res.ok && /success="true"/i.test(body)) {
+        addLog('✅ Imprimante ePOS joignable — ticket test imprime !');
+      } else if (res.ok) {
+        addLog('⚠️ Imprimante repond mais le ticket test a peut-etre echoue — verifiez le papier.');
       } else {
         addLog(`⚠️ Imprimante répond mais erreur HTTP ${res.status}`);
       }
@@ -609,7 +656,7 @@ export default function WebRelayScreen({ onBack }) {
                       </ol>
                       
                       <a 
-                        href={`https://${printerIp.trim()}:${printerPort.trim()}/cgi-bin/epos/service.cgi`} 
+                        href={`https://${printerIp.trim()}:${printerPort.trim()}/cgi-bin/epos/service.cgi?devid=${EPOS_DEVID}`} 
                         target="_blank" 
                         rel="noopener noreferrer"
                         className="flex items-center justify-center gap-2 w-full py-3 bg-amber-500 text-slate-950 hover:bg-amber-600 rounded-xl font-black text-xs transition-all hover:scale-[1.02] shadow-lg shadow-amber-500/10"
@@ -654,7 +701,7 @@ export default function WebRelayScreen({ onBack }) {
               <div className="bg-slate-950 border border-slate-800 rounded-2xl p-4 flex gap-3">
                 <Info size={20} className="text-slate-400 shrink-0" />
                 <p className="text-[11px] text-slate-400 leading-relaxed font-semibold">
-                  <strong>Relais web ≠ port {RAW_TCP_PORT} :</strong> Chrome ne peut pas imprimer en TCP brut. Imprimante Epson → mode HTTPS port {MODE_PORTS.epos_https}. Autre marque → relais Windows (.exe) sur le port {RAW_TCP_PORT}.
+                  <strong>Caracteres bizarres ?</strong> Votre imprimante n'est peut-etre pas Epson ePOS. Le relais web Chrome ne convient qu'aux Epson (port {MODE_PORTS.epos_https}). Pour Star/Bixolon/autre → relais Windows (.exe) port {RAW_TCP_PORT}.
                 </p>
               </div>
             </div>
