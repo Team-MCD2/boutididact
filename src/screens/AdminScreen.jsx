@@ -657,13 +657,13 @@ export default function AdminScreen({
                             href="/relais"
                             className="flex items-center justify-center gap-3 px-4 py-4 bg-indigo-500 text-white rounded-2xl font-black transition-all hover:scale-[1.02] active:scale-95 border border-white/20 shadow-lg text-sm text-center"
                           >
-                            <Smartphone size={20} /> Chrome / Android (Web)
+                            <Smartphone size={20} /> Relais Web (IP + port)
                           </a>
                           <a 
                             href="/relais"
                             className="flex items-center justify-center gap-3 px-4 py-4 bg-amber-500 text-slate-950 rounded-2xl font-black transition-all hover:scale-[1.02] active:scale-95 shadow-lg text-sm text-center"
                           >
-                            <ExternalLink size={20} /> iPad / iPhone (Web)
+                            <ExternalLink size={20} /> iPad / iPhone
                           </a>
                         </div>
                       </div>

@@ -18,14 +18,14 @@ export default function RelayGuideScreen({ onBack }) {
       ]
     },
     android: {
-      title: 'Chrome / Android',
+      title: 'Android (APK)',
       icon: <Smartphone size={24} />,
       link: '/relais',
       steps: [
-        { t: 'Relais 100% autonome', d: 'Ouvrez /relais sur le telephone (Chrome ou Safari). Aucun .exe, aucun PC requis.' },
-        { t: 'Meme WiFi', d: 'Telephone et imprimante sur le meme reseau WiFi. IP imprimante ex: 192.168.1.26 — port 9100.' },
-        { t: 'Certificat SSL (1 fois)', d: 'Appuyez sur « Autoriser certificat imprimante », acceptez dans Chrome, revenez sur le relais.' },
-        { t: 'Demarrage', d: 'Ajoutez a l\'ecran d\'accueil, demarrez le relais, laissez l\'onglet ouvert en cuisine.' }
+        { t: 'Application APK (recommande)', d: 'Installez l\'APK Boutididact Print — boutique + IP + port 9100, comme avant.' },
+        { t: 'Meme WiFi', d: 'Telephone et imprimante sur le meme reseau. IP ex: 192.168.1.26 — port 9100.' },
+        { t: 'Relais web (alternative)', d: 'Sinon ouvrez /relais dans Chrome sur le meme WiFi.' },
+        { t: 'Demarrage', d: 'Demarrez le relais et laissez l\'application ouverte en cuisine.' }
       ]
     },
     ios: {
@@ -33,10 +33,10 @@ export default function RelayGuideScreen({ onBack }) {
       icon: <Smartphone size={24} />,
       link: '/relais',
       steps: [
-        { t: 'Relais Web Actif', d: 'Pour iOS, nous avons conçu un Relais Web direct. Ouvrez cette page sur votre iPad ou iPhone.' },
-        { t: 'Configuration & Mode', d: 'Entrez le nom de votre boutique et choisissez votre mode : Epson HTTPS (sécurisé pour iPad), Epson HTTP standard, ou AirPrint.' },
-        { t: 'Sécurité SSL iPad (Si Epson HTTPS)', d: 'Safari nécessite d\'accepter une fois le certificat SSL de l\'imprimante. Cliquez sur le bouton "Autoriser le Certificat" puis validez la connexion pour contourner le blocage.' },
-        { t: 'Intégration & Démarrage', d: 'Ajoutez la page sur votre écran d\'accueil iOS via le bouton "Partager" de Safari pour l\'avoir en plein écran natif, puis démarrez le relais !' }
+        { t: 'Relais web', d: 'Ouvrez https://boutididactt.vercel.app/relais sur l\'iPad ou iPhone.' },
+        { t: 'Configuration simple', d: 'Nom boutique, IP imprimante, port (9100 thermique / 8043 Epson).' },
+        { t: 'Meme WiFi', d: 'Telephone et imprimante sur le meme reseau local.' },
+        { t: 'Demarrage', d: 'Ajoutez a l\'ecran d\'accueil Safari, puis demarrez le relais.' }
       ]
     }
   };
