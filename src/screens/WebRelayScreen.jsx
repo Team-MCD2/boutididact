@@ -2,63 +2,59 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   ChevronLeft, Play, Square, Info, Volume2, VolumeX,
-  Printer, Terminal, Sparkles,
+  Printer, Terminal, Sparkles, Bell,
 } from 'lucide-react';
 import {
-  generateEscPosBytes,
-  buildEposTextSoap,
-  isPrivateIp,
-  guessBridgeCandidates,
-} from '../utils/escpos';
-
-const CLOUD_URL = 'https://boutididact-backendd.vercel.app';
-const POLL_INTERVAL_MS = 5000;
-const PRINT_RETRY_MS = 15000;
-const DEFAULT_PORT = '9100';
-
-const lanFetch = (url, options = {}) =>
-  fetch(url, { ...options, targetAddressSpace: 'private' });
+  POLL_INTERVAL_MS,
+  loadRelayState,
+  saveRelayState,
+  runRelayLoop,
+  registerRelayServiceWorker,
+  syncRelayToServiceWorker,
+  showRelayNotification,
+} from '../utils/relayEngine';
 
 export default function WebRelayScreen({ onBack }) {
-  const [shopName, setShopName] = useState(
-    () => localStorage.getItem('boutididact_webrelay_shopName') || ''
-  );
-  const [printerIp, setPrinterIp] = useState(
-    () => localStorage.getItem('boutididact_webrelay_printerIp') || '192.168.1.26'
-  );
-  const [printerPort, setPrinterPort] = useState(
-    () => localStorage.getItem('boutididact_webrelay_printerPort') || DEFAULT_PORT
-  );
+  const initial = loadRelayState();
+  const [shopName, setShopName] = useState(initial.shopName);
+  const [printerIp, setPrinterIp] = useState(initial.printerIp);
+  const [printerPort, setPrinterPort] = useState(initial.printerPort || '9100');
   const [isRunning, setIsRunning] = useState(false);
   const [logs, setLogs] = useState([]);
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [wakeLockActive, setWakeLockActive] = useState(false);
+  const [bgActive, setBgActive] = useState(false);
+  const [notifOk, setNotifOk] = useState(
+    () => typeof Notification !== 'undefined' && Notification.permission === 'granted'
+  );
   const [currentTicket, setCurrentTicket] = useState(null);
 
   const wakeLockRef = useRef(null);
-  const isRunningRef = useRef(isRunning);
-  const shopNameRef = useRef(shopName);
-  const printerIpRef = useRef(printerIp);
-  const printerPortRef = useRef(printerPort);
-  const soundEnabledRef = useRef(soundEnabled);
+  const abortRef = useRef(null);
+  const resolvedBridgeRef = useRef({ current: '' });
   const lastHandledTicketIdRef = useRef(null);
   const lastFailedTicketRef = useRef({ id: null, at: 0 });
-  const resolvedBridgeRef = useRef('');
+  const soundEnabledRef = useRef(soundEnabled);
+  const configRef = useRef({ shopName, printerIp, printerPort, active: false });
 
-  useEffect(() => { isRunningRef.current = isRunning; }, [isRunning]);
-  useEffect(() => { shopNameRef.current = shopName; }, [shopName]);
-  useEffect(() => { printerIpRef.current = printerIp; }, [printerIp]);
-  useEffect(() => { printerPortRef.current = printerPort; }, [printerPort]);
   useEffect(() => { soundEnabledRef.current = soundEnabled; }, [soundEnabled]);
 
-  useEffect(() => { localStorage.setItem('boutididact_webrelay_shopName', shopName); }, [shopName]);
-  useEffect(() => { localStorage.setItem('boutididact_webrelay_printerIp', printerIp); }, [printerIp]);
-  useEffect(() => { localStorage.setItem('boutididact_webrelay_printerPort', printerPort); }, [printerPort]);
+  useEffect(() => {
+    configRef.current = { shopName, printerIp, printerPort, active: isRunning };
+    saveRelayState({ shopName, printerIp, printerPort, active: isRunning });
+    syncRelayToServiceWorker(configRef.current);
+  }, [shopName, printerIp, printerPort, isRunning]);
 
   const addLog = useCallback((msg) => {
     const time = new Date().toLocaleTimeString();
     setLogs((prev) => [`[${time}] ${msg}`, ...prev].slice(0, 60));
   }, []);
+
+  useEffect(() => {
+    registerRelayServiceWorker().then((reg) => {
+      if (reg) addLog('Service Worker relais enregistre (PWA).');
+    });
+  }, [addLog]);
 
   const requestWakeLock = async () => {
     if (!('wakeLock' in navigator)) { setWakeLockActive(false); return; }
@@ -88,6 +84,19 @@ export default function WebRelayScreen({ onBack }) {
     };
   }, [isRunning]);
 
+  useEffect(() => {
+    if (!('serviceWorker' in navigator)) return;
+    const onMsg = (e) => {
+      if (e.data?.type === 'TICKET') {
+        const ticket = e.data.ticket;
+        setCurrentTicket(ticket);
+        addLog(`🎟️ TICKET (SW) : ${ticket.ticketId}`);
+      }
+    };
+    navigator.serviceWorker.addEventListener('message', onMsg);
+    return () => navigator.serviceWorker.removeEventListener('message', onMsg);
+  }, [addLog]);
+
   const playChime = () => {
     if (!soundEnabledRef.current) return;
     try {
@@ -103,269 +112,82 @@ export default function WebRelayScreen({ onBack }) {
     } catch { /* ignore */ }
   };
 
-  /** TCP direct — meme logique que l'APK (telephone → imprimante sur le WiFi) */
-  const sendViaNativeTcp = async (ticket, ip, port) => {
-    const bytes = generateEscPosBytes(ticket);
-    const payload = Array.from(bytes);
-    const portNum = parseInt(port, 10) || 9100;
-
-    if (window.BoutididactNative?.printEscPos) {
-      try {
-        await window.BoutididactNative.printEscPos(ip, portNum, payload);
-        addLog(`✅ Impression TCP directe OK (${ip}:${portNum})`);
-        return true;
-      } catch (err) {
-        addLog(`Native : ${err.message}`);
-      }
-    }
-
-    if (window.ReactNativeWebView?.postMessage) {
-      window.ReactNativeWebView.postMessage(JSON.stringify({
-        type: 'print_escpos',
-        ip,
-        port: portNum,
-        bytes: payload,
-      }));
-      addLog(`✅ Envoi TCP via application native (${ip}:${portNum})`);
-      return true;
-    }
-
-    return false;
-  };
-
-  const sendViaLanBridge = async (ticket, ip, port, bridgeBase) => {
-    const base = bridgeBase.replace(/\/$/, '');
-    try {
-      const res = await lanFetch(`${base}/api/saas/relay-print`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          shopName: shopNameRef.current.trim(),
-          printerIp: ip,
-          printerPort: port,
-          ticket,
-        }),
-      });
-      const data = await res.json().catch(() => ({}));
-      if (res.ok && data.ok) {
-        addLog(`✅ Impression OK via relais local (${ip}:${port})`);
-        resolvedBridgeRef.current = base;
-        return true;
-      }
-    } catch { /* suivant */ }
-    return false;
-  };
-
-  const findLanBridge = async (printerIp) => {
-    if (resolvedBridgeRef.current) return resolvedBridgeRef.current;
-    for (const candidate of guessBridgeCandidates(printerIp)) {
-      try {
-        const res = await lanFetch(`${candidate}/api/health`, {
-          signal: AbortSignal.timeout(1500),
-        });
-        if (res.ok) {
-          resolvedBridgeRef.current = candidate;
-          return candidate;
-        }
-      } catch { /* suivant */ }
-    }
-    return null;
-  };
-
-  const postEpos = async (url, body) => {
-    const res = await fetch(url, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'text/xml; charset=utf-8',
-        'If-Modified-Since': 'Thu, 01 Jan 1970 00:00:00 GMT',
-        SOAPAction: '""',
-      },
-      body,
-    });
-    const text = await res.text();
-    return res.ok && !/success="false"/i.test(text);
-  };
-
-  const sendViaEpos = async (ticket, ip, port) => {
-    const p = String(port || '8043');
-    const targets = [
-      { protocol: 'https', port: p },
-      ...(p !== '8043' ? [{ protocol: 'https', port: '8043' }] : []),
-      { protocol: 'http', port: '80' },
-    ];
-
-    for (const { protocol, port: ep } of targets) {
-      const url = `${protocol}://${ip}:${ep}/cgi-bin/epos/service.cgi?devid=local_printer&timeout=15000`;
-      try {
-        if (await postEpos(url, buildEposTextSoap(ticket))) {
-          addLog(`✅ Impression ePOS OK (${protocol}:${ep})`);
-          return true;
-        }
-      } catch { /* suivant */ }
-    }
-    return false;
-  };
-
-  const sendViaAirPrint = (ticket) => {
-    addLog('Impression AirPrint...');
-    try {
-      const iframe = document.createElement('iframe');
-      iframe.style.cssText = 'position:absolute;width:0;height:0;border:none';
-      document.body.appendChild(iframe);
-      const doc = iframe.contentWindow.document;
-      doc.open();
-      doc.write(`<!DOCTYPE html><html><head><style>
-        @page{size:80mm auto;margin:0}body{font-family:monospace;width:72mm;margin:0;padding:4mm;font-size:13px}
-        .row{display:flex;justify-content:space-between}.center{text-align:center}.bold{font-weight:bold}
-      </style></head><body>
-        <div class="center bold">BOUTIDIDACT</div>
-        <div class="center">#${ticket.ticketId || 'N/A'}</div>
-        ${(ticket.items || []).map((it) => `<div class="row"><span>${it.quantity}x ${it.name}</span><span>${(it.price * it.quantity).toFixed(2)} EUR</span></div>`).join('')}
-        <div class="row bold"><span>TOTAL</span><span>${Number(ticket.total || 0).toFixed(2)} EUR</span></div>
-        <script>window.onload=function(){window.print();setTimeout(function(){window.parent.document.body.removeChild(window.frameElement)},800)}</script>
-      </body></html>`);
-      doc.close();
-      addLog('✅ Dialogue AirPrint ouvert');
-      return true;
-    } catch (err) {
-      addLog(`AirPrint : ${err.message}`);
-      return false;
-    }
-  };
-
-  const sendViaCloud = async (ticket, ip, port) => {
-    try {
-      const res = await fetch(`${CLOUD_URL}/api/saas/relay-print`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          shopName: shopNameRef.current.trim(),
-          printerIp: ip,
-          printerPort: port,
-          ticket,
-        }),
-      });
-      const data = await res.json().catch(() => ({}));
-      if (res.ok && data.ok) {
-        addLog(`✅ Impression cloud OK (${ip}:${port})`);
-        return true;
-      }
-    } catch { /* ignore */ }
-    return false;
-  };
-
-  const requeueTicket = async (ticket) => {
-    try {
-      await fetch(`${CLOUD_URL}/api/saas/push-ticket`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          shopName: shopNameRef.current.trim(),
-          ticketData: ticket,
-        }),
-      });
-    } catch { /* ignore */ }
-  };
-
-  const sendPrint = async (ticket) => {
-    const ip = printerIpRef.current.trim();
-    const port = String(printerPortRef.current.trim() || DEFAULT_PORT);
-    if (!ip) {
-      addLog('❌ IP imprimante manquante.');
-      return false;
-    }
-
-    addLog(`Impression → ${ip}:${port}...`);
-
-    const portNum = parseInt(port, 10) || 9100;
-
-    if (portNum === 9100 || port === '9100') {
-      if (await sendViaNativeTcp(ticket, ip, port)) return true;
-
-      if (isPrivateIp(ip)) {
-        const bridge = await findLanBridge(ip);
-        if (bridge && await sendViaLanBridge(ticket, ip, port, bridge)) return true;
-      }
-
-      if (!isPrivateIp(ip) && await sendViaCloud(ticket, ip, port)) return true;
-
-      addLog('❌ Connexion imprimante impossible.');
-      addLog('Telephone et imprimante sur le meme WiFi ?');
-      addLog('Sur Android : utilisez l\'application APK (impression directe port 9100).');
-      return false;
-    }
-
-    if (await sendViaEpos(ticket, ip, port)) return true;
-    if (sendViaAirPrint(ticket)) return true;
-
-    addLog('❌ Impression echouee — verifiez IP et port.');
-    return false;
-  };
-
   const testPrinter = async () => {
-    resolvedBridgeRef.current = '';
-    await sendPrint({
-      ticketId: 'TEST',
-      total: 0,
-      payment: 'TEST',
-      items: [{ name: 'Test Boutididact', quantity: 1, price: 0 }],
-    });
+    resolvedBridgeRef.current = { current: '' };
+    const { printTicket } = await import('../utils/relayEngine');
+    const result = await printTicket(
+      { ticketId: 'TEST', total: 0, payment: 'TEST', items: [{ name: 'Test', quantity: 1, price: 0 }] },
+      configRef.current,
+      resolvedBridgeRef.current,
+    );
+    addLog(result.ok ? '✅ Test OK' : '❌ Test echoue');
+  };
+
+  const requestNotif = async () => {
+    if (!('Notification' in window)) return;
+    const p = await Notification.requestPermission();
+    setNotifOk(p === 'granted');
+    if (p === 'granted') addLog('Notifications autorisees — relais arriere-plan actif.');
   };
 
   useEffect(() => {
-    let intervalId = null;
-
-    const poll = async () => {
-      if (!isRunningRef.current) return;
-      const currentShop = shopNameRef.current.trim();
-      if (!currentShop) return;
-
-      try {
-        const url = `${CLOUD_URL}/api/saas/poll-ticket?shopName=${encodeURIComponent(currentShop)}`;
-        const res = await fetch(url, { headers: { Accept: 'application/json' } });
-        if (!res.ok) {
-          if (res.status === 404) { addLog('Boutique inconnue.'); setIsRunning(false); }
-          return;
-        }
-
-        const data = await res.json();
-        if (!data?.ticket) return;
-
-        const tid = data.ticket.ticketId || 'Inconnu';
-        if (lastHandledTicketIdRef.current === tid) return;
-
-        const failed = lastFailedTicketRef.current;
-        if (failed.id === tid && Date.now() - failed.at < PRINT_RETRY_MS) return;
-
-        addLog(`🎟️ TICKET REÇU : ID ${tid}`);
-        setCurrentTicket(data.ticket);
-        playChime();
-
-        const ok = await sendPrint(data.ticket);
-        if (ok) {
-          lastHandledTicketIdRef.current = tid;
-          lastFailedTicketRef.current = { id: null, at: 0 };
-        } else {
-          lastFailedTicketRef.current = { id: tid, at: Date.now() };
-          await requeueTicket(data.ticket);
-          addLog(`⚠️ Ticket ${tid} remis en file — nouvel essai bientot.`);
-        }
-      } catch (err) {
-        addLog(`Erreur cloud : ${err.message}`);
-      }
-    };
-
-    if (isRunning) {
-      addLog(`Relais actif — ${printerIp}:${printerPort}`);
-      requestWakeLock();
-      poll();
-      intervalId = setInterval(poll, POLL_INTERVAL_MS);
-    } else {
+    if (!isRunning) {
+      abortRef.current?.abort();
+      abortRef.current = null;
       releaseWakeLock();
+      setBgActive(false);
+      showRelayNotification(shopName, false);
+      return undefined;
     }
 
-    return () => { if (intervalId) clearInterval(intervalId); };
-  }, [isRunning, addLog, printerIp, printerPort]);
+    const ac = new AbortController();
+    abortRef.current = ac;
+    const config = { ...configRef.current, active: true };
+
+    addLog(`Relais actif — ${printerIp}:${printerPort}`);
+    addLog('Installez en PWA (ecran accueil) pour l\'arriere-plan.');
+    requestWakeLock();
+    showRelayNotification(shopName, true);
+
+    const handlers = {
+      resolvedBridgeRef: resolvedBridgeRef.current,
+      onBackgroundReady: () => {
+        setBgActive(true);
+        addLog('Arriere-plan actif (Web Lock) — vous pouvez changer d\'app.');
+      },
+      onTicket: (ticket) => {
+        const tid = ticket.ticketId || 'Inconnu';
+        if (lastHandledTicketIdRef.current === tid) return;
+        const failed = lastFailedTicketRef.current;
+        if (failed.id === tid && Date.now() - failed.at < 15000) return;
+
+        addLog(`🎟️ TICKET REÇU : ID ${tid}`);
+        setCurrentTicket(ticket);
+        playChime();
+      },
+      onPrintSuccess: (ticket) => {
+        lastHandledTicketIdRef.current = ticket.ticketId;
+        lastFailedTicketRef.current = { id: null, at: 0 };
+        addLog(`✅ Ticket ${ticket.ticketId} imprime.`);
+      },
+      onPrintFail: (ticket) => {
+        lastFailedTicketRef.current = { id: ticket.ticketId, at: Date.now() };
+        addLog(`⚠️ Ticket ${ticket.ticketId} remis en file.`);
+      },
+      onShopNotFound: () => {
+        addLog('Boutique inconnue.');
+        setIsRunning(false);
+      },
+      onError: (err) => addLog(`Erreur : ${err.message}`),
+    };
+
+    runRelayLoop(config, handlers, ac.signal).catch(() => {});
+
+    return () => {
+      ac.abort();
+      releaseWakeLock();
+    };
+  }, [isRunning, addLog, printerIp, printerPort, shopName]);
 
   const toggleService = async () => {
     if (!shopName.trim() || !printerIp.trim()) {
@@ -376,12 +198,17 @@ export default function WebRelayScreen({ onBack }) {
     if (isRunning) {
       setIsRunning(false);
       lastHandledTicketIdRef.current = null;
-      lastFailedTicketRef.current = { id: null, at: 0 };
+      syncRelayToServiceWorker({ ...configRef.current, active: false });
       addLog('Relais ARRETÉ');
       return;
     }
 
+    if ('Notification' in window && Notification.permission === 'default') {
+      await requestNotif();
+    }
+
     try {
+      const { CLOUD_URL } = await import('../utils/relayEngine');
       const res = await fetch(
         `${CLOUD_URL}/api/saas/check-shop?shopName=${encodeURIComponent(shopName.trim())}`
       );
@@ -394,7 +221,7 @@ export default function WebRelayScreen({ onBack }) {
       addLog(`✅ Boutique "${data.name || shopName}" connectee.`);
       lastHandledTicketIdRef.current = null;
       lastFailedTicketRef.current = { id: null, at: 0 };
-      resolvedBridgeRef.current = '';
+      resolvedBridgeRef.current = { current: '' };
       setIsRunning(true);
     } catch (err) {
       addLog(`❌ Erreur : ${err.message}`);
@@ -408,7 +235,7 @@ export default function WebRelayScreen({ onBack }) {
           <ChevronLeft size={20} /> Retour
         </button>
         <div className="flex items-center gap-2 bg-amber-500/10 border border-amber-500/20 px-3 py-1 rounded-full text-xs font-black text-amber-500 uppercase">
-          <Sparkles size={12} /> Relais Impression
+          <Sparkles size={12} /> Relais Web PWA
         </div>
       </header>
 
@@ -433,13 +260,21 @@ export default function WebRelayScreen({ onBack }) {
               <label className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-2 block">Port</label>
               <input type="text" value={printerPort} onChange={(e) => setPrinterPort(e.target.value)} placeholder="9100" disabled={isRunning}
                 className="w-full bg-slate-950 border border-slate-800 rounded-2xl px-4 py-3 text-sm text-center disabled:opacity-50" />
-              <p className="text-[10px] text-slate-500 mt-2">Port standard thermique : <strong>9100</strong></p>
             </div>
 
-            <div className="bg-slate-950 border border-slate-800 rounded-2xl p-4 flex gap-3">
-              <Info size={18} className="text-slate-400 shrink-0" />
-              <p className="text-[11px] text-slate-400 leading-relaxed">
-                Meme WiFi pour le telephone et l&apos;imprimante. Renseignez uniquement l&apos;IP et le port — comme avec l&apos;APK.
+            {!notifOk && (
+              <button type="button" onClick={requestNotif}
+                className="w-full py-3 rounded-xl border border-indigo-500/40 text-indigo-300 text-sm font-black flex items-center justify-center gap-2">
+                <Bell size={16} /> Autoriser notifications (arriere-plan)
+              </button>
+            )}
+
+            <div className="bg-indigo-500/10 border border-indigo-500/20 rounded-2xl p-4 flex gap-3">
+              <Info size={18} className="text-indigo-400 shrink-0" />
+              <p className="text-[11px] text-indigo-200 leading-relaxed">
+                <strong>1.</strong> Ajoutez cette page a l&apos;ecran d&apos;accueil (PWA).
+                <br /><strong>2.</strong> Demarrez le relais — vous pouvez utiliser d&apos;autres apps.
+                <br />Meme config que l&apos;APK : boutique + IP + port 9100.
               </p>
             </div>
 
@@ -456,12 +291,19 @@ export default function WebRelayScreen({ onBack }) {
         </section>
 
         <section className="lg:col-span-2 space-y-6">
-          <div className="grid grid-cols-3 gap-4">
+          <div className="grid grid-cols-4 gap-4">
             <div className="bg-slate-900 border border-slate-800 rounded-3xl p-5">
               <span className="text-[10px] font-black uppercase text-slate-500">Statut</span>
               <div className="flex items-center gap-2 mt-2">
                 <span className={`w-2.5 h-2.5 rounded-full ${isRunning ? 'bg-emerald-500 animate-pulse' : 'bg-red-500'}`} />
                 <span className="text-sm font-black">{isRunning ? 'ACTIF' : 'INACTIF'}</span>
+              </div>
+            </div>
+            <div className="bg-slate-900 border border-slate-800 rounded-3xl p-5">
+              <span className="text-[10px] font-black uppercase text-slate-500">Arriere-plan</span>
+              <div className="flex items-center gap-2 mt-2">
+                <span className={`w-2.5 h-2.5 rounded-full ${bgActive ? 'bg-emerald-500' : 'bg-slate-600'}`} />
+                <span className="text-sm font-black">{bgActive ? 'ON' : 'OFF'}</span>
               </div>
             </div>
             <div className="bg-slate-900 border border-slate-800 rounded-3xl p-5">

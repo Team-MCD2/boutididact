@@ -17,6 +17,14 @@
     <meta name="apple-mobile-web-app-title" content="Boutididact" />
     <meta name="mobile-web-app-capable" content="yes" />
     <title>BOUTIDIDACT — Borne de commande</title>
+    <script>
+      if (window.location.pathname === '/relais') {
+        const link = document.createElement('link');
+        link.rel = 'manifest';
+        link.href = '/manifest-relais.json';
+        document.head.appendChild(link);
+      }
+    </script>
   </head>
   <body>
     <div id="root"></div>
