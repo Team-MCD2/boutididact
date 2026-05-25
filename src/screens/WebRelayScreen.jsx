@@ -9,7 +9,15 @@ const CLOUD_URL = 'https://boutididact-backendd.vercel.app';
 const POLL_INTERVAL_MS = 5000;
 const MODE_PORTS = { epos_https: '8043', epos_http: '80' };
 const RAW_TCP_PORT = '9100';
-const EPOS_DEVID = 'local_printer';
+const EPOS_DEVIDS = ['local_printer', 'localprinter'];
+
+async function requeueTicket(shopName, ticket) {
+  await fetch(`${CLOUD_URL}/api/saas/push-ticket`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ shopName, ticketData: ticket }),
+  });
+}
 
 function stripAccents(str) {
   return String(str ?? '').normalize('NFD').replace(/[\u0300-\u036f]/g, '');
@@ -31,7 +39,7 @@ function buildEposXml(ticket) {
   const shopName = escapeXml((ticket.shop?.name || 'BOUTIDIDACT').toUpperCase());
   const lines = [
     '<align align="center"/>',
-    `<text dw="true" dh="true" lang="fr">${shopName}&#10;</text>`,
+    `<text width="2" height="2" lang="fr">${shopName}&#10;</text>`,
     eposLine('--------------------------------'),
     eposLine(`TICKET : ${ticket.ticketId || 'N/A'}`),
     eposLine('--------------------------------'),
@@ -47,10 +55,9 @@ function buildEposXml(ticket) {
   lines.push(
     '<align align="center"/>',
     eposLine('--------------------------------'),
-    `<text dw="true" dh="true" lang="fr">TOTAL: ${Number(ticket.total || 0).toFixed(2)} EUR&#10;</text>`,
+    `<text width="2" height="2" lang="fr">TOTAL: ${Number(ticket.total || 0).toFixed(2)} EUR&#10;</text>`,
     eposLine(`Paiement : ${ticket.payment || 'CB'}`),
     eposLine('--------------------------------'),
-    '<feed line="3"/>',
     '<cut type="feed"/>',
   );
 
@@ -91,9 +98,14 @@ export default function WebRelayScreen({ onBack }) {
   const initialMode = (() => {
     const saved = localStorage.getItem('boutididact_webrelay_printMode');
     if (saved) return saved;
-    return isChromeOrAndroid() ? 'epos_https' : 'epos_https';
+    const savedPort = localStorage.getItem('boutididact_webrelay_printerPort') || '';
+    if (String(savedPort).trim() === RAW_TCP_PORT) return 'windows_exe';
+    return 'epos_https';
   })();
   const [printMode, setPrintMode] = useState(initialMode);
+  const [relayPcUrl, setRelayPcUrl] = useState(
+    () => localStorage.getItem('boutididact_webrelay_pcUrl') || 'http://192.168.1.47:3001'
+  );
   const [printerPort, setPrinterPort] = useState(() => {
     const savedPort = localStorage.getItem('boutididact_webrelay_printerPort') || '';
     const savedMode = localStorage.getItem('boutididact_webrelay_printMode') || initialMode;
@@ -111,7 +123,9 @@ export default function WebRelayScreen({ onBack }) {
   const printerIpRef = useRef(printerIp);
   const printerPortRef = useRef(printerPort);
   const printModeRef = useRef(printMode);
+  const relayPcUrlRef = useRef(relayPcUrl);
   const soundEnabledRef = useRef(soundEnabled);
+  const lastSeenTicketIdRef = useRef(null);
 
   // Sync refs to avoid stale closures in the poll interval
   useEffect(() => { isRunningRef.current = isRunning; }, [isRunning]);
@@ -119,6 +133,7 @@ export default function WebRelayScreen({ onBack }) {
   useEffect(() => { printerIpRef.current = printerIp; }, [printerIp]);
   useEffect(() => { printerPortRef.current = printerPort; }, [printerPort]);
   useEffect(() => { printModeRef.current = printMode; }, [printMode]);
+  useEffect(() => { relayPcUrlRef.current = relayPcUrl; }, [relayPcUrl]);
   useEffect(() => { soundEnabledRef.current = soundEnabled; }, [soundEnabled]);
 
   // Save settings on changes
@@ -138,10 +153,16 @@ export default function WebRelayScreen({ onBack }) {
     localStorage.setItem('boutididact_webrelay_printMode', printMode);
   }, [printMode]);
 
+  useEffect(() => {
+    localStorage.setItem('boutididact_webrelay_pcUrl', relayPcUrl);
+  }, [relayPcUrl]);
+
   const selectPrintMode = (mode) => {
     setPrintMode(mode);
     if (mode === 'epos_https' || mode === 'epos_http') {
       setPrinterPort((prev) => normalizePortForMode(mode, prev));
+    } else if (mode === 'windows_exe' || mode === 'escpos_pc') {
+      setPrinterPort(RAW_TCP_PORT);
     }
   };
 
@@ -241,7 +262,8 @@ export default function WebRelayScreen({ onBack }) {
       if (!currentShop) return;
 
       try {
-        const url = `${CLOUD_URL}/api/saas/poll-ticket?shopName=${encodeURIComponent(currentShop)}`;
+        const peek = printModeRef.current === 'windows_exe' ? '&peek=1' : '';
+        const url = `${CLOUD_URL}/api/saas/poll-ticket?shopName=${encodeURIComponent(currentShop)}${peek}`;
         const res = await fetch(url, { method: 'GET', headers: { 'Accept': 'application/json' } });
         if (!res.ok) {
           if (res.status === 404) {
@@ -253,15 +275,28 @@ export default function WebRelayScreen({ onBack }) {
 
         const data = await res.json();
         if (data && data.ticket) {
-          addLog(`🎟️ TICKET REÇU : ID ${data.ticket.ticketId || 'Inconnu'}`);
+          const tid = data.ticket.ticketId || 'Inconnu';
+          if (lastSeenTicketIdRef.current === tid) return;
+          lastSeenTicketIdRef.current = tid;
+
+          addLog(`🎟️ TICKET REÇU : ID ${tid}`);
           setCurrentTicket(data.ticket);
           playChime();
-          
-          // Print Action selector
-          if (printModeRef.current === 'epos_https' || printModeRef.current === 'epos_http') {
-            sendEposPrint(data.ticket);
-          } else {
-            printViaBrowser(data.ticket);
+
+          if (printModeRef.current === 'windows_exe') {
+            addLog('En attente impression par le relais Windows (.exe) sur le PC...');
+            return;
+          }
+
+          const ok = await handlePrintTicket(data.ticket);
+          if (!ok) {
+            try {
+              await requeueTicket(currentShop, data.ticket);
+              lastSeenTicketIdRef.current = null;
+              addLog('Ticket remis en file — nouvelle tentative au prochain cycle.');
+            } catch {
+              addLog('❌ Impossible de remettre le ticket en file. Relancez une commande test.');
+            }
           }
         }
       } catch (err) {
@@ -375,6 +410,57 @@ export default function WebRelayScreen({ onBack }) {
     }
   };
 
+  // Impression via le relais Windows sur le réseau local (port 9100)
+  const sendPcRelayPrint = async (ticket) => {
+    const pcUrl = relayPcUrlRef.current.replace(/\/$/, '');
+    const ip = printerIpRef.current.trim();
+    const port = printerPortRef.current.trim() || RAW_TCP_PORT;
+
+    if (window.location.protocol === 'https:' && pcUrl.startsWith('http:')) {
+      addLog('❌ Page HTTPS : impossible d\'appeler le PC en HTTP.');
+      addLog('👉 Utilisez le mode « Windows (.exe) » et lancez le relais sur le PC.');
+      return false;
+    }
+
+    addLog(`Envoi ESC/POS via PC relais ${pcUrl} → ${ip}:${port}...`);
+    try {
+      const res = await fetch(`${pcUrl}/api/print`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ticketId: ticket.ticketId,
+          items: ticket.items,
+          total: ticket.total,
+          payment: ticket.payment,
+          paiement: ticket.payment,
+          printerIp: ip,
+          printerPort: port,
+          shop: ticket.shop,
+          saleId: ticket.saleId,
+          taxBreakdown: ticket.taxBreakdown,
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok && data.success) {
+        addLog('Impression ESC/POS reussie via PC relais !');
+        return true;
+      }
+      addLog(`❌ Erreur PC relais : ${data.error || `HTTP ${res.status}`}`);
+      return false;
+    } catch (err) {
+      addLog(`❌ PC relais injoignable (${pcUrl}). Lancez le .exe sur le PC.`);
+      return false;
+    }
+  };
+
+  const handlePrintTicket = async (ticket) => {
+    const mode = printModeRef.current;
+    if (mode === 'epos_https' || mode === 'epos_http') return sendEposPrint(ticket);
+    if (mode === 'escpos_pc') return sendPcRelayPrint(ticket);
+    printViaBrowser(ticket);
+    return true;
+  };
+
   // Epson ePOS SOAP XML direct printing
   const sendEposPrint = async (ticket) => {
     const ip = printerIpRef.current.trim();
@@ -390,46 +476,49 @@ export default function WebRelayScreen({ onBack }) {
 
     port = normalizePortForMode(mode, port);
     
-    // Choose custom port, or default 8043 (HTTPS) / 80 (HTTP)
     const portString = port ? `:${port}` : (isHttps ? ':8043' : '');
     const protocol = isHttps ? 'https' : 'http';
-    const targetUrl = `${protocol}://${ip}${portString}/cgi-bin/epos/service.cgi?devid=${EPOS_DEVID}&timeout=10000`;
-    
-    addLog(`Envoi ePOS (${protocol.toUpperCase()}) vers ${targetUrl}...`);
-    
     const xml = buildEposXml(ticket);
 
-    try {
-      const response = await fetch(targetUrl, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'text/xml; charset=utf-8',
-          'If-Modified-Since': 'Thu, 01 Jan 1970 00:00:00 GMT',
-          'SOAPAction': '""',
-        },
-        body: xml,
-      });
-      const responseText = await response.text();
-      if (response.ok && /success="true"/i.test(responseText)) {
-        addLog('Impression ePOS Epson reussie !');
-      } else if (response.ok && /success="false"/i.test(responseText)) {
-        addLog('❌ Imprimante ePOS a refuse le ticket (format ou devid incorrect).');
-        addLog('👉 Verifiez que c\'est une Epson compatible ePOS. Sinon utilisez le relais Windows (.exe).');
-      } else if (response.ok) {
-        addLog('Impression envoyee (reponse imprimante ambigue).');
-      } else {
-        addLog(`Erreur Epson ePOS : statut HTTP ${response.status}`);
-      }
-    } catch (err) {
-      addLog(`❌ Échec connexion ePOS (${protocol.toUpperCase()})`);
-      if (port === RAW_TCP_PORT || !port) {
-        addLog(`👉 Le port ${RAW_TCP_PORT} ne fonctionne pas dans Chrome. Utilisez Epson HTTPS port ${MODE_PORTS.epos_https}.`);
-      } else if (isHttps) {
-        addLog(`👉 Autorisez le certificat SSL de l'imprimante (bouton ci-dessous), puis vérifiez le port ${MODE_PORTS.epos_https}.`);
-      } else {
-        addLog(`👉 Sur Chrome, le mode HTTP est souvent bloqué. Utilisez "Epson HTTPS" port ${MODE_PORTS.epos_https}.`);
+    for (const devid of EPOS_DEVIDS) {
+      const targetUrl = `${protocol}://${ip}${portString}/cgi-bin/epos/service.cgi?devid=${devid}&timeout=10000`;
+      addLog(`Envoi ePOS (${protocol.toUpperCase()}) vers ${targetUrl}...`);
+
+      try {
+        const response = await fetch(targetUrl, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'text/xml; charset=utf-8',
+            'If-Modified-Since': 'Thu, 01 Jan 1970 00:00:00 GMT',
+            'SOAPAction': '""',
+          },
+          body: xml,
+        });
+        const responseText = await response.text();
+        const refused = /success="false"/i.test(responseText);
+        const accepted = response.ok && !refused;
+
+        if (accepted) {
+          addLog('Impression ePOS reussie !');
+          return true;
+        }
+        if (response.ok && refused) {
+          addLog(`Refus ePOS (devid=${devid}) — essai suivant...`);
+        } else {
+          addLog(`Erreur ePOS HTTP ${response.status} (devid=${devid})`);
+        }
+      } catch (err) {
+        addLog(`Echec connexion ePOS (devid=${devid})`);
       }
     }
+
+    addLog('❌ Impression ePOS impossible sur tous les identifiants.');
+    if (isHttps) {
+      addLog('👉 Autorisez le certificat SSL, ou passez en mode « Windows (.exe) » pour imprimante port 9100.');
+    } else {
+      addLog(`👉 Utilisez Epson HTTPS port ${MODE_PORTS.epos_https}, ou le relais Windows (.exe).`);
+    }
+    return false;
   };
 
   const testPrinter = async () => {
@@ -451,33 +540,47 @@ export default function WebRelayScreen({ onBack }) {
     }
 
     addLog(`Test connexion imprimante (${mode}, port ${port})...`);
-    const protocol = mode === 'epos_https' ? 'https' : 'http';
-    const targetUrl = `${protocol}://${ip}:${port}/cgi-bin/epos/service.cgi?devid=${EPOS_DEVID}&timeout=10000`;
-    try {
-      const res = await fetch(targetUrl, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'text/xml; charset=utf-8',
-          'If-Modified-Since': 'Thu, 01 Jan 1970 00:00:00 GMT',
-          'SOAPAction': '""',
-        },
-        body: buildEposTestXml(),
+    if (mode === 'windows_exe') {
+      addLog('Mode Windows (.exe) : lancez le relais sur le PC, puis passez une commande test.');
+      return;
+    }
+    if (mode === 'escpos_pc') {
+      await sendPcRelayPrint({
+        ticketId: 'TEST',
+        total: 0,
+        payment: 'TEST',
+        items: [{ name: 'Test connexion', quantity: 1, price: 0 }],
       });
-      const body = await res.text();
-      if (res.ok && /success="true"/i.test(body)) {
-        addLog('✅ Imprimante ePOS joignable — ticket test imprime !');
-      } else if (res.ok) {
-        addLog('⚠️ Imprimante repond mais le ticket test a peut-etre echoue — verifiez le papier.');
-      } else {
-        addLog(`⚠️ Imprimante répond mais erreur HTTP ${res.status}`);
+      return;
+    }
+
+    const protocol = mode === 'epos_https' ? 'https' : 'http';
+    const xml = buildEposTestXml();
+
+    for (const devid of EPOS_DEVIDS) {
+      const targetUrl = `${protocol}://${ip}:${port}/cgi-bin/epos/service.cgi?devid=${devid}&timeout=10000`;
+      try {
+        const res = await fetch(targetUrl, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'text/xml; charset=utf-8',
+            'If-Modified-Since': 'Thu, 01 Jan 1970 00:00:00 GMT',
+            'SOAPAction': '""',
+          },
+          body: xml,
+        });
+        const body = await res.text();
+        if (res.ok && !/success="false"/i.test(body)) {
+          addLog(`✅ Imprimante ePOS joignable (devid=${devid}) — ticket test envoye !`);
+          return;
+        }
+      } catch {
+        /* try next devid */
       }
-    } catch (err) {
-      addLog(`❌ Imprimante injoignable sur ${targetUrl}`);
-      if (mode === 'epos_https') {
-        addLog('👉 Cliquez « Autoriser le Certificat », acceptez l\'avertissement Chrome, puis retestez.');
-      } else {
-        addLog(`👉 Passez en Epson HTTPS, port ${MODE_PORTS.epos_https}.`);
-      }
+    }
+    addLog('❌ Test ePOS echoue — essayez le mode Windows (.exe) pour port 9100.');
+    if (mode === 'epos_https') {
+      addLog('👉 Cliquez « Autoriser le Certificat », acceptez l\'avertissement Chrome, puis retestez.');
     }
   };
 
@@ -498,6 +601,7 @@ export default function WebRelayScreen({ onBack }) {
 
     if (isRunning) {
       setIsRunning(false);
+      lastSeenTicketIdRef.current = null;
       addLog("Relais ARRETÉ");
     } else {
       addLog(`Vérification de la boutique "${shopName.trim()}"...`);
@@ -560,7 +664,29 @@ export default function WebRelayScreen({ onBack }) {
 
               <div>
                 <label className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-2 block">Mode de fonctionnement</label>
-                <div className="grid grid-cols-3 gap-1 bg-slate-950 p-1 rounded-2xl border border-slate-800">
+                <div className="grid grid-cols-2 gap-1 bg-slate-950 p-1 rounded-2xl border border-slate-800">
+                  <button 
+                    onClick={() => selectPrintMode('windows_exe')}
+                    disabled={isRunning}
+                    className={`py-2 px-1 rounded-xl font-black text-[10px] transition-all text-center leading-tight ${
+                      printMode === 'windows_exe' 
+                        ? 'bg-emerald-500 text-slate-950 shadow-md' 
+                        : 'text-slate-400 hover:text-slate-200'
+                    }`}
+                  >
+                    Windows (.exe)
+                  </button>
+                  <button 
+                    onClick={() => selectPrintMode('escpos_pc')}
+                    disabled={isRunning}
+                    className={`py-2 px-1 rounded-xl font-black text-[10px] transition-all text-center leading-tight ${
+                      printMode === 'escpos_pc' 
+                        ? 'bg-emerald-500 text-slate-950 shadow-md' 
+                        : 'text-slate-400 hover:text-slate-200'
+                    }`}
+                  >
+                    PC relais 9100
+                  </button>
                   <button 
                     onClick={() => selectPrintMode('epos_https')}
                     disabled={isRunning}
@@ -571,17 +697,6 @@ export default function WebRelayScreen({ onBack }) {
                     }`}
                   >
                     Epson HTTPS
-                  </button>
-                  <button 
-                    onClick={() => selectPrintMode('epos_http')}
-                    disabled={isRunning}
-                    className={`py-2 px-1 rounded-xl font-black text-[10px] transition-all text-center leading-tight ${
-                      printMode === 'epos_http' 
-                        ? 'bg-amber-500 text-slate-950 shadow-md' 
-                        : 'text-slate-400 hover:text-slate-200'
-                    }`}
-                  >
-                    Epson HTTP
                   </button>
                   <button 
                     onClick={() => selectPrintMode('airprint')}
@@ -596,6 +711,57 @@ export default function WebRelayScreen({ onBack }) {
                   </button>
                 </div>
               </div>
+
+              {printMode === 'windows_exe' && (
+                <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-2xl p-4 flex gap-3">
+                  <Info size={20} className="text-emerald-400 shrink-0" />
+                  <p className="text-[11px] text-emerald-200 leading-relaxed font-semibold">
+                    <strong>Recommande port {RAW_TCP_PORT} :</strong> Chrome affiche les tickets. Lancez le relais <strong>Windows (.exe)</strong> sur le PC — c&apos;est lui qui imprime. Ne fermez pas le .exe.
+                  </p>
+                </div>
+              )}
+
+              {(printMode === 'windows_exe' || printMode === 'escpos_pc') && (
+                <div className="space-y-4 border-t border-slate-800/50 pt-4">
+                  <div className="grid grid-cols-3 gap-3">
+                    <div className="col-span-2">
+                      <label className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-2 block">IP Imprimante</label>
+                      <input 
+                        type="text" 
+                        value={printerIp} 
+                        onChange={(e) => setPrinterIp(e.target.value)}
+                        placeholder="192.168.1.26"
+                        disabled={isRunning}
+                        className="w-full bg-slate-950 border border-slate-800 focus:border-emerald-500 rounded-2xl px-4 py-3 text-sm text-slate-100 placeholder-slate-600 focus:outline-none transition-all disabled:opacity-50"
+                      />
+                    </div>
+                    <div className="col-span-1">
+                      <label className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-2 block">Port</label>
+                      <input 
+                        type="text" 
+                        value={printerPort} 
+                        onChange={(e) => setPrinterPort(e.target.value)}
+                        placeholder={RAW_TCP_PORT}
+                        disabled={isRunning}
+                        className="w-full bg-slate-950 border border-slate-800 focus:border-emerald-500 rounded-2xl px-4 py-3 text-sm text-slate-100 placeholder-slate-600 focus:outline-none transition-all text-center disabled:opacity-50"
+                      />
+                    </div>
+                  </div>
+                  {printMode === 'escpos_pc' && (
+                    <div>
+                      <label className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-2 block">URL du PC relais (.exe)</label>
+                      <input 
+                        type="text" 
+                        value={relayPcUrl} 
+                        onChange={(e) => setRelayPcUrl(e.target.value)}
+                        placeholder="http://192.168.1.47:3001"
+                        disabled={isRunning}
+                        className="w-full bg-slate-950 border border-slate-800 focus:border-emerald-500 rounded-2xl px-4 py-3 text-sm text-slate-100 placeholder-slate-600 focus:outline-none transition-all disabled:opacity-50"
+                      />
+                    </div>
+                  )}
+                </div>
+              )}
 
               {(printMode === 'epos_https' || printMode === 'epos_http') && (
                 <div className="space-y-4 border-t border-slate-800/50 pt-4">
@@ -656,7 +822,7 @@ export default function WebRelayScreen({ onBack }) {
                       </ol>
                       
                       <a 
-                        href={`https://${printerIp.trim()}:${printerPort.trim()}/cgi-bin/epos/service.cgi?devid=${EPOS_DEVID}`} 
+                        href={`https://${printerIp.trim()}:${printerPort.trim()}/cgi-bin/epos/service.cgi?devid=local_printer`} 
                         target="_blank" 
                         rel="noopener noreferrer"
                         className="flex items-center justify-center gap-2 w-full py-3 bg-amber-500 text-slate-950 hover:bg-amber-600 rounded-xl font-black text-xs transition-all hover:scale-[1.02] shadow-lg shadow-amber-500/10"
@@ -701,7 +867,7 @@ export default function WebRelayScreen({ onBack }) {
               <div className="bg-slate-950 border border-slate-800 rounded-2xl p-4 flex gap-3">
                 <Info size={20} className="text-slate-400 shrink-0" />
                 <p className="text-[11px] text-slate-400 leading-relaxed font-semibold">
-                  <strong>Caracteres bizarres ?</strong> Votre imprimante n'est peut-etre pas Epson ePOS. Le relais web Chrome ne convient qu'aux Epson (port {MODE_PORTS.epos_https}). Pour Star/Bixolon/autre → relais Windows (.exe) port {RAW_TCP_PORT}.
+                  <strong>Imprimante port {RAW_TCP_PORT} ?</strong> Choisissez « Windows (.exe) » et lancez le relais sur le PC. Chrome seul ne peut pas imprimer en TCP brut.
                 </p>
               </div>
             </div>
