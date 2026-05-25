@@ -2,21 +2,16 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   ChevronLeft, Play, Square, Info, Volume2, VolumeX,
-  Printer, Terminal, Sparkles, ExternalLink, Lock,
+  Printer, Terminal, Sparkles,
 } from 'lucide-react';
 import {
-  generateEscPosBytes,
-  escPosToHex,
-  buildEposEscPosSoap,
-  buildEposTextSoap,
   isPrivateIp,
+  guessBridgeCandidates,
 } from '../utils/escpos';
 
 const CLOUD_URL = 'https://boutididact-backendd.vercel.app';
 const POLL_INTERVAL_MS = 5000;
 const PRINTER_PORT = '9100';
-const EPOS_PORT = '8043';
-const EPOS_DEVIDS = ['local_printer', 'localprinter'];
 
 export default function WebRelayScreen({ onBack }) {
   const [shopName, setShopName] = useState(
@@ -25,52 +20,46 @@ export default function WebRelayScreen({ onBack }) {
   const [printerIp, setPrinterIp] = useState(
     () => localStorage.getItem('boutididact_webrelay_printerIp') || '192.168.1.26'
   );
+  const [bridgeUrl, setBridgeUrl] = useState(
+    () => localStorage.getItem('boutididact_webrelay_bridgeUrl') || ''
+  );
   const [isRunning, setIsRunning] = useState(false);
   const [logs, setLogs] = useState([]);
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [wakeLockActive, setWakeLockActive] = useState(false);
   const [currentTicket, setCurrentTicket] = useState(null);
-  const [certAccepted, setCertAccepted] = useState(false);
 
   const wakeLockRef = useRef(null);
   const isRunningRef = useRef(isRunning);
   const shopNameRef = useRef(shopName);
   const printerIpRef = useRef(printerIp);
+  const bridgeUrlRef = useRef(bridgeUrl);
   const soundEnabledRef = useRef(soundEnabled);
   const lastPrintedTicketIdRef = useRef(null);
+  const resolvedBridgeRef = useRef('');
 
   useEffect(() => { isRunningRef.current = isRunning; }, [isRunning]);
   useEffect(() => { shopNameRef.current = shopName; }, [shopName]);
   useEffect(() => { printerIpRef.current = printerIp; }, [printerIp]);
+  useEffect(() => { bridgeUrlRef.current = bridgeUrl; }, [bridgeUrl]);
   useEffect(() => { soundEnabledRef.current = soundEnabled; }, [soundEnabled]);
 
-  useEffect(() => {
-    localStorage.setItem('boutididact_webrelay_shopName', shopName);
-  }, [shopName]);
-  useEffect(() => {
-    localStorage.setItem('boutididact_webrelay_printerIp', printerIp);
-  }, [printerIp]);
-  useEffect(() => {
-    localStorage.setItem('boutididact_webrelay_printerPort', PRINTER_PORT);
-  }, []);
+  useEffect(() => { localStorage.setItem('boutididact_webrelay_shopName', shopName); }, [shopName]);
+  useEffect(() => { localStorage.setItem('boutididact_webrelay_printerIp', printerIp); }, [printerIp]);
+  useEffect(() => { localStorage.setItem('boutididact_webrelay_bridgeUrl', bridgeUrl); }, [bridgeUrl]);
+  useEffect(() => { localStorage.setItem('boutididact_webrelay_printerPort', PRINTER_PORT); }, []);
 
   const addLog = useCallback((msg) => {
     const time = new Date().toLocaleTimeString();
-    setLogs((prev) => [`[${time}] ${msg}`, ...prev].slice(0, 50));
+    setLogs((prev) => [`[${time}] ${msg}`, ...prev].slice(0, 60));
   }, []);
 
   const requestWakeLock = async () => {
-    if (!('wakeLock' in navigator)) {
-      setWakeLockActive(false);
-      return;
-    }
+    if (!('wakeLock' in navigator)) { setWakeLockActive(false); return; }
     try {
       wakeLockRef.current = await navigator.wakeLock.request('screen');
       setWakeLockActive(true);
-      addLog('Anti-veille active.');
-    } catch {
-      setWakeLockActive(false);
-    }
+    } catch { setWakeLockActive(false); }
   };
 
   const releaseWakeLock = async () => {
@@ -108,41 +97,56 @@ export default function WebRelayScreen({ onBack }) {
     } catch { /* ignore */ }
   };
 
-  /** Impression directe depuis le telephone (WiFi local) via ePOS HTTPS */
-  const sendDirectFromPhone = async (ticket, ip) => {
-    const hex = escPosToHex(generateEscPosBytes(ticket));
-    const payloads = [
-      buildEposEscPosSoap(hex),
-      buildEposTextSoap(ticket),
-    ];
-
-    for (const devid of EPOS_DEVIDS) {
-      const url = `https://${ip}:${EPOS_PORT}/cgi-bin/epos/service.cgi?devid=${devid}&timeout=15000`;
-      for (const body of payloads) {
-        try {
-          const res = await fetch(url, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'text/xml; charset=utf-8',
-              'If-Modified-Since': 'Thu, 01 Jan 1970 00:00:00 GMT',
-              'SOAPAction': '""',
-            },
-            body,
-          });
-          const text = await res.text();
-          if (res.ok && !/success="false"/i.test(text)) {
-            addLog(`✅ Impression directe OK (${ip}:${PRINTER_PORT} via WiFi)`);
-            return true;
-          }
-        } catch {
-          /* essai suivant */
-        }
+  /** Pont TCP 9100 sur le reseau local (imprimante generique) */
+  const sendViaLanBridge = async (ticket, ip, bridgeBase) => {
+    const base = bridgeBase.replace(/\/$/, '');
+    addLog(`Pont LAN ${base} → ${ip}:${PRINTER_PORT}...`);
+    try {
+      const res = await fetch(`${base}/api/saas/relay-print`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          shopName: shopNameRef.current.trim(),
+          printerIp: ip,
+          printerPort: PRINTER_PORT,
+          ticket,
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok && data.ok) {
+        addLog(`✅ Impression ESC/POS OK via pont LAN (port ${PRINTER_PORT})`);
+        resolvedBridgeRef.current = base;
+        return true;
       }
+      addLog(`Pont LAN : ${data.error || res.status}`);
+    } catch (err) {
+      addLog(`Pont LAN injoignable (${base}) : ${err.message}`);
     }
     return false;
   };
 
-  /** Impression via cloud (imprimante IP publique ou routeur avec redirection port 9100) */
+  const findLanBridge = async (printerIp) => {
+    const manual = bridgeUrlRef.current.trim().replace(/\/$/, '');
+    if (manual) return manual;
+
+    if (resolvedBridgeRef.current) return resolvedBridgeRef.current;
+
+    addLog('Recherche pont d\'impression sur le WiFi...');
+    for (const candidate of guessBridgeCandidates(printerIp)) {
+      try {
+        const res = await fetch(`${candidate}/api/health`, {
+          signal: AbortSignal.timeout(2000),
+        });
+        if (res.ok) {
+          addLog(`Pont trouve : ${candidate}`);
+          resolvedBridgeRef.current = candidate;
+          return candidate;
+        }
+      } catch { /* suivant */ }
+    }
+    return null;
+  };
+
   const sendViaCloud = async (ticket, ip) => {
     try {
       const res = await fetch(`${CLOUD_URL}/api/saas/relay-print`, {
@@ -160,10 +164,8 @@ export default function WebRelayScreen({ onBack }) {
         addLog(`✅ Impression cloud OK (${ip}:${PRINTER_PORT})`);
         return true;
       }
-      return false;
-    } catch {
-      return false;
-    }
+    } catch { /* ignore */ }
+    return false;
   };
 
   const sendPrint = async (ticket) => {
@@ -173,32 +175,25 @@ export default function WebRelayScreen({ onBack }) {
       return false;
     }
 
-    addLog(`Impression ticket → ${ip}:${PRINTER_PORT}...`);
+    addLog(`Impression → ${ip}:${PRINTER_PORT}...`);
 
     if (isPrivateIp(ip)) {
-      addLog('WiFi local : envoi direct depuis le telephone...');
-      const direct = await sendDirectFromPhone(ticket, ip);
-      if (direct) return true;
+      addLog('Imprimante generique : pont WiFi ESC/POS (port 9100)...');
+      const bridge = await findLanBridge(ip);
+      if (bridge && await sendViaLanBridge(ticket, ip, bridge)) return true;
 
-      addLog('❌ Impression directe echouee.');
-      if (!certAccepted) {
-        addLog('👉 Acceptez le certificat SSL de l\'imprimante (bouton ci-dessous), puis retestez.');
-      } else {
-        addLog('👉 Verifiez que le telephone est sur le MEME WiFi que l\'imprimante.');
-        addLog('👉 Imprimante Epson recommandee (ePOS). Autres marques : IP publique + redirection port 9100.');
-      }
+      addLog('❌ Pont WiFi introuvable ou imprimante injoignable.');
+      addLog('👉 Sur un PC du meme WiFi : cd print-server && node server.js');
+      addLog('👉 Puis Pont WiFi = http://IP-DU-PC:3001 (ex: http://192.168.1.47:3001)');
       return false;
     }
 
-    addLog('IP publique : envoi via cloud...');
-    const cloud = await sendViaCloud(ticket, ip);
-    if (cloud) return true;
-
-    addLog('❌ Cloud injoignable ou imprimante inaccessible.');
-    return false;
+    addLog('IP publique : envoi cloud...');
+    return sendViaCloud(ticket, ip);
   };
 
   const testPrinter = async () => {
+    resolvedBridgeRef.current = '';
     await sendPrint({
       ticketId: 'TEST',
       total: 0,
@@ -219,10 +214,7 @@ export default function WebRelayScreen({ onBack }) {
         const url = `${CLOUD_URL}/api/saas/poll-ticket?shopName=${encodeURIComponent(currentShop)}`;
         const res = await fetch(url, { headers: { Accept: 'application/json' } });
         if (!res.ok) {
-          if (res.status === 404) {
-            addLog('Boutique inconnue.');
-            setIsRunning(false);
-          }
+          if (res.status === 404) { addLog('Boutique inconnue.'); setIsRunning(false); }
           return;
         }
 
@@ -243,7 +235,7 @@ export default function WebRelayScreen({ onBack }) {
     };
 
     if (isRunning) {
-      addLog(`Relais Chrome actif — port ${PRINTER_PORT} — autonome (telephone/PC)`);
+      addLog(`Relais actif — port ${PRINTER_PORT}`);
       requestWakeLock();
       poll();
       intervalId = setInterval(poll, POLL_INTERVAL_MS);
@@ -251,18 +243,12 @@ export default function WebRelayScreen({ onBack }) {
       releaseWakeLock();
     }
 
-    return () => {
-      if (intervalId) clearInterval(intervalId);
-    };
+    return () => { if (intervalId) clearInterval(intervalId); };
   }, [isRunning, addLog]);
 
   const toggleService = async () => {
-    if (!shopName.trim()) {
-      alert('Renseignez le nom de la boutique.');
-      return;
-    }
-    if (!printerIp.trim()) {
-      alert('Renseignez l\'IP de l\'imprimante.');
+    if (!shopName.trim() || !printerIp.trim()) {
+      alert('Renseignez boutique et IP imprimante.');
       return;
     }
 
@@ -273,7 +259,6 @@ export default function WebRelayScreen({ onBack }) {
       return;
     }
 
-    addLog(`Verification boutique "${shopName.trim()}"...`);
     try {
       const res = await fetch(
         `${CLOUD_URL}/api/saas/check-shop?shopName=${encodeURIComponent(shopName.trim())}`
@@ -286,13 +271,12 @@ export default function WebRelayScreen({ onBack }) {
       setShopName(data.name || shopName.trim());
       addLog(`✅ Boutique "${data.name || shopName}" connectee.`);
       lastPrintedTicketIdRef.current = null;
+      resolvedBridgeRef.current = '';
       setIsRunning(true);
     } catch (err) {
-      addLog(`❌ Erreur reseau : ${err.message}`);
+      addLog(`❌ Erreur : ${err.message}`);
     }
   };
-
-  const certUrl = `https://${printerIp.trim()}:${EPOS_PORT}/cgi-bin/epos/service.cgi?devid=local_printer`;
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 font-sans flex flex-col">
@@ -312,79 +296,54 @@ export default function WebRelayScreen({ onBack }) {
 
             <div>
               <label className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-2 block">Nom boutique</label>
-              <input
-                type="text"
-                value={shopName}
-                onChange={(e) => setShopName(e.target.value)}
-                disabled={isRunning}
-                className="w-full bg-slate-950 border border-slate-800 rounded-2xl px-4 py-3 text-sm disabled:opacity-50"
-              />
+              <input type="text" value={shopName} onChange={(e) => setShopName(e.target.value)} disabled={isRunning}
+                className="w-full bg-slate-950 border border-slate-800 rounded-2xl px-4 py-3 text-sm disabled:opacity-50" />
             </div>
 
             <div>
-              <label className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-2 block">IP imprimante (WiFi)</label>
-              <input
-                type="text"
-                value={printerIp}
-                onChange={(e) => setPrinterIp(e.target.value)}
-                placeholder="192.168.1.26"
-                disabled={isRunning}
-                className="w-full bg-slate-950 border border-slate-800 rounded-2xl px-4 py-3 text-sm disabled:opacity-50"
-              />
+              <label className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-2 block">IP imprimante</label>
+              <input type="text" value={printerIp} onChange={(e) => setPrinterIp(e.target.value)} placeholder="192.168.1.26" disabled={isRunning}
+                className="w-full bg-slate-950 border border-slate-800 rounded-2xl px-4 py-3 text-sm disabled:opacity-50" />
             </div>
 
             <div>
-              <label className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-2 block">Port impression</label>
-              <input
-                type="text"
-                value={PRINTER_PORT}
-                readOnly
-                className="w-full bg-slate-950 border border-slate-800 rounded-2xl px-4 py-3 text-sm text-center opacity-70"
-              />
+              <label className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-2 block">Port</label>
+              <input type="text" value={PRINTER_PORT} readOnly className="w-full bg-slate-950 border border-slate-800 rounded-2xl px-4 py-3 text-sm text-center opacity-70" />
             </div>
 
-            <div className="bg-amber-500/10 border border-amber-500/20 rounded-2xl p-4 space-y-3">
-              <div className="flex gap-2 items-center">
-                <Lock size={16} className="text-amber-500" />
-                <span className="text-xs font-black text-amber-500 uppercase">Certificat SSL (1 fois)</span>
-              </div>
-              <p className="text-[11px] text-slate-300 leading-relaxed">
-                Sur telephone : ouvrez le lien, acceptez le certificat (<strong>Avance / Continuer</strong>), revenez ici.
+            <div>
+              <label className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-2 block">Pont WiFi (imprimante generique)</label>
+              <input type="text" value={bridgeUrl} onChange={(e) => setBridgeUrl(e.target.value)} placeholder="http://192.168.1.47:3001" disabled={isRunning}
+                className="w-full bg-slate-950 border border-slate-800 rounded-2xl px-4 py-3 text-sm disabled:opacity-50" />
+              <p className="text-[10px] text-slate-500 mt-2 leading-relaxed">
+                Sur un PC/tablette du meme WiFi : <strong>cd print-server && node server.js</strong>
+                <br />Puis mettez son IP ici. Le telephone reste le relais (pas le .exe).
               </p>
-              <a
-                href={certUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                onClick={() => setCertAccepted(true)}
-                className="flex items-center justify-center gap-2 w-full py-3 bg-amber-500 text-slate-950 rounded-xl font-black text-xs"
-              >
-                Autoriser certificat imprimante <ExternalLink size={14} />
-              </a>
+            </div>
+
+            <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-2xl p-4 flex gap-3">
+              <Info size={18} className="text-emerald-400 shrink-0" />
+              <p className="text-[11px] text-emerald-200 leading-relaxed">
+                <strong>Votre imprimante utilise le port 9100</strong> (TCP brut), pas Epson ePOS.
+                Si le port 8043 affiche &laquo; Welcome to socket.io &raquo;, ce n&apos;est pas l&apos;imprimante — ignorez-le.
+              </p>
             </div>
 
             <div className="bg-slate-950 border border-slate-800 rounded-2xl p-4 flex gap-3">
               <Info size={18} className="text-slate-400 shrink-0" />
               <p className="text-[11px] text-slate-400 leading-relaxed">
-                <strong>100% autonome</strong> — fonctionne sur telephone Android/iPhone via Chrome/Safari.
-                Aucun .exe, aucun PC. Le telephone envoie le ticket ESC/POS port {PRINTER_PORT} via le WiFi local.
+                Meme WiFi ne suffit pas pour le port 9100 depuis un navigateur.
+                Le telephone pilote tout ; un petit service Node sur le WiFi envoie le TCP a l&apos;imprimante.
               </p>
             </div>
 
-            <button
-              type="button"
-              onClick={testPrinter}
-              disabled={isRunning}
-              className="w-full py-3 rounded-xl border border-slate-700 text-sm font-black disabled:opacity-50"
-            >
+            <button type="button" onClick={testPrinter} disabled={isRunning}
+              className="w-full py-3 rounded-xl border border-slate-700 text-sm font-black disabled:opacity-50">
               Tester l&apos;impression
             </button>
 
-            <button
-              onClick={toggleService}
-              className={`w-full py-4 rounded-2xl font-black flex items-center justify-center gap-3 ${
-                isRunning ? 'bg-red-500 text-white' : 'bg-amber-500 text-slate-950'
-              }`}
-            >
+            <button onClick={toggleService}
+              className={`w-full py-4 rounded-2xl font-black flex items-center justify-center gap-3 ${isRunning ? 'bg-red-500 text-white' : 'bg-amber-500 text-slate-950'}`}>
               {isRunning ? <><Square size={18} fill="currentColor" /> Arreter</> : <><Play size={18} fill="currentColor" /> Demarrer</>}
             </button>
           </div>
@@ -416,12 +375,8 @@ export default function WebRelayScreen({ onBack }) {
             <h2 className="text-lg font-black mb-4">Apercu ticket</h2>
             <AnimatePresence mode="wait">
               {currentTicket ? (
-                <motion.div
-                  key={currentTicket.ticketId}
-                  initial={{ opacity: 0, y: 8 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  className="max-w-md mx-auto bg-white text-slate-900 rounded-2xl p-6"
-                >
+                <motion.div key={currentTicket.ticketId} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
+                  className="max-w-md mx-auto bg-white text-slate-900 rounded-2xl p-6">
                   <p className="font-black text-center text-lg mb-4">#{currentTicket.ticketId}</p>
                   {(currentTicket.items || []).map((it, i) => (
                     <div key={i} className="flex justify-between text-sm py-1">
@@ -446,20 +401,12 @@ export default function WebRelayScreen({ onBack }) {
               <div className="flex items-center gap-2 text-slate-400 mb-2">
                 <Terminal size={14} />
                 <span className="text-xs font-black uppercase">Journal</span>
-                <button
-                  type="button"
-                  onClick={() => setSoundEnabled(!soundEnabled)}
-                  className="ml-auto p-1.5 rounded-lg border border-slate-700"
-                >
+                <button type="button" onClick={() => setSoundEnabled(!soundEnabled)} className="ml-auto p-1.5 rounded-lg border border-slate-700">
                   {soundEnabled ? <Volume2 size={16} /> : <VolumeX size={16} />}
                 </button>
               </div>
-              <div className="bg-slate-950 rounded-xl p-3 font-mono text-[10px] text-emerald-500 h-36 overflow-y-auto space-y-1">
-                {logs.length === 0 ? (
-                  <span className="text-slate-600">Pret.</span>
-                ) : (
-                  logs.map((log, i) => <div key={i}>{log}</div>)
-                )}
+              <div className="bg-slate-950 rounded-xl p-3 font-mono text-[10px] text-emerald-500 h-44 overflow-y-auto space-y-1">
+                {logs.length === 0 ? <span className="text-slate-600">Pret.</span> : logs.map((log, i) => <div key={i}>{log}</div>)}
               </div>
             </div>
           </div>

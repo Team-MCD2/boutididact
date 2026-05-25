@@ -100,6 +100,13 @@ export function generateEscPosBytes(ticket, width = 32) {
 export function escPosToHex(bytes) {
   return Array.from(bytes)
     .map((b) => b.toString(16).padStart(2, '0').toUpperCase())
+    .join(' ');
+}
+
+/** Hex continu sans espaces (fallback ePOS) */
+export function escPosToHexCompact(bytes) {
+  return Array.from(bytes)
+    .map((b) => b.toString(16).padStart(2, '0').toUpperCase())
     .join('');
 }
 
@@ -145,4 +152,13 @@ ${lines.join('\n')}
 
 export function isPrivateIp(ip) {
   return /^(192\.168\.|10\.|172\.(1[6-9]|2\d|3[01])\.)/.test(String(ip || '').trim());
+}
+
+export function guessBridgeCandidates(printerIp) {
+  const parts = String(printerIp || '').trim().split('.');
+  if (parts.length !== 4) return [];
+  const base = `${parts[0]}.${parts[1]}.${parts[2]}`;
+  const host = parseInt(parts[3], 10);
+  const extras = [host, 1, 47, 100, 20, 50, 10, 2, 3];
+  return [...new Set(extras.map((n) => `http://${base}.${n}:3001`))];
 }
