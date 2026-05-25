@@ -7,12 +7,35 @@ import {
 
 const CLOUD_URL = 'https://boutididact-backendd.vercel.app';
 const POLL_INTERVAL_MS = 5000;
+const MODE_PORTS = { epos_https: '8043', epos_http: '80' };
+const RAW_TCP_PORT = '9100';
+
+function isChromeOrAndroid() {
+  const ua = navigator.userAgent || '';
+  return /Android/i.test(ua) || /Chrome/i.test(ua) && !/Edg/i.test(ua);
+}
+
+function normalizePortForMode(mode, port) {
+  const p = String(port || '').trim();
+  if (p === RAW_TCP_PORT) return MODE_PORTS[mode] || '8043';
+  if (!p && mode in MODE_PORTS) return MODE_PORTS[mode];
+  return p || MODE_PORTS[mode] || '8043';
+}
 
 export default function WebRelayScreen({ onBack }) {
   const [shopName, setShopName] = useState(() => localStorage.getItem('boutididact_webrelay_shopName') || '');
   const [printerIp, setPrinterIp] = useState(() => localStorage.getItem('boutididact_webrelay_printerIp') || '192.168.1.100');
-  const [printerPort, setPrinterPort] = useState(() => localStorage.getItem('boutididact_webrelay_printerPort') || '8043');
-  const [printMode, setPrintMode] = useState(() => localStorage.getItem('boutididact_webrelay_printMode') || 'epos_https');
+  const initialMode = (() => {
+    const saved = localStorage.getItem('boutididact_webrelay_printMode');
+    if (saved) return saved;
+    return isChromeOrAndroid() ? 'epos_https' : 'epos_https';
+  })();
+  const [printMode, setPrintMode] = useState(initialMode);
+  const [printerPort, setPrinterPort] = useState(() => {
+    const savedPort = localStorage.getItem('boutididact_webrelay_printerPort') || '';
+    const savedMode = localStorage.getItem('boutididact_webrelay_printMode') || initialMode;
+    return normalizePortForMode(savedMode, savedPort);
+  });
   const [isRunning, setIsRunning] = useState(false);
   const [logs, setLogs] = useState([]);
   const [soundEnabled, setSoundEnabled] = useState(true);
@@ -51,6 +74,17 @@ export default function WebRelayScreen({ onBack }) {
   useEffect(() => {
     localStorage.setItem('boutididact_webrelay_printMode', printMode);
   }, [printMode]);
+
+  const selectPrintMode = (mode) => {
+    setPrintMode(mode);
+    if (mode === 'epos_https' || mode === 'epos_http') {
+      setPrinterPort((prev) => normalizePortForMode(mode, prev));
+    }
+  };
+
+  const portWarning = (printMode === 'epos_https' || printMode === 'epos_http') && String(printerPort).trim() === RAW_TCP_PORT
+    ? `Le port ${RAW_TCP_PORT} est réservé au relais Windows/APK (TCP brut). En relais web Chrome, utilisez le port ${MODE_PORTS[printMode]} (ePOS).`
+    : null;
 
   // Request Wake Lock to keep screen on (perfect for iOS/iPad)
   const requestWakeLock = async () => {
@@ -281,8 +315,17 @@ export default function WebRelayScreen({ onBack }) {
   // Epson ePOS SOAP XML direct printing
   const sendEposPrint = async (ticket) => {
     const ip = printerIpRef.current.trim();
-    const port = printerPortRef.current.trim();
-    const isHttps = printModeRef.current === 'epos_https';
+    const mode = printModeRef.current;
+    let port = printerPortRef.current.trim();
+    const isHttps = mode === 'epos_https';
+
+    if (port === RAW_TCP_PORT) {
+      addLog(`❌ Port ${RAW_TCP_PORT} incompatible avec le relais web Chrome.`);
+      addLog(`👉 Passez en mode "Epson HTTPS" avec le port ${MODE_PORTS.epos_https}, ou utilisez le relais Windows (.exe).`);
+      return;
+    }
+
+    port = normalizePortForMode(mode, port);
     
     // Choose custom port, or default 8043 (HTTPS) / 80 (HTTP)
     const portString = port ? `:${port}` : (isHttps ? ':8043' : '');
@@ -335,10 +378,58 @@ export default function WebRelayScreen({ onBack }) {
       }
     } catch (err) {
       addLog(`❌ Échec connexion ePOS (${protocol.toUpperCase()})`);
-      if (isHttps) {
-        addLog(`👉 Avez-vous autorisé le certificat de l'imprimante (Étape 1 ci-contre) ?`);
+      if (port === RAW_TCP_PORT || !port) {
+        addLog(`👉 Le port ${RAW_TCP_PORT} ne fonctionne pas dans Chrome. Utilisez Epson HTTPS port ${MODE_PORTS.epos_https}.`);
+      } else if (isHttps) {
+        addLog(`👉 Autorisez le certificat SSL de l'imprimante (bouton ci-dessous), puis vérifiez le port ${MODE_PORTS.epos_https}.`);
       } else {
-        addLog(`👉 Utilisez le mode sécurisé "Epson HTTPS (Recommandé iPad)" !`);
+        addLog(`👉 Sur Chrome, le mode HTTP est souvent bloqué. Utilisez "Epson HTTPS" port ${MODE_PORTS.epos_https}.`);
+      }
+    }
+  };
+
+  const testPrinter = async () => {
+    const ip = printerIp.trim();
+    const mode = printMode;
+    const port = normalizePortForMode(mode, printerPort.trim());
+
+    if (!ip) {
+      alert('Renseignez l\'adresse IP de l\'imprimante.');
+      return;
+    }
+    if ((mode === 'epos_https' || mode === 'epos_http') && port === RAW_TCP_PORT) {
+      alert(`Le port ${RAW_TCP_PORT} est pour le relais Windows/APK uniquement.\n\nEn relais web Chrome, mettez le port ${MODE_PORTS.epos_https} (Epson HTTPS).`);
+      return;
+    }
+    if (mode === 'airprint') {
+      addLog('Test AirPrint : utilisez « Ré-imprimer » sur un ticket reçu.');
+      return;
+    }
+
+    addLog(`Test connexion imprimante (${mode}, port ${port})...`);
+    const protocol = mode === 'epos_https' ? 'https' : 'http';
+    const targetUrl = `${protocol}://${ip}:${port}/cgi-bin/epos/service.cgi?devid=localprinter&timeout=5000`;
+    try {
+      const res = await fetch(targetUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'text/xml; charset=utf-8',
+          'If-Modified-Since': 'Thu, 01 Jan 1970 00:00:00 GMT',
+          'SOAPAction': '""',
+        },
+        body: `<?xml version="1.0" encoding="utf-8"?><soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/"><soapenv:Body><epos-print xmlns="http://www.epson-pos.com/schemas/2011/03/epos-print"><text>TEST BOUTIDIDACT\n</text><cut type="feed"/></epos-print></soapenv:Body></soapenv:Envelope>`,
+      });
+      if (res.ok) {
+        addLog('✅ Imprimante ePOS joignable — test OK !');
+      } else {
+        addLog(`⚠️ Imprimante répond mais erreur HTTP ${res.status}`);
+      }
+    } catch (err) {
+      addLog(`❌ Imprimante injoignable sur ${targetUrl}`);
+      if (mode === 'epos_https') {
+        addLog('👉 Cliquez « Autoriser le Certificat », acceptez l\'avertissement Chrome, puis retestez.');
+      } else {
+        addLog(`👉 Passez en Epson HTTPS, port ${MODE_PORTS.epos_https}.`);
       }
     }
   };
@@ -347,6 +438,15 @@ export default function WebRelayScreen({ onBack }) {
     if (!shopName.trim()) {
       alert("Veuillez renseigner le nom de la boutique.");
       return;
+    }
+
+    if (!isRunning && (printMode === 'epos_https' || printMode === 'epos_http')) {
+      if (String(printerPort).trim() === RAW_TCP_PORT) {
+        alert(`Le port ${RAW_TCP_PORT} ne fonctionne pas dans Chrome.\n\nUtilisez le mode « Epson HTTPS » avec le port ${MODE_PORTS.epos_https}.\n\nLe port ${RAW_TCP_PORT} est réservé au relais Windows (.exe).`);
+        setPrintMode('epos_https');
+        setPrinterPort(MODE_PORTS.epos_https);
+        return;
+      }
     }
 
     if (isRunning) {
@@ -415,7 +515,7 @@ export default function WebRelayScreen({ onBack }) {
                 <label className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-2 block">Mode de fonctionnement</label>
                 <div className="grid grid-cols-3 gap-1 bg-slate-950 p-1 rounded-2xl border border-slate-800">
                   <button 
-                    onClick={() => setPrintMode('epos_https')}
+                    onClick={() => selectPrintMode('epos_https')}
                     disabled={isRunning}
                     className={`py-2 px-1 rounded-xl font-black text-[10px] transition-all text-center leading-tight ${
                       printMode === 'epos_https' 
@@ -423,10 +523,10 @@ export default function WebRelayScreen({ onBack }) {
                         : 'text-slate-400 hover:text-slate-200'
                     }`}
                   >
-                    Epson HTTPS (iPad)
+                    Epson HTTPS
                   </button>
                   <button 
-                    onClick={() => setPrintMode('epos_http')}
+                    onClick={() => selectPrintMode('epos_http')}
                     disabled={isRunning}
                     className={`py-2 px-1 rounded-xl font-black text-[10px] transition-all text-center leading-tight ${
                       printMode === 'epos_http' 
@@ -437,7 +537,7 @@ export default function WebRelayScreen({ onBack }) {
                     Epson HTTP
                   </button>
                   <button 
-                    onClick={() => setPrintMode('airprint')}
+                    onClick={() => selectPrintMode('airprint')}
                     disabled={isRunning}
                     className={`py-2 px-1 rounded-xl font-black text-[10px] transition-all text-center leading-tight ${
                       printMode === 'airprint' 
@@ -445,7 +545,7 @@ export default function WebRelayScreen({ onBack }) {
                         : 'text-slate-400 hover:text-slate-200'
                     }`}
                   >
-                    AirPrint (iOS)
+                    AirPrint
                   </button>
                 </div>
               </div>
@@ -477,6 +577,22 @@ export default function WebRelayScreen({ onBack }) {
                     </div>
                   </div>
 
+                  {portWarning && (
+                    <div className="bg-red-500/10 border border-red-500/30 rounded-2xl p-4 flex gap-3">
+                      <Info size={20} className="text-red-400 shrink-0" />
+                      <p className="text-[11px] text-red-300 leading-relaxed font-semibold">{portWarning}</p>
+                    </div>
+                  )}
+
+                  <button
+                    type="button"
+                    onClick={testPrinter}
+                    disabled={isRunning}
+                    className="w-full py-3 rounded-xl border border-slate-700 text-slate-300 hover:bg-slate-800 font-black text-xs transition disabled:opacity-50"
+                  >
+                    Tester la connexion imprimante
+                  </button>
+
                   {printMode === 'epos_https' && (
                     <div className="bg-amber-500/10 border border-amber-500/20 rounded-2xl p-4 space-y-3">
                       <div className="flex gap-2">
@@ -507,7 +623,7 @@ export default function WebRelayScreen({ onBack }) {
                     <div className="bg-red-500/5 border border-red-500/10 rounded-2xl p-4 flex gap-3">
                       <Info size={20} className="text-red-400 shrink-0" />
                       <p className="text-[11px] text-red-300 leading-relaxed font-semibold">
-                        <strong>Attention :</strong> Ce mode HTTP standard est bloqué sur iOS Safari lorsque l'application tourne sur un domaine sécurisé HTTPS. Utilisez le mode <strong>Epson HTTPS</strong> ci-dessus !
+                        <strong>Chrome / Android :</strong> le mode HTTP est souvent bloqué depuis une page HTTPS. Préférez <strong>Epson HTTPS</strong> port <strong>{MODE_PORTS.epos_https}</strong>.
                       </p>
                     </div>
                   )}
@@ -538,7 +654,7 @@ export default function WebRelayScreen({ onBack }) {
               <div className="bg-slate-950 border border-slate-800 rounded-2xl p-4 flex gap-3">
                 <Info size={20} className="text-slate-400 shrink-0" />
                 <p className="text-[11px] text-slate-400 leading-relaxed font-semibold">
-                  <strong>Anti-mise en veille :</strong> Tant que ce relais web est actif, l'écran restera allumé. Sur Chrome/Android, ajoutez cette page à l'écran d'accueil (menu ⋮ → Ajouter à l'écran d'accueil) pour un affichage plein écran.
+                  <strong>Relais web ≠ port {RAW_TCP_PORT} :</strong> Chrome ne peut pas imprimer en TCP brut. Imprimante Epson → mode HTTPS port {MODE_PORTS.epos_https}. Autre marque → relais Windows (.exe) sur le port {RAW_TCP_PORT}.
                 </p>
               </div>
             </div>
