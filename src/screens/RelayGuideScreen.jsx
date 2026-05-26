@@ -20,7 +20,7 @@ export default function RelayGuideScreen({ onBack }) {
     android: {
       title: 'Android (APK)',
       icon: <Smartphone size={24} />,
-      link: '/downloads/Boutididact-Print.apk',
+      link: '/downloads/Boutididact-Print-Server.apk',
       altLink: '/relais',
       steps: [
         { t: 'Telecharger l\'APK', d: 'Installez Boutididact Print sur le telephone du magasin (bouton ci-dessous).' },

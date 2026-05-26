@@ -32,6 +32,11 @@ client.interceptors.request.use((config) => {
       if (s.shopAddress) config.headers['X-Shop-Address'] = s.shopAddress;
       if (s.shopSiret) config.headers['X-Shop-Siret'] = s.shopSiret;
       if (s.shopTva) config.headers['X-Shop-Tva'] = s.shopTva;
+      const footer = s.shopFooter || s.ticketTemplate?.footer;
+      if (footer) config.headers['X-Shop-Footer'] = footer;
+      if (s.ticketTemplate) {
+        config.headers['X-Shop-Ticket-Template'] = encodeURIComponent(JSON.stringify(s.ticketTemplate));
+      }
 
       // Printer
       if (s.printerIp) config.headers['X-Printer-Ip'] = s.printerIp;

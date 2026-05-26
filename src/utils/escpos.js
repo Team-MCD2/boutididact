@@ -39,13 +39,17 @@ export function generateEscPosBytes(ticket, width = 32) {
   addBytes([0x1B, 0x61, 0x01]);
   addBytes([0x1B, 0x45, 0x01]);
   addBytes([0x1D, 0x21, 0x11]);
-  add(`${(ticket.shop?.name || 'BOUTIDIDACT').toUpperCase()}\n`);
+  const shop = ticket.shop || {};
+  const tpl = shop.ticketTemplate || {};
+
+  add(`${(shop.name || 'BOUTIDIDACT').toUpperCase()}\n`);
 
   addBytes([0x1D, 0x21, 0x00]);
   addBytes([0x1B, 0x45, 0x00]);
-  if (ticket.shop?.address) add(`${ticket.shop.address}\n`);
-  if (ticket.shop?.siret) add(`SIRET : ${ticket.shop.siret}\n`);
-  if (ticket.shop?.tva) add(`TVA : ${ticket.shop.tva}\n`);
+  if (tpl.headerSubtitle) add(`${String(tpl.headerSubtitle).trim()}\n`);
+  if (tpl.showAddress !== false && shop.address) add(`${shop.address}\n`);
+  if (tpl.showSiret !== false && shop.siret) add(`SIRET : ${shop.siret}\n`);
+  if (tpl.showTva !== false && shop.tva) add(`TVA : ${shop.tva}\n`);
   drawLine();
 
   addBytes([0x1B, 0x61, 0x00]);
@@ -84,13 +88,27 @@ export function generateEscPosBytes(ticket, width = 32) {
   addBytes([0x1D, 0x21, 0x00]);
   addBytes([0x1B, 0x45, 0x00]);
 
+  if (tpl.showTaxDetail !== false && Array.isArray(ticket.taxBreakdown) && ticket.taxBreakdown.length) {
+    addBytes([0x1B, 0x61, 0x00]);
+    add('Detail TVA :\n');
+    ticket.taxBreakdown.forEach((t) => {
+      add(`  TVA ${t.rate}%  HT ${Number(t.base).toFixed(2)}  TVA ${Number(t.tax).toFixed(2)}\n`);
+    });
+  }
+
   addBytes([0x1B, 0x61, 0x00]);
   add(`Paiement : ${ticket.payment || 'CB'}\n`);
   drawLine();
 
   addBytes([0x1B, 0x61, 0x01]);
-  add(`${padCenterStr('Ticket non valable comme facture', width)}\n`);
-  add(`${padCenterStr(`Edite le ${dateStr} a ${timeStr}`, width)}\n\n\n\n`);
+  const footerMsg = shop.footer || tpl.footer;
+  if (footerMsg) add(`${footerMsg}\n`);
+  const legal = tpl.legalLine || 'Ticket non valable comme facture';
+  if (legal) add(`${padCenterStr(legal, width)}\n`);
+  if (tpl.showEditedAt !== false) {
+    add(`${padCenterStr(`Edite le ${dateStr} a ${timeStr}`, width)}\n`);
+  }
+  add('\n\n\n');
 
   addBytes([0x1D, 0x56, 0x41, 0x00]);
 

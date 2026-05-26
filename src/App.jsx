@@ -13,6 +13,7 @@ import LandingScreen from './screens/LandingScreen.jsx';
 import AdminSetupScreen from './screens/AdminSetupScreen.jsx';
 import RelayGuideScreen from './screens/RelayGuideScreen.jsx';
 import WebRelayScreen from './screens/WebRelayScreen.jsx';
+import TicketCustomizeScreen from './screens/TicketCustomizeScreen.jsx';
 
 import useCatalog from './hooks/useCatalog';
 import useCart from './hooks/useCart';
@@ -242,6 +243,15 @@ export default function App() {
   }
   if (window.location.pathname === '/relais') {
     return <WebRelayScreen onBack={() => { window.location.href = '/'; }} />;
+  }
+  if (window.location.pathname === '/personnaliser-ticket') {
+    return (
+      <TicketCustomizeScreen
+        onBack={() => {
+          window.location.href = '/';
+        }}
+      />
+    );
   }
 
   // ---- Rendus selon état d'auth ----
