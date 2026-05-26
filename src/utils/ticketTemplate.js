@@ -53,6 +53,7 @@ export function buildSampleTicket(settings = {}) {
       tva: settings.shopTva || 'FR12 345678901',
       footer: tpl.footer || settings.shopFooter || DEFAULT_TICKET_TEMPLATE.footer,
       ticketTemplate: tpl,
+      ticketLayout: settings.ticketLayout || null,
     },
     _previewDate: now,
   };

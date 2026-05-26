@@ -37,6 +37,9 @@ client.interceptors.request.use((config) => {
       if (s.ticketTemplate) {
         config.headers['X-Shop-Ticket-Template'] = encodeURIComponent(JSON.stringify(s.ticketTemplate));
       }
+      if (s.ticketLayout?.blocks?.length) {
+        config.headers['X-Shop-Ticket-Layout'] = encodeURIComponent(JSON.stringify(s.ticketLayout));
+      }
 
       // Printer
       if (s.printerIp) config.headers['X-Printer-Ip'] = s.printerIp;
