@@ -50,18 +50,34 @@ export default function TicketCustomizeScreen({ onBack }) {
       const q = sess.shopId
         ? `shopId=${encodeURIComponent(sess.shopId)}`
         : `shopName=${encodeURIComponent(sess.shopName)}`;
-      fetch(`${API}/api/saas/get-settings?${q}`)
+      const applyCloud = (cloud) => {
+        if (!cloud) return;
+        setShopFields({
+          shopName: cloud.shopName || cloud.name || settings.shopName || sess.shopName || '',
+          shopAddress: cloud.shopAddress || cloud.address || settings.shopAddress || '',
+          shopSiret: cloud.shopSiret || cloud.siret || settings.shopSiret || '',
+          shopTva: cloud.shopTva || cloud.tva || settings.shopTva || '',
+        });
+        setTemplate(mergeTicketTemplate(cloud));
+      };
+
+      fetch(`${API}/api/saas/ticket-template?${q}`)
         .then((r) => r.json())
         .then((data) => {
-          if (!data?.settings) return;
-          const cloud = data.settings;
-          setShopFields({
-            shopName: cloud.shopName || settings.shopName || sess.shopName || '',
-            shopAddress: cloud.shopAddress || settings.shopAddress || '',
-            shopSiret: cloud.shopSiret || settings.shopSiret || '',
-            shopTva: cloud.shopTva || settings.shopTva || '',
-          });
-          setTemplate(mergeTicketTemplate(cloud));
+          if (data?.ok) {
+            applyCloud({
+              shopName: data.shop?.name,
+              shopAddress: data.shop?.address,
+              shopSiret: data.shop?.siret,
+              shopTva: data.shop?.tva,
+              ticketTemplate: data.ticketTemplate,
+            });
+            return;
+          }
+          return fetch(`${API}/api/saas/get-settings?${q}`).then((r2) => r2.json());
+        })
+        .then((fallback) => {
+          if (fallback?.settings) applyCloud(fallback.settings);
         })
         .catch(() => { /* local only */ });
     }
@@ -101,7 +117,27 @@ export default function TicketCustomizeScreen({ onBack }) {
       localStorage.setItem(SETTINGS_KEY, JSON.stringify(next));
 
       if (session?.shopId || session?.shopName) {
-        const res = await fetch(`${API}/api/saas/save-settings`, {
+        const res = await fetch(`${API}/api/saas/ticket-template`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            shopId: session.shopId,
+            shopName: session.shopName,
+            ticketTemplate: { ...template },
+            shopFields: {
+              shopName: next.shopName,
+              shopAddress: next.shopAddress,
+              shopSiret: next.shopSiret,
+              shopTva: next.shopTva,
+              shopFooter: template.footer,
+            },
+          }),
+        });
+        if (!res.ok) {
+          const data = await res.json().catch(() => ({}));
+          throw new Error(data.message || data.error || 'Erreur cloud');
+        }
+        const saveRes = await fetch(`${API}/api/saas/save-settings`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -113,9 +149,9 @@ export default function TicketCustomizeScreen({ onBack }) {
             tva: next.shopTva,
           }),
         });
-        if (!res.ok) {
-          const data = await res.json().catch(() => ({}));
-          throw new Error(data.message || data.error || 'Erreur cloud');
+        if (!saveRes.ok) {
+          const data = await saveRes.json().catch(() => ({}));
+          throw new Error(data.message || data.error || 'Erreur synchronisation réglages');
         }
       }
 
