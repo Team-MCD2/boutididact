@@ -12,6 +12,7 @@ import {
   registerRelayServiceWorker,
   syncRelayToServiceWorker,
   showRelayNotification,
+  verifyRelayCredentials,
 } from '../utils/relayEngine';
 import { getSession } from '../services/authSession';
 
@@ -126,6 +127,10 @@ export default function WebRelayScreen({ onBack }) {
     } else {
       addLog('Aucun pont local — lancez print-server sur un PC du WiFi.');
     }
+    if (!resolvedBridgeRef.current?.current) {
+      addLog('❌ Test impossible sans pont WiFi : lancez print-server sur un PC du meme reseau que l\'imprimante.');
+      return;
+    }
     const result = await printTicket(
       { ticketId: 'TEST', total: 0, payment: 'TEST', items: [{ name: 'Test', quantity: 1, price: 0 }] },
       configRef.current,
@@ -201,6 +206,10 @@ export default function WebRelayScreen({ onBack }) {
         addLog('Boutique inconnue.');
         setIsRunning(false);
       },
+      onRelayKeyInvalid: () => {
+        addLog('Cle relais refusee — verifiez Admin > Relais.');
+        setIsRunning(false);
+      },
       onError: (err) => addLog(`Erreur : ${err.message}`),
     };
 
@@ -213,8 +222,8 @@ export default function WebRelayScreen({ onBack }) {
   }, [isRunning, addLog, printerIp, printerPort, shopName]);
 
   const toggleService = async () => {
-    if (!shopName.trim() || !printerIp.trim() || !relayKey.trim()) {
-      alert('Renseignez boutique, IP imprimante et cle relais (Admin > Relais).');
+    if (!shopName.trim() || !printerIp.trim()) {
+      alert('Renseignez le nom de boutique et l\'IP imprimante.');
       return;
     }
 
@@ -231,17 +240,13 @@ export default function WebRelayScreen({ onBack }) {
     }
 
     try {
-      const { CLOUD_URL } = await import('../utils/relayEngine');
-      const res = await fetch(
-        `${CLOUD_URL}/api/saas/check-shop?shopName=${encodeURIComponent(shopName.trim())}`
-      );
-      const data = await res.json();
-      if (!res.ok || !data.ok) {
-        addLog(`❌ ${data.message || 'Boutique introuvable.'}`);
+      const verified = await verifyRelayCredentials(shopName.trim(), relayKey.trim());
+      if (!verified.ok) {
+        addLog(`❌ ${verified.message || 'Cle relais invalide.'}`);
         return;
       }
-      setShopName(data.name || shopName.trim());
-      addLog(`✅ Boutique "${data.name || shopName}" connectee.`);
+      setShopName(verified.name || shopName.trim());
+      addLog(`✅ Boutique "${verified.name || shopName}" — cle relais valide.`);
       lastHandledTicketIdRef.current = null;
       lastFailedTicketRef.current = { id: null, at: 0 };
       resolvedBridgeRef.current = { current: '' };

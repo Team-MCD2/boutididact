@@ -1449,6 +1449,10 @@ function PrinterTestButton({ ip, port, isRelayMode, shopName }) {
     setResult(null);
     try {
       if (isRelayMode) {
+        if (!shopName) {
+          setResult({ ok: false, message: 'Connectez-vous à la borne pour lancer un test relais.' });
+          return;
+        }
         // En mode relais, on envoie un véritable ticket de test au Cloud
         const res = await fetch(`${API}/api/saas/test-print`, {
           method: 'POST',
@@ -1457,7 +1461,7 @@ function PrinterTestButton({ ip, port, isRelayMode, shopName }) {
         });
         const data = await res.json();
         if (data.ok) {
-          setResult({ ok: true, message: `✅ Commande de TEST envoyée au Cloud !\n\nSi votre relais (PC/Android) est allumé, l'imprimante doit sortir un ticket dans quelques secondes.` });
+          setResult({ ok: true, message: `✅ Commande de TEST envoyée au Cloud !\n\nSi l'APK Boutididact Print est démarré sur le téléphone (même WiFi que l'imprimante), le ticket doit sortir dans quelques secondes.` });
         } else {
           setResult({ ok: false, message: `❌ Erreur lors de l'envoi du test : ${data.error || 'Inconnu'}` });
         }

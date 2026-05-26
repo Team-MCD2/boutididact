@@ -10,6 +10,27 @@ import {
 import { authAndRelayHeaders, relayHeaders } from '../services/authSession';
 
 export const CLOUD_URL = 'https://boutididact-backendd.vercel.app';
+
+/** Valide nom boutique + clé relais avant démarrage du relais. */
+export async function verifyRelayCredentials(shopName, relayKey) {
+  const shop = String(shopName || '').trim();
+  const key = String(relayKey || '').trim();
+  if (!shop || !key) {
+    return { ok: false, message: 'Nom de boutique et clé relais requis.' };
+  }
+  try {
+    const res = await fetch(`${CLOUD_URL}/api/saas/verify-relay`, {
+      method: 'POST',
+      headers: relayHeaders({ 'Content-Type': 'application/json', 'X-Relay-Key': key }),
+      body: JSON.stringify({ shopName: shop, relayKey: key }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (res.ok && data.ok) return { ok: true, name: data.name || shop };
+    return { ok: false, message: data.message || 'Clé relais invalide.' };
+  } catch (e) {
+    return { ok: false, message: e.message || 'Erreur réseau' };
+  }
+}
 export const POLL_INTERVAL_MS = 5000;
 export const PRINT_RETRY_MS = 15000;
 export const RELAY_STORAGE_KEY = 'boutididact_webrelay_state';
@@ -295,8 +316,11 @@ export async function pollOnce(config, handlers = {}) {
   if (!shopName) return null;
 
   const url = `${CLOUD_URL}/api/saas/poll-ticket?shopName=${encodeURIComponent(shopName)}&peek=1`;
+  const relayKey = String(config.relayKey || '').trim();
+
   const res = await fetch(url, { headers: relayHeaders({ Accept: 'application/json' }) });
   if (!res.ok) {
+    if (res.status === 403 && relayKey) handlers.onRelayKeyInvalid?.();
     if (res.status === 404) handlers.onShopNotFound?.();
     return null;
   }

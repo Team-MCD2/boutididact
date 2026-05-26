@@ -207,6 +207,14 @@ export default function App() {
     setScreen(STATES.PROCESSING);
     setError(null);
     try {
+      let storeId;
+      let vendorId;
+      try {
+        const saved = JSON.parse(localStorage.getItem('boutididact_settings') || '{}');
+        if (saved.hiboutikStoreId) storeId = Number(saved.hiboutikStoreId);
+        if (saved.hiboutikVendorId) vendorId = Number(saved.hiboutikVendorId);
+      } catch { /* ignore */ }
+
       const payload = {
         paymentMethod,
         items: cart.items.map((it) => ({
@@ -216,6 +224,8 @@ export default function App() {
           quantity: Number(it.quantity),
           taxRate: Number(it.taxRate || 0),
         })),
+        ...(storeId ? { storeId } : {}),
+        ...(vendorId ? { vendorId } : {}),
       };
       const data = await checkout(payload);
       // FIX: Quand Hiboutik provisionne des produits locaux, on les RETIRE du catalogue AI
