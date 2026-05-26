@@ -720,13 +720,14 @@ export default function AdminScreen({
                           <SettingInput label="SIRET" value={settings.shopSiret} onChange={v => setSettings({ ...settings, shopSiret: v })} maxLength={14} />
                           <SettingInput label="TVA" value={settings.shopTva} onChange={v => setSettings({ ...settings, shopTva: v })} maxLength={13} />
                         </div>
-                        <a
-                          href="/personnaliser-ticket"
+                        <button
+                          type="button"
+                          onClick={() => { window.location.href = '/personnaliser-ticket'; }}
                           className="flex items-center justify-center gap-2 w-full py-4 bg-indigo-600 hover:bg-indigo-700 text-white rounded-2xl font-black text-sm transition-all shadow-lg"
                         >
                           <ExternalLink size={18} />
-                          Personnaliser le ticket &amp; aperçu
-                        </a>
+                          Personnaliser le ticket, PIN &amp; aperçu
+                        </button>
                         <p className="text-xs text-gray-500 font-medium leading-relaxed">
                           Message de fin, mentions légales, affichage SIRET/TVA et aperçu en temps réel du ticket imprimé.
                         </p>

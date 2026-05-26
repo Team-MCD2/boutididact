@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
-import { ArrowLeft, Save, Receipt, Eye } from 'lucide-react';
+import { ArrowLeft, Save, Receipt, Eye, Lock } from 'lucide-react';
 import {
   DEFAULT_TICKET_TEMPLATE,
   mergeTicketTemplate,
@@ -12,8 +12,17 @@ const API = import.meta.env.VITE_API_URL || '';
 const SESSION_KEY = 'boutididact_session';
 const SETTINGS_KEY = 'boutididact_settings';
 
+function getAdminPin() {
+  try {
+    const s = JSON.parse(localStorage.getItem(SETTINGS_KEY) || '{}');
+    if (s.adminPin) return s.adminPin;
+  } catch { /* ignore */ }
+  return localStorage.getItem('boutididact_admin_pin') || '0000';
+}
+
 export default function TicketCustomizeScreen({ onBack }) {
   const [session, setSession] = useState(null);
+  const [ready, setReady] = useState(false);
   const [shopFields, setShopFields] = useState({
     shopName: '',
     shopAddress: '',
@@ -21,17 +30,20 @@ export default function TicketCustomizeScreen({ onBack }) {
     shopTva: '',
   });
   const [template, setTemplate] = useState({ ...DEFAULT_TICKET_TEMPLATE });
+  const [adminPin, setAdminPin] = useState('');
+  const [adminPinConfirm, setAdminPinConfirm] = useState('');
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState('');
 
   useEffect(() => {
+    let sess = null;
     try {
-      const sess = JSON.parse(sessionStorage.getItem(SESSION_KEY) || 'null');
-      setSession(sess);
+      sess = JSON.parse(sessionStorage.getItem(SESSION_KEY) || 'null');
     } catch {
-      setSession(null);
+      sess = null;
     }
+    setSession(sess);
 
     let settings = {};
     try {
@@ -45,42 +57,50 @@ export default function TicketCustomizeScreen({ onBack }) {
       shopTva: settings.shopTva || '',
     });
     setTemplate(mergeTicketTemplate(settings));
+    setAdminPin(settings.adminPin || getAdminPin());
+    setAdminPinConfirm(settings.adminPin || getAdminPin());
+    setReady(true);
 
-    if (sess?.shopId || sess?.shopName) {
-      const q = sess.shopId
-        ? `shopId=${encodeURIComponent(sess.shopId)}`
-        : `shopName=${encodeURIComponent(sess.shopName)}`;
-      const applyCloud = (cloud) => {
-        if (!cloud) return;
-        setShopFields({
-          shopName: cloud.shopName || cloud.name || settings.shopName || sess.shopName || '',
-          shopAddress: cloud.shopAddress || cloud.address || settings.shopAddress || '',
-          shopSiret: cloud.shopSiret || cloud.siret || settings.shopSiret || '',
-          shopTva: cloud.shopTva || cloud.tva || settings.shopTva || '',
-        });
-        setTemplate(mergeTicketTemplate(cloud));
-      };
+    if (!sess?.shopId && !sess?.shopName) return;
 
-      fetch(`${API}/api/saas/ticket-template?${q}`)
-        .then((r) => r.json())
-        .then((data) => {
-          if (data?.ok) {
-            applyCloud({
-              shopName: data.shop?.name,
-              shopAddress: data.shop?.address,
-              shopSiret: data.shop?.siret,
-              shopTva: data.shop?.tva,
-              ticketTemplate: data.ticketTemplate,
-            });
-            return;
-          }
-          return fetch(`${API}/api/saas/get-settings?${q}`).then((r2) => r2.json());
-        })
-        .then((fallback) => {
-          if (fallback?.settings) applyCloud(fallback.settings);
-        })
-        .catch(() => { /* local only */ });
-    }
+    const q = sess.shopId
+      ? `shopId=${encodeURIComponent(sess.shopId)}`
+      : `shopName=${encodeURIComponent(sess.shopName)}`;
+
+    const applyCloud = (cloud) => {
+      if (!cloud) return;
+      setShopFields({
+        shopName: cloud.shopName || cloud.name || settings.shopName || sess.shopName || '',
+        shopAddress: cloud.shopAddress || cloud.address || settings.shopAddress || '',
+        shopSiret: cloud.shopSiret || cloud.siret || settings.shopSiret || '',
+        shopTva: cloud.shopTva || cloud.tva || settings.shopTva || '',
+      });
+      setTemplate(mergeTicketTemplate(cloud));
+      if (cloud.adminPin) {
+        setAdminPin(cloud.adminPin);
+        setAdminPinConfirm(cloud.adminPin);
+      }
+    };
+
+    fetch(`${API}/api/saas/ticket-template?${q}`)
+      .then((r) => r.json())
+      .then((data) => {
+        if (data?.ok) {
+          applyCloud({
+            shopName: data.shop?.name,
+            shopAddress: data.shop?.address,
+            shopSiret: data.shop?.siret,
+            shopTva: data.shop?.tva,
+            ticketTemplate: data.ticketTemplate,
+          });
+          return null;
+        }
+        return fetch(`${API}/api/saas/get-settings?${q}`).then((r2) => r2.json());
+      })
+      .then((fallback) => {
+        if (fallback?.settings) applyCloud(fallback.settings);
+      })
+      .catch(() => { /* local only */ });
   }, []);
 
   const previewTicket = useMemo(
@@ -102,6 +122,26 @@ export default function TicketCustomizeScreen({ onBack }) {
     setSaving(true);
     setError('');
     setSaved(false);
+
+    const pin = String(adminPin || '').trim();
+    const pinConfirm = String(adminPinConfirm || '').trim();
+
+    if (pin.length < 4) {
+      setError('Le code PIN doit contenir au moins 4 chiffres.');
+      setSaving(false);
+      return;
+    }
+    if (pin === '0000') {
+      setError('Le code PIN 0000 est interdit. Choisissez un autre code.');
+      setSaving(false);
+      return;
+    }
+    if (pin !== pinConfirm) {
+      setError('Les deux codes PIN ne correspondent pas.');
+      setSaving(false);
+      return;
+    }
+
     try {
       let settings = {};
       try {
@@ -111,10 +151,12 @@ export default function TicketCustomizeScreen({ onBack }) {
       const next = {
         ...settings,
         ...shopFields,
+        adminPin: pin,
         shopFooter: template.footer,
         ticketTemplate: { ...template },
       };
       localStorage.setItem(SETTINGS_KEY, JSON.stringify(next));
+      localStorage.setItem('boutididact_admin_pin', pin);
 
       if (session?.shopId || session?.shopName) {
         const res = await fetch(`${API}/api/saas/ticket-template`, {
@@ -135,8 +177,9 @@ export default function TicketCustomizeScreen({ onBack }) {
         });
         if (!res.ok) {
           const data = await res.json().catch(() => ({}));
-          throw new Error(data.message || data.error || 'Erreur cloud');
+          throw new Error(data.message || data.error || 'Erreur cloud (ticket)');
         }
+
         const saveRes = await fetch(`${API}/api/saas/save-settings`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -163,6 +206,14 @@ export default function TicketCustomizeScreen({ onBack }) {
       setSaving(false);
     }
   };
+
+  if (!ready) {
+    return (
+      <div className="min-h-dvh bg-slate-50 flex items-center justify-center">
+        <p className="text-slate-600 font-medium">Chargement…</p>
+      </div>
+    );
+  }
 
   if (!session) {
     return (
@@ -213,6 +264,32 @@ export default function TicketCustomizeScreen({ onBack }) {
       <main className="max-w-6xl mx-auto p-4 md:p-10 grid grid-cols-1 lg:grid-cols-2 gap-8">
         <section className="space-y-6">
           <div className="bg-white rounded-3xl border border-slate-200 p-6 shadow-sm space-y-4">
+            <h2 className="text-sm font-black uppercase tracking-widest text-slate-400 flex items-center gap-2">
+              <Lock size={16} className="text-amber-600" />
+              Code PIN admin
+            </h2>
+            <p className="text-xs text-slate-500 leading-relaxed">
+              Code pour ouvrir l&apos;administration sur la borne (appui long sur le logo ou bouton réglages).
+            </p>
+            <Field
+              label="Nouveau code PIN"
+              value={adminPin}
+              onChange={setAdminPin}
+              type="password"
+              inputMode="numeric"
+              placeholder="4 chiffres minimum"
+            />
+            <Field
+              label="Confirmer le code PIN"
+              value={adminPinConfirm}
+              onChange={setAdminPinConfirm}
+              type="password"
+              inputMode="numeric"
+              placeholder="Retapez le code"
+            />
+          </div>
+
+          <div className="bg-white rounded-3xl border border-slate-200 p-6 shadow-sm space-y-4">
             <h2 className="text-sm font-black uppercase tracking-widest text-slate-400">En-tête commerce</h2>
             <Field label="Nom affiché" value={shopFields.shopName} onChange={(v) => setShopFields({ ...shopFields, shopName: v })} />
             <Field label="Sous-titre (optionnel)" value={template.headerSubtitle} onChange={(v) => setTemplate({ ...template, headerSubtitle: v })} placeholder="ex: Restaurant — Snack" />
@@ -254,10 +331,7 @@ export default function TicketCustomizeScreen({ onBack }) {
             <Eye size={18} />
             <span className="text-sm font-black uppercase tracking-widest">Aperçu ticket thermique</span>
           </div>
-          <motion.div
-            layout
-            className="bg-slate-900 rounded-2xl p-6 md:p-8 shadow-2xl"
-          >
+          <motion.div layout className="bg-slate-900 rounded-2xl p-6 md:p-8 shadow-2xl">
             <div className="bg-white text-slate-900 font-mono text-[11px] md:text-xs leading-relaxed p-5 md:p-6 rounded-sm shadow-inner max-w-[320px] mx-auto min-h-[420px]">
               {previewLines.map((line, i) => (
                 <div
@@ -294,7 +368,7 @@ export default function TicketCustomizeScreen({ onBack }) {
   );
 }
 
-function Field({ label, value, onChange, placeholder, multiline }) {
+function Field({ label, value, onChange, placeholder, multiline, type = 'text', inputMode }) {
   const cls =
     'w-full rounded-xl border border-slate-200 px-4 py-3 text-slate-900 font-medium focus:outline-none focus:ring-4 focus:ring-indigo-100 focus:border-indigo-400';
   return (
@@ -303,7 +377,15 @@ function Field({ label, value, onChange, placeholder, multiline }) {
       {multiline ? (
         <textarea rows={3} className={cls} value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} />
       ) : (
-        <input type="text" className={cls} value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} />
+        <input
+          type={type}
+          inputMode={inputMode}
+          className={cls}
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          placeholder={placeholder}
+          autoComplete={type === 'password' ? 'new-password' : 'off'}
+        />
       )}
     </label>
   );
