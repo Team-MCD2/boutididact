@@ -194,9 +194,12 @@ export default function TicketCustomizeScreen({ onBack }) {
             },
           }),
         });
+        const putData = await res.json().catch(() => ({}));
         if (!res.ok) {
-          const data = await res.json().catch(() => ({}));
-          throw new Error(data.message || data.error || 'Erreur cloud');
+          throw new Error(putData.message || putData.error || 'Erreur cloud');
+        }
+        if (putData.warning === 'logo_too_large_for_cloud') {
+          setError('Logo trop volumineux pour le cloud (max ~3 Ko). Réduisez l\'image ou gardez-la en local.');
         }
 
         const saveRes = await fetch(`${API}/api/saas/save-settings`, {

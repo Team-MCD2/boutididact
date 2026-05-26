@@ -119,8 +119,18 @@ export async function discoverLanBridge(printerIp, knownBridge = '') {
   return null;
 }
 
+function getEscposBytes(ticket) {
+  if (ticket?.escposB64) {
+    const bin = atob(String(ticket.escposB64));
+    const bytes = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+    return bytes;
+  }
+  return generateEscPosBytes(ticket);
+}
+
 async function sendViaNativeTcp(ticket, ip, port) {
-  const bytes = generateEscPosBytes(ticket);
+  const bytes = getEscposBytes(ticket);
   const payload = Array.from(bytes);
   const portNum = parseInt(port, 10) || 9100;
 
@@ -145,7 +155,7 @@ async function sendViaNativeTcp(ticket, ip, port) {
 async function sendViaDirectTcpSocket(ticket, ip, port) {
   if (typeof TCPSocket === 'undefined') return false;
   const portNum = parseInt(port, 10) || 9100;
-  const bytes = generateEscPosBytes(ticket);
+  const bytes = getEscposBytes(ticket);
   try {
     const socket = new TCPSocket(ip, { remotePort: portNum });
     const { readable, writable } = await socket.opened;
