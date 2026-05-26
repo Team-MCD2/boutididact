@@ -126,7 +126,7 @@ export default function MenuScreen({
   const adminPress = useLongPress(onAdmin, 3000);
 
   return (
-    <div className="flex h-screen w-screen bg-gradient-to-br from-slate-50 via-white to-indigo-50/30 overflow-hidden relative">
+    <div className="flex h-dvh w-screen bg-gradient-to-br from-slate-50 via-white to-indigo-50/30 overflow-hidden relative">
       {/* ========== ZONE GAUCHE (MENU) ========== */}
       <div className="flex-1 min-w-0 flex flex-col h-full overflow-hidden">
         {/* Header */}
