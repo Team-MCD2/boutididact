@@ -1,5 +1,6 @@
 import { useEffect, useReducer, useCallback } from 'react';
 import { getHiboutikProducts, getHiboutikCategories, getHealth } from '../services/api';
+import { authHeaders } from '../services/authSession';
 
 const API = import.meta.env.VITE_API_URL || '';
 
@@ -58,7 +59,7 @@ async function syncFromCloud(shopId, shopName) {
       ? `${API}/api/saas/get-catalog?shopId=${shopId}`
       : `${API}/api/saas/get-catalog?shopName=${encodeURIComponent(shopName)}`;
 
-    const res = await fetch(url);
+    const res = await fetch(url, { headers: authHeaders({ Accept: 'application/json' }) });
     if (!res.ok) return false;
     const data = await res.json();
     const cloudProducts = data.products || [];
@@ -109,7 +110,7 @@ async function syncToCloud(shopId, shopName) {
     const supplements = getSupplements();
     await fetch(`${API}/api/saas/save-catalog`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: authHeaders(),
       body: JSON.stringify({ shopId, shopName, products, categories, supplements }),
     });
     console.log(`[catalog] Cloud push: ${products.length} produits, ${supplements.length} suppléments`);

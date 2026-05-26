@@ -96,7 +96,8 @@ export default function LandingScreen({ initialMode = 'hero', prefillShopName = 
         setSubmitting(false);
         return;
       }
-      onLoginSuccess?.(data.shop);
+      onLoginSuccess?.(data.shop, { token: data.token, relaySecret: data.relaySecret });
+      setSubmitting(false);
     } catch (e) {
       setErrorMsg('Erreur réseau lors de la connexion.');
       setSubmitting(false);

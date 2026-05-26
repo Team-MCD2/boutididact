@@ -2,7 +2,13 @@
 const CLOUD_URL = 'https://boutididact-backendd.vercel.app';
 const POLL_MS = 5000;
 
-let config = { active: false, shopName: '', printerIp: '', printerPort: '9100', bridgeUrl: '' };
+let config = { active: false, shopName: '', printerIp: '', printerPort: '9100', bridgeUrl: '', relayKey: '' };
+
+function relayHeaders(extra = {}) {
+  const h = { ...extra };
+  if (config.relayKey) h['X-Relay-Key'] = config.relayKey;
+  return h;
+}
 let pollTimer = null;
 let lastFail = { id: null, at: 0 };
 let cachedBridge = '';
@@ -88,7 +94,7 @@ async function consumeTicket(shopName) {
   try {
     const res = await fetch(`${CLOUD_URL}/api/saas/ack-ticket`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: relayHeaders({ 'Content-Type': 'application/json' }),
       body: JSON.stringify({ shopName }),
     });
     if (res.ok) return;
@@ -104,7 +110,7 @@ async function pollCloud() {
 
   try {
     const url = `${CLOUD_URL}/api/saas/poll-ticket?shopName=${encodeURIComponent(config.shopName.trim())}&peek=1`;
-    const res = await fetch(url, { headers: { Accept: 'application/json' } });
+    const res = await fetch(url, { headers: relayHeaders({ Accept: 'application/json' }) });
     if (!res.ok) return;
 
     const data = await res.json();

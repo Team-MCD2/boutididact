@@ -1,15 +1,13 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { ArrowLeft, Save, Receipt, Eye, Lock, LayoutTemplate } from 'lucide-react';
-import TicketBlockEditor from '../components/TicketBlockEditor';
+import { ArrowLeft, Save, Receipt, Eye, Lock, ChevronDown, ChevronUp, ImagePlus } from 'lucide-react';
 import {
   DEFAULT_TICKET_TEMPLATE,
   mergeTicketTemplate,
   buildSampleTicket,
 } from '../utils/ticketTemplate';
-import {
-  mergeTicketLayout,
-  renderLayoutPreview,
-} from '../utils/ticketLayout';
+import { mergeTicketLayout, renderLayoutPreview } from '../utils/ticketLayout';
+import { buildLayoutFromSimpleForm } from '../utils/simpleTicketLayout';
+import { authHeaders } from '../services/authSession';
 
 const API = import.meta.env.VITE_API_URL || '';
 const SESSION_KEY = 'boutididact_session';
@@ -23,10 +21,15 @@ function getAdminPin() {
   return localStorage.getItem('boutididact_admin_pin') || '0000';
 }
 
+function readLogoFromLayout(layout) {
+  const logo = layout?.blocks?.find((b) => b.type === 'logo');
+  return logo?.logoData || '';
+}
+
 export default function TicketCustomizeScreen({ onBack }) {
   const [session, setSession] = useState(null);
   const [ready, setReady] = useState(false);
-  const [tab, setTab] = useState('layout');
+  const [logoData, setLogoData] = useState('');
   const [shopFields, setShopFields] = useState({
     shopName: '',
     shopAddress: '',
@@ -34,13 +37,17 @@ export default function TicketCustomizeScreen({ onBack }) {
     shopTva: '',
   });
   const [template, setTemplate] = useState({ ...DEFAULT_TICKET_TEMPLATE });
-  const [layout, setLayout] = useState(() => mergeTicketLayout({}));
-  const [selectedBlockId, setSelectedBlockId] = useState(null);
   const [adminPin, setAdminPin] = useState('');
   const [adminPinConfirm, setAdminPinConfirm] = useState('');
+  const [showPinSection, setShowPinSection] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState('');
+
+  const layout = useMemo(
+    () => buildLayoutFromSimpleForm({ logoData, template }),
+    [logoData, template],
+  );
 
   useEffect(() => {
     let sess = null;
@@ -56,6 +63,7 @@ export default function TicketCustomizeScreen({ onBack }) {
       settings = JSON.parse(localStorage.getItem(SETTINGS_KEY) || '{}');
     } catch { /* ignore */ }
 
+    const mergedLayout = mergeTicketLayout(settings);
     setShopFields({
       shopName: settings.shopName || sess?.shopName || '',
       shopAddress: settings.shopAddress || '',
@@ -63,9 +71,7 @@ export default function TicketCustomizeScreen({ onBack }) {
       shopTva: settings.shopTva || '',
     });
     setTemplate(mergeTicketTemplate(settings));
-    const mergedLayout = mergeTicketLayout(settings);
-    setLayout(mergedLayout);
-    setSelectedBlockId(mergedLayout.blocks[0]?.id || null);
+    setLogoData(readLogoFromLayout(mergedLayout));
     setAdminPin(settings.adminPin || getAdminPin());
     setAdminPinConfirm(settings.adminPin || getAdminPin());
     setReady(true);
@@ -86,9 +92,7 @@ export default function TicketCustomizeScreen({ onBack }) {
       });
       setTemplate(mergeTicketTemplate(cloud));
       if (cloud.ticketLayout) {
-        const l = mergeTicketLayout(cloud);
-        setLayout(l);
-        setSelectedBlockId(l.blocks[0]?.id || null);
+        setLogoData(readLogoFromLayout(mergeTicketLayout(cloud)));
       }
       if (cloud.adminPin) {
         setAdminPin(cloud.adminPin);
@@ -96,7 +100,7 @@ export default function TicketCustomizeScreen({ onBack }) {
       }
     };
 
-    fetch(`${API}/api/saas/ticket-template?${q}`)
+    fetch(`${API}/api/saas/ticket-template?${q}`, { headers: authHeaders({ Accept: 'application/json' }) })
       .then((r) => r.json())
       .then((data) => {
         if (data?.ok) {
@@ -110,7 +114,7 @@ export default function TicketCustomizeScreen({ onBack }) {
           });
           return null;
         }
-        return fetch(`${API}/api/saas/get-settings?${q}`).then((r2) => r2.json());
+        return fetch(`${API}/api/saas/get-settings?${q}`, { headers: authHeaders({ Accept: 'application/json' }) }).then((r2) => r2.json());
       })
       .then((fallback) => {
         if (fallback?.settings) applyCloud(fallback.settings);
@@ -134,7 +138,21 @@ export default function TicketCustomizeScreen({ onBack }) {
     [previewTicket, layout],
   );
 
-  const setBlocks = (blocks) => setLayout({ ...layout, blocks });
+  const handleLogoFile = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 80000) {
+      setError('Image trop lourde. Choisissez un logo simple (moins de 80 Ko).');
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => {
+      setLogoData(reader.result);
+      setError('');
+    };
+    reader.readAsDataURL(file);
+    e.target.value = '';
+  };
 
   const handleSave = async () => {
     setSaving(true);
@@ -179,7 +197,7 @@ export default function TicketCustomizeScreen({ onBack }) {
       if (session?.shopId || session?.shopName) {
         const res = await fetch(`${API}/api/saas/ticket-template`, {
           method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
+          headers: authHeaders(),
           body: JSON.stringify({
             shopId: session.shopId,
             shopName: session.shopName,
@@ -199,19 +217,16 @@ export default function TicketCustomizeScreen({ onBack }) {
           throw new Error(putData.message || putData.error || 'Erreur cloud');
         }
         if (putData.warning === 'logo_too_large_for_cloud') {
-          setError('Logo trop volumineux pour le cloud (max ~3 Ko). Réduisez l\'image ou gardez-la en local.');
+          setError('Logo trop volumineux pour le cloud. Réduisez l\'image (noir et blanc, petit format).');
         }
 
         const saveRes = await fetch(`${API}/api/saas/save-settings`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: authHeaders(),
           body: JSON.stringify({
             shopId: session.shopId,
             shopName: session.shopName,
             settings: next,
-            address: next.shopAddress,
-            siret: next.shopSiret,
-            tva: next.shopTva,
           }),
         });
         if (!saveRes.ok) {
@@ -266,7 +281,7 @@ export default function TicketCustomizeScreen({ onBack }) {
           <div className="min-w-0">
             <h1 className="text-xl md:text-2xl font-black text-slate-900 truncate flex items-center gap-2">
               <Receipt className="text-indigo-600 shrink-0" size={26} />
-              Personnaliser le ticket
+              Votre ticket de caisse
             </h1>
             <p className="text-xs text-slate-500 font-medium truncate">{session.shopName}</p>
           </div>
@@ -282,48 +297,95 @@ export default function TicketCustomizeScreen({ onBack }) {
         </button>
       </header>
 
-      <div className="max-w-6xl mx-auto px-4 md:px-10 pt-4 flex gap-2 border-b border-slate-200">
-        <TabBtn active={tab === 'layout'} onClick={() => setTab('layout')} icon={LayoutTemplate} label="Mise en page" />
-        <TabBtn active={tab === 'options'} onClick={() => setTab('options')} icon={Lock} label="Options & PIN" />
-      </div>
+      <p className="max-w-6xl mx-auto px-4 md:px-10 pt-4 text-sm text-slate-600">
+        Remplissez les champs ci-dessous. L&apos;aperçu à droite se met à jour automatiquement.
+      </p>
 
       <main className="max-w-6xl mx-auto p-4 md:p-10 grid grid-cols-1 lg:grid-cols-2 gap-8">
-        <section className="space-y-6">
-          {tab === 'layout' ? (
-            <div className="bg-white rounded-3xl border border-slate-200 p-6 shadow-sm">
-              <TicketBlockEditor
-                blocks={layout.blocks}
-                setBlocks={setBlocks}
-                selectedId={selectedBlockId}
-                setSelectedId={setSelectedBlockId}
-              />
-            </div>
-          ) : (
-            <>
-              <OptionsCard title="Code PIN admin" icon={Lock}>
-                <Field label="Nouveau PIN" value={adminPin} onChange={setAdminPin} type="password" inputMode="numeric" />
-                <Field label="Confirmer" value={adminPinConfirm} onChange={setAdminPinConfirm} type="password" inputMode="numeric" />
-              </OptionsCard>
-              <OptionsCard title="Infos commerce (sections ticket)">
-                <Field label="Nom" value={shopFields.shopName} onChange={(v) => setShopFields({ ...shopFields, shopName: v })} />
-                <Field label="Sous-titre" value={template.headerSubtitle} onChange={(v) => setTemplate({ ...template, headerSubtitle: v })} />
-                <Field label="Adresse" value={shopFields.shopAddress} onChange={(v) => setShopFields({ ...shopFields, shopAddress: v })} />
-                <div className="grid grid-cols-2 gap-3">
-                  <Field label="SIRET" value={shopFields.shopSiret} onChange={(v) => setShopFields({ ...shopFields, shopSiret: v })} />
-                  <Field label="TVA" value={shopFields.shopTva} onChange={(v) => setShopFields({ ...shopFields, shopTva: v })} />
+        <section className="space-y-5">
+          <Section title="Logo (facultatif)">
+            <div className="flex flex-wrap items-center gap-4">
+              {logoData ? (
+                <img src={logoData} alt="Logo" className="h-16 object-contain border border-slate-200 rounded-lg p-2 bg-white" />
+              ) : (
+                <div className="h-16 w-24 rounded-lg border-2 border-dashed border-slate-200 flex items-center justify-center text-slate-400 text-xs">
+                  Aucun logo
                 </div>
-                <Toggle label="Afficher adresse" checked={template.showAddress} onChange={(v) => setTemplate({ ...template, showAddress: v })} />
-                <Toggle label="Afficher SIRET" checked={template.showSiret} onChange={(v) => setTemplate({ ...template, showSiret: v })} />
-                <Toggle label="Afficher TVA" checked={template.showTva} onChange={(v) => setTemplate({ ...template, showTva: v })} />
-                <Toggle label="Détail TVA" checked={template.showTaxDetail} onChange={(v) => setTemplate({ ...template, showTaxDetail: v })} />
-              </OptionsCard>
-              <OptionsCard title="Pied de ticket">
-                <Field label="Message de fin" value={template.footer} onChange={(v) => setTemplate({ ...template, footer: v })} multiline />
-                <Field label="Mention légale" value={template.legalLine} onChange={(v) => setTemplate({ ...template, legalLine: v })} />
-                <Toggle label="Date d'édition" checked={template.showEditedAt} onChange={(v) => setTemplate({ ...template, showEditedAt: v })} />
-              </OptionsCard>
-            </>
-          )}
+              )}
+              <label className="inline-flex items-center gap-2 px-4 py-3 rounded-xl bg-indigo-600 text-white text-sm font-bold cursor-pointer hover:bg-indigo-700">
+                <ImagePlus size={18} />
+                {logoData ? 'Changer le logo' : 'Ajouter un logo'}
+                <input type="file" accept="image/*" className="hidden" onChange={handleLogoFile} />
+              </label>
+              {logoData && (
+                <button
+                  type="button"
+                  onClick={() => setLogoData('')}
+                  className="text-sm text-red-600 font-medium hover:underline"
+                >
+                  Retirer
+                </button>
+              )}
+            </div>
+            <p className="text-xs text-slate-500 mt-2">PNG ou JPG, fond clair de préférence.</p>
+          </Section>
+
+          <Section title="Votre commerce">
+            <Field label="Nom affiché sur le ticket" value={shopFields.shopName} onChange={(v) => setShopFields({ ...shopFields, shopName: v })} />
+            <Field label="Sous-titre (facultatif)" value={template.headerSubtitle} onChange={(v) => setTemplate({ ...template, headerSubtitle: v })} placeholder="Ex : Boulangerie artisanale" />
+            <Field label="Adresse" value={shopFields.shopAddress} onChange={(v) => setShopFields({ ...shopFields, shopAddress: v })} />
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <Field label="SIRET" value={shopFields.shopSiret} onChange={(v) => setShopFields({ ...shopFields, shopSiret: v })} />
+              <Field label="N° TVA" value={shopFields.shopTva} onChange={(v) => setShopFields({ ...shopFields, shopTva: v })} />
+            </div>
+            <div className="pt-2 space-y-2 border-t border-slate-100">
+              <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Afficher sur le ticket</p>
+              <Toggle label="Adresse" checked={template.showAddress !== false} onChange={(v) => setTemplate({ ...template, showAddress: v })} />
+              <Toggle label="SIRET" checked={template.showSiret !== false} onChange={(v) => setTemplate({ ...template, showSiret: v })} />
+              <Toggle label="N° TVA" checked={template.showTva !== false} onChange={(v) => setTemplate({ ...template, showTva: v })} />
+              <Toggle label="Détail TVA" checked={template.showTaxDetail !== false} onChange={(v) => setTemplate({ ...template, showTaxDetail: v })} />
+            </div>
+          </Section>
+
+          <Section title="Message de fin">
+            <Field
+              label="Texte en bas du ticket"
+              value={template.footer}
+              onChange={(v) => setTemplate({ ...template, footer: v })}
+              multiline
+              placeholder="Merci de votre visite !"
+            />
+            <Field
+              label="Mention légale"
+              value={template.legalLine}
+              onChange={(v) => setTemplate({ ...template, legalLine: v })}
+              placeholder="Ticket non valable comme facture"
+            />
+          </Section>
+
+          <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
+            <button
+              type="button"
+              onClick={() => setShowPinSection(!showPinSection)}
+              className="w-full flex items-center justify-between px-6 py-4 text-left hover:bg-slate-50"
+            >
+              <span className="flex items-center gap-2 text-sm font-black text-slate-700">
+                <Lock size={16} className="text-amber-600" />
+                Code PIN administrateur
+              </span>
+              {showPinSection ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
+            </button>
+            {showPinSection && (
+              <div className="px-6 pb-6 space-y-3 border-t border-slate-100">
+                <p className="text-xs text-slate-500 pt-3">
+                  Ce code protège les paramètres de la borne (4 chiffres minimum).
+                </p>
+                <Field label="Nouveau PIN" value={adminPin} onChange={setAdminPin} type="password" inputMode="numeric" />
+                <Field label="Confirmer le PIN" value={adminPinConfirm} onChange={setAdminPinConfirm} type="password" inputMode="numeric" />
+              </div>
+            )}
+          </div>
+
           {error && (
             <p className="text-sm text-red-600 font-medium bg-red-50 border border-red-100 rounded-xl p-4">{error}</p>
           )}
@@ -332,7 +394,7 @@ export default function TicketCustomizeScreen({ onBack }) {
         <section className="lg:sticky lg:top-24 h-fit">
           <div className="flex items-center gap-2 mb-4 text-slate-600">
             <Eye size={18} />
-            <span className="text-sm font-black uppercase tracking-widest">Aperçu en direct</span>
+            <span className="text-sm font-black uppercase tracking-widest">Aperçu</span>
           </div>
           <div className="bg-slate-900 rounded-2xl p-6 md:p-8 shadow-2xl">
             <div className="bg-white text-slate-900 font-mono text-[11px] md:text-xs leading-relaxed p-5 md:p-6 rounded-sm shadow-inner max-w-[320px] mx-auto min-h-[420px]">
@@ -341,16 +403,6 @@ export default function TicketCustomizeScreen({ onBack }) {
                   return (
                     <div key={i} className="flex justify-center my-2">
                       <img src={el.src} alt={el.alt} className="max-h-16 object-contain" />
-                    </div>
-                  );
-                }
-                if (el.kind === 'qrcode') {
-                  return (
-                    <div key={i} className="flex flex-col items-center my-3 gap-1">
-                      <div className="w-24 h-24 bg-slate-100 border-2 border-slate-300 flex items-center justify-center text-[8px] text-center p-1">
-                        QR
-                      </div>
-                      <span className="text-[9px] text-slate-500 break-all text-center max-w-full">{el.label}</span>
                     </div>
                   );
                 }
@@ -381,42 +433,24 @@ export default function TicketCustomizeScreen({ onBack }) {
   );
 }
 
-function TabBtn({ active, onClick, icon: Icon, label }) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={`flex items-center gap-2 px-4 py-3 text-sm font-bold border-b-2 transition ${
-        active ? 'border-indigo-600 text-indigo-700' : 'border-transparent text-slate-500 hover:text-slate-800'
-      }`}
-    >
-      <Icon size={16} />
-      {label}
-    </button>
-  );
-}
-
-function OptionsCard({ title, icon: Icon, children }) {
+function Section({ title, children }) {
   return (
     <div className="bg-white rounded-3xl border border-slate-200 p-6 shadow-sm space-y-4">
-      <h2 className="text-sm font-black uppercase tracking-widest text-slate-400 flex items-center gap-2">
-        {Icon && <Icon size={16} className="text-amber-600" />}
-        {title}
-      </h2>
+      <h2 className="text-base font-black text-slate-800">{title}</h2>
       {children}
     </div>
   );
 }
 
-function Field({ label, value, onChange, type = 'text', inputMode, multiline }) {
+function Field({ label, value, onChange, type = 'text', inputMode, multiline, placeholder }) {
   const cls = 'w-full rounded-xl border border-slate-200 px-4 py-3 text-slate-900 font-medium focus:outline-none focus:ring-4 focus:ring-indigo-100';
   return (
     <label className="block">
-      <span className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1.5 block">{label}</span>
+      <span className="text-sm font-semibold text-slate-700 mb-1.5 block">{label}</span>
       {multiline ? (
-        <textarea rows={3} className={cls} value={value} onChange={(e) => onChange(e.target.value)} />
+        <textarea rows={2} className={cls} value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} />
       ) : (
-        <input type={type} inputMode={inputMode} className={cls} value={value} onChange={(e) => onChange(e.target.value)} />
+        <input type={type} inputMode={inputMode} className={cls} value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} />
       )}
     </label>
   );
@@ -424,16 +458,16 @@ function Field({ label, value, onChange, type = 'text', inputMode, multiline }) 
 
 function Toggle({ label, checked, onChange }) {
   return (
-    <label className="flex items-center justify-between gap-4 py-2 cursor-pointer">
-      <span className="text-sm font-medium text-slate-700">{label}</span>
+    <label className="flex items-center justify-between gap-4 py-1.5 cursor-pointer">
+      <span className="text-sm text-slate-700">{label}</span>
       <button
         type="button"
         role="switch"
         aria-checked={checked}
         onClick={() => onChange(!checked)}
-        className={`w-12 h-7 rounded-full transition relative ${checked ? 'bg-indigo-600' : 'bg-slate-300'}`}
+        className={`w-11 h-6 rounded-full transition relative shrink-0 ${checked ? 'bg-indigo-600' : 'bg-slate-300'}`}
       >
-        <span className={`absolute top-1 w-5 h-5 bg-white rounded-full transition ${checked ? 'left-6' : 'left-1'}`} />
+        <span className={`absolute top-0.5 w-5 h-5 bg-white rounded-full transition ${checked ? 'left-5' : 'left-0.5'}`} />
       </button>
     </label>
   );

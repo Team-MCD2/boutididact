@@ -20,6 +20,7 @@ import useCart from './hooks/useCart';
 import useSupplements from './hooks/useSupplements';
 import useIdleTimeout from './hooks/useIdleTimeout';
 import { checkout } from './services/api';
+import { saveSessionToken } from './services/authSession';
 
 const STATES = {
   IDLE: 'idle',
@@ -108,9 +109,19 @@ export default function App() {
     }
   }, [session, setupComplete]);
 
-  const handleLoginSuccess = useCallback((shop) => {
-    const sess = { shopId: shop?.id, shopName: shop?.name, email: shop?.email, loggedAt: Date.now() };
+  const handleLoginSuccess = useCallback((shop, authExtras = {}) => {
+    const sess = {
+      shopId: shop?.id,
+      shopName: shop?.name,
+      email: shop?.email,
+      token: authExtras.token || null,
+      relaySecret: authExtras.relaySecret || null,
+      loggedAt: Date.now(),
+    };
     sessionStorage.setItem(SESSION_KEY, JSON.stringify(sess));
+    if (authExtras.token || authExtras.relaySecret) {
+      saveSessionToken(authExtras.token, authExtras.relaySecret);
+    }
     
     let currentSettings = {};
     try {

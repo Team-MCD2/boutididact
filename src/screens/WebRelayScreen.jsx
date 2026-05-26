@@ -13,12 +13,15 @@ import {
   syncRelayToServiceWorker,
   showRelayNotification,
 } from '../utils/relayEngine';
+import { getSession } from '../services/authSession';
 
 export default function WebRelayScreen({ onBack }) {
   const initial = loadRelayState();
+  const sessRelay = getSession()?.relaySecret || initial.relayKey || '';
   const [shopName, setShopName] = useState(initial.shopName);
   const [printerIp, setPrinterIp] = useState(initial.printerIp);
   const [printerPort, setPrinterPort] = useState(initial.printerPort || '9100');
+  const [relayKey, setRelayKey] = useState(sessRelay);
   const [isRunning, setIsRunning] = useState(false);
   const [logs, setLogs] = useState([]);
   const [soundEnabled, setSoundEnabled] = useState(true);
@@ -35,15 +38,15 @@ export default function WebRelayScreen({ onBack }) {
   const lastHandledTicketIdRef = useRef(null);
   const lastFailedTicketRef = useRef({ id: null, at: 0 });
   const soundEnabledRef = useRef(soundEnabled);
-  const configRef = useRef({ shopName, printerIp, printerPort, active: false });
+  const configRef = useRef({ shopName, printerIp, printerPort, relayKey, active: false });
 
   useEffect(() => { soundEnabledRef.current = soundEnabled; }, [soundEnabled]);
 
   useEffect(() => {
-    configRef.current = { shopName, printerIp, printerPort, active: isRunning };
-    saveRelayState({ shopName, printerIp, printerPort, active: isRunning });
+    configRef.current = { shopName, printerIp, printerPort, relayKey, active: isRunning };
+    saveRelayState({ shopName, printerIp, printerPort, relayKey, active: isRunning });
     syncRelayToServiceWorker(configRef.current);
-  }, [shopName, printerIp, printerPort, isRunning]);
+  }, [shopName, printerIp, printerPort, relayKey, isRunning]);
 
   const addLog = useCallback((msg) => {
     const time = new Date().toLocaleTimeString();
@@ -210,8 +213,8 @@ export default function WebRelayScreen({ onBack }) {
   }, [isRunning, addLog, printerIp, printerPort, shopName]);
 
   const toggleService = async () => {
-    if (!shopName.trim() || !printerIp.trim()) {
-      alert('Renseignez boutique et IP imprimante.');
+    if (!shopName.trim() || !printerIp.trim() || !relayKey.trim()) {
+      alert('Renseignez boutique, IP imprimante et cle relais (Admin > Relais).');
       return;
     }
 
@@ -280,6 +283,12 @@ export default function WebRelayScreen({ onBack }) {
               <label className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-2 block">Port</label>
               <input type="text" value={printerPort} onChange={(e) => setPrinterPort(e.target.value)} placeholder="9100" disabled={isRunning}
                 className="w-full bg-slate-950 border border-slate-800 rounded-2xl px-4 py-3 text-sm text-center disabled:opacity-50" />
+            </div>
+
+            <div>
+              <label className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-2 block">Cle relais</label>
+              <input type="password" value={relayKey} onChange={(e) => setRelayKey(e.target.value)} placeholder="Copiez depuis Admin > Relais" disabled={isRunning}
+                className="w-full bg-slate-950 border border-slate-800 rounded-2xl px-4 py-3 text-sm disabled:opacity-50" autoComplete="off" />
             </div>
 
             {!notifOk && (

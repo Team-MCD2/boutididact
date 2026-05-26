@@ -7,6 +7,7 @@ import {
   isPrivateIp,
   guessBridgeCandidates,
 } from './escpos';
+import { authAndRelayHeaders, relayHeaders } from '../services/authSession';
 
 export const CLOUD_URL = 'https://boutididact-backendd.vercel.app';
 export const POLL_INTERVAL_MS = 5000;
@@ -37,6 +38,7 @@ export function loadRelayState() {
     printerIp: localStorage.getItem('boutididact_webrelay_printerIp') || '192.168.1.26',
     printerPort: localStorage.getItem('boutididact_webrelay_printerPort') || '9100',
     bridgeUrl: localStorage.getItem('boutididact_webrelay_bridgeUrl') || '',
+    relayKey: '',
     active: false,
   };
 }
@@ -271,7 +273,7 @@ export async function consumeTicket(shopName) {
   try {
     const res = await fetch(`${CLOUD_URL}/api/saas/ack-ticket`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: authAndRelayHeaders(),
       body: JSON.stringify({ shopName }),
     });
     if (res.ok) return true;
@@ -280,7 +282,7 @@ export async function consumeTicket(shopName) {
   try {
     const res = await fetch(
       `${CLOUD_URL}/api/saas/poll-ticket?shopName=${encodeURIComponent(shopName)}`,
-      { headers: { Accept: 'application/json' } },
+      { headers: relayHeaders({ Accept: 'application/json' }) },
     );
     return res.ok;
   } catch {
@@ -293,7 +295,7 @@ export async function pollOnce(config, handlers = {}) {
   if (!shopName) return null;
 
   const url = `${CLOUD_URL}/api/saas/poll-ticket?shopName=${encodeURIComponent(shopName)}&peek=1`;
-  const res = await fetch(url, { headers: { Accept: 'application/json' } });
+  const res = await fetch(url, { headers: relayHeaders({ Accept: 'application/json' }) });
   if (!res.ok) {
     if (res.status === 404) handlers.onShopNotFound?.();
     return null;
@@ -382,6 +384,7 @@ export function syncRelayToServiceWorker(config) {
       printerIp: config.printerIp,
       printerPort: config.printerPort,
       bridgeUrl: config.bridgeUrl,
+      relayKey: config.relayKey || '',
       active: config.active,
     },
   });

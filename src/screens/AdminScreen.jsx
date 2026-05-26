@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Lock, X, RefreshCw, Maximize2, Power, Store, Printer, Database, Trash2, Wand2, Upload, Plus, Search, Edit3, Save, FolderTree, Zap, Info, Cloud, Smartphone, Monitor, Download, ExternalLink } from 'lucide-react';
+import { Lock, X, RefreshCw, Maximize2, Power, Store, Printer, Database, Trash2, Wand2, Upload, Plus, Search, Edit3, Save, FolderTree, Zap, Info, Cloud, Smartphone, Monitor, Download, ExternalLink, Key, Copy } from 'lucide-react';
+import { authHeaders, getSession, saveSessionToken } from '../services/authSession';
 
 const API = import.meta.env.VITE_API_URL || '';
 
@@ -82,7 +83,7 @@ export default function AdminScreen({
       try {
         await fetch(`${API}/api/saas/save-settings`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: authHeaders(),
           body: JSON.stringify({ 
             shopId: session.shopId, 
             shopName: session.shopName, 
@@ -234,7 +235,7 @@ export default function AdminScreen({
       try {
         const res = await fetch(`${API}/api/saas/extract-menu`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: authHeaders(),
           body: JSON.stringify({ imageBase64: base64, mimeType: 'image/jpeg' }),
         });
         const data = await res.json();
@@ -305,7 +306,7 @@ export default function AdminScreen({
       if (session?.shopId || session?.shopName) {
         fetch(`${API}/api/saas/save-settings`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: authHeaders(),
           body: JSON.stringify({ 
             shopId: session.shopId, 
             shopName: session.shopName, 
@@ -672,9 +673,11 @@ export default function AdminScreen({
 
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                       <RelayStep icon="1" title="Installez" desc="Windows (.exe), Android (APK) ou Relais Web sur iPad/iPhone — sur le meme WiFi que l'imprimante." />
-                      <RelayStep icon="2" title="Configurez" desc={`Entrez le nom de votre boutique : "${session?.shopName}" et l'IP de l'imprimante.`} />
+                      <RelayStep icon="2" title="Configurez" desc={`Nom boutique : "${session?.shopName}", IP imprimante, et la clé relais ci-dessous dans l'APK.`} />
                       <RelayStep icon="3" title="Imprimez" desc="Laissez le relais tourner en arrière-plan. L'impression sera automatique." />
                     </div>
+
+                    <RelayKeyPanel session={session} />
 
                     <div className="p-6 bg-amber-50 border border-amber-100 rounded-2xl flex items-start gap-4">
                       <Info size={24} className="text-amber-600 shrink-0" />
@@ -1369,6 +1372,70 @@ function ActionButton({ icon, label, onClick, variant = 'solid', disabled = fals
   );
 }
 
+function RelayKeyPanel({ session }) {
+  const [key, setKey] = React.useState(() => getSession()?.relaySecret || '');
+  const [busy, setBusy] = React.useState(false);
+  const [msg, setMsg] = React.useState('');
+
+  React.useEffect(() => {
+    setKey(getSession()?.relaySecret || '');
+  }, [session?.shopId]);
+
+  const copyKey = () => {
+    if (!key) return;
+    navigator.clipboard?.writeText(key);
+    setMsg('Clé copiée ! Collez-la dans l\'APK Android (champ Clé relais).');
+    setTimeout(() => setMsg(''), 4000);
+  };
+
+  const regenerate = async () => {
+    if (!session?.shopId) return;
+    setBusy(true);
+    setMsg('');
+    try {
+      const res = await fetch(`${API}/api/saas/regenerate-relay-key`, {
+        method: 'POST',
+        headers: authHeaders(),
+        body: JSON.stringify({}),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || data.error || 'Erreur');
+      setKey(data.relaySecret);
+      saveSessionToken(null, data.relaySecret);
+      setMsg('Nouvelle clé générée. Mettez à jour l\'APK et le relais web.');
+    } catch (e) {
+      setMsg(e.message || 'Impossible de régénérer');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className="p-6 bg-slate-50 border border-slate-200 rounded-2xl space-y-3">
+      <div className="flex items-center gap-2 text-slate-800 font-black">
+        <Key size={18} className="text-indigo-600" />
+        Clé relais (sécurité)
+      </div>
+      <p className="text-xs text-slate-600 leading-relaxed">
+        Cette clé est obligatoire pour l&apos;APK et le relais web. Elle empêche qu&apos;un tiers imprime sur votre file d&apos;attente.
+        Après connexion, copiez-la dans l&apos;application Android.
+      </p>
+      <div className="flex flex-wrap gap-2 items-center">
+        <code className="flex-1 min-w-[200px] text-xs bg-white border border-slate-200 rounded-xl px-3 py-2 break-all">
+          {key || 'Reconnectez-vous pour obtenir une clé'}
+        </code>
+        <button type="button" onClick={copyKey} disabled={!key} className="flex items-center gap-1 px-3 py-2 rounded-xl bg-indigo-600 text-white text-xs font-bold disabled:opacity-40">
+          <Copy size={14} /> Copier
+        </button>
+        <button type="button" onClick={regenerate} disabled={busy || !session?.shopId} className="px-3 py-2 rounded-xl border border-slate-300 text-xs font-bold text-slate-700 disabled:opacity-40">
+          {busy ? '…' : 'Régénérer'}
+        </button>
+      </div>
+      {msg && <p className="text-xs font-medium text-indigo-700">{msg}</p>}
+    </div>
+  );
+}
+
 function PrinterTestButton({ ip, port, isRelayMode, shopName }) {
   const [testing, setTesting] = useState(false);
   const [result, setResult] = useState(null);
@@ -1385,7 +1452,7 @@ function PrinterTestButton({ ip, port, isRelayMode, shopName }) {
         // En mode relais, on envoie un véritable ticket de test au Cloud
         const res = await fetch(`${API}/api/saas/test-print`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: authHeaders(),
           body: JSON.stringify({ shopName }),
         });
         const data = await res.json();
