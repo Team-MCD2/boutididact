@@ -14,8 +14,10 @@ import AdminSetupScreen from './screens/AdminSetupScreen.jsx';
 import RelayGuideScreen from './screens/RelayGuideScreen.jsx';
 import WebRelayScreen from './screens/WebRelayScreen.jsx';
 import TicketCustomizeScreen from './screens/TicketCustomizeScreen.jsx';
+import SetupWizardScreen from './screens/SetupWizardScreen.jsx';
 
 import useCatalog from './hooks/useCatalog';
+import { isWizardDone, markWizardDone } from './utils/readiness';
 import useCart from './hooks/useCart';
 import useSupplements from './hooks/useSupplements';
 import useIdleTimeout from './hooks/useIdleTimeout';
@@ -71,6 +73,7 @@ export default function App() {
   const [result, setResult] = useState(null);
   const [error, setError] = useState(null);
   const [adminOpen, setAdminOpen] = useState(false);
+  const [wizardOpen, setWizardOpen] = useState(false);
 
   // ---- Retour Stripe ----
   useEffect(() => {
@@ -106,8 +109,16 @@ export default function App() {
   useEffect(() => {
     if (session && !setupComplete) {
       setAdminOpen(true);
+      setWizardOpen(false);
     }
   }, [session, setupComplete]);
+
+  // ---- Assistant première installation ----
+  useEffect(() => {
+    if (session?.shopId && setupComplete && !isWizardDone(session.shopId)) {
+      setWizardOpen(true);
+    }
+  }, [session?.shopId, setupComplete]);
 
   const handleLoginSuccess = useCallback((shop, authExtras = {}) => {
     const sess = {
@@ -275,6 +286,18 @@ export default function App() {
     );
   }
 
+  const handleWizardComplete = useCallback(async () => {
+    setWizardOpen(false);
+    setSetupComplete(isSetupComplete());
+    await catalog.reload();
+    supplementsState.reload();
+  }, [catalog, supplementsState]);
+
+  const handleWizardSkip = useCallback(() => {
+    if (session?.shopId) markWizardDone(session.shopId);
+    setWizardOpen(false);
+  }, [session?.shopId]);
+
   // ---- Rendus selon état d'auth ----
   if (!session) {
     return (
@@ -305,17 +328,30 @@ export default function App() {
           supplementsState.reload();
         }}
         onLogout={handleLogout}
+        onOpenWizard={() => setWizardOpen(true)}
       />
     );
   }
 
   return (
     <>
+      <AnimatePresence>
+        {wizardOpen && session && (
+          <SetupWizardScreen
+            key="wizard"
+            session={session}
+            onComplete={handleWizardComplete}
+            onSkip={handleWizardSkip}
+          />
+        )}
+      </AnimatePresence>
+
       <AnimatePresence mode="wait">
         {screen === STATES.IDLE && (
           <IdleScreen
             key="idle"
             health={catalog.health}
+            session={session}
             onStart={() => setScreen(STATES.MENU)}
           />
         )}
@@ -390,6 +426,7 @@ export default function App() {
               supplementsState.reload();
             }}
             onLogout={handleLogout}
+            onOpenWizard={() => setWizardOpen(true)}
           />
         )}
       </AnimatePresence>

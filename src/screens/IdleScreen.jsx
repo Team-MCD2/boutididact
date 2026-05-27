@@ -2,9 +2,11 @@ import React from 'react';
 import { motion } from 'framer-motion';
 import { Hand, Sparkles } from 'lucide-react';
 import logoUrl from '../assets/logo.svg';
+import { computeReadiness } from '../utils/readiness';
 
-export default function IdleScreen({ onStart, health }) {
-  const online = Boolean(health?.hiboutik?.reachable);
+export default function IdleScreen({ onStart, health, session }) {
+  const { level, title } = computeReadiness({ health, session });
+  const online = level === 'ready';
   return (
     <motion.div
       initial={{ opacity: 0 }}
@@ -80,7 +82,7 @@ export default function IdleScreen({ onStart, health }) {
             className={`w-3 h-3 rounded-full ${online ? 'bg-emerald-400 animate-pulse' : 'bg-red-400'}`}
           />
           <span className="text-sm font-semibold">
-            {online ? 'Système en ligne' : 'Non connecté'}
+            {title}
           </span>
         </div>
       </div>

@@ -1,7 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Lock, X, RefreshCw, Maximize2, Power, Store, Printer, Database, Trash2, Wand2, Upload, Plus, Search, Edit3, Save, FolderTree, Zap, Info, Cloud, Smartphone, Monitor, Download, ExternalLink, Key, Copy } from 'lucide-react';
+import { Lock, X, RefreshCw, Maximize2, Power, Store, Printer, Database, Trash2, Wand2, Upload, Plus, Search, Edit3, Save, FolderTree, Zap, Info, Cloud, ExternalLink, Key, Copy } from 'lucide-react';
 import { authHeaders, getSession, saveSessionToken } from '../services/authSession';
+import ReadyStatusCard from '../components/ReadyStatusCard';
+import RelayPlatformPicker from '../components/RelayPlatformPicker';
+import PrintTestButton from '../components/PrintTestButton';
+import { resetWizardDone } from '../utils/readiness';
 
 const API = import.meta.env.VITE_API_URL || '';
 
@@ -27,6 +31,7 @@ export default function AdminScreen({
   onReload,
   onCatalogChange,
   onLogout,
+  onOpenWizard,
   loading = false,
 }) {
   const refreshCatalog = onCatalogChange || onReload;
@@ -37,6 +42,7 @@ export default function AdminScreen({
   const [promptNewPin, setPromptNewPin] = useState(false);
 
   const [activeTab, setActiveTab] = useState(forceSettings ? 'settings' : 'status');
+  const [relayPlatform, setRelayPlatform] = useState('android');
 
   const [newSuppName, setNewSuppName] = useState('');
   const [newSuppPrice, setNewSuppPrice] = useState('');
@@ -489,12 +495,12 @@ export default function AdminScreen({
 
               <div className="overflow-y-auto flex-1 p-4 md:p-8 space-y-6 custom-scrollbar">
                 {activeTab === 'status' && (
-                  <Section title="État du système">
-                    <Status
-                      icon={<Database size={20} />}
-                      label="Connexion à Boutididact"
-                      value={online ? 'Système en ligne' : 'Non connecté'}
-                      ok={online}
+                  <div className="space-y-6">
+                    <ReadyStatusCard
+                      settings={settings}
+                      health={health}
+                      session={session}
+                      onFix={onOpenWizard}
                     />
                     {connectionDetail && (
                       <div className="p-4 bg-red-50 border border-red-100 rounded-2xl text-sm text-red-800 font-medium leading-relaxed">
@@ -508,25 +514,30 @@ export default function AdminScreen({
                         className="flex items-center justify-center gap-2 w-full py-3 rounded-2xl bg-gray-100 hover:bg-gray-200 text-gray-800 font-bold text-sm transition disabled:opacity-50"
                       >
                         <RefreshCw size={16} className={loading ? 'animate-spin' : ''} />
-                        {loading ? 'Test en cours...' : 'Tester la connexion'}
+                        {loading ? 'Actualisation…' : 'Actualiser le catalogue'}
                       </button>
                     )}
-                    {!settings.localServerUrl ? (
-                      <Status
-                        icon={<Cloud size={20} />}
-                        label="Imprimante (Mode Relais)"
-                        value="En ligne"
-                        ok={true}
+                    <Section title="Test impression">
+                      <PrintTestButton
+                        ip={settings.printerIp}
+                        port={settings.printerPort}
+                        isRelayMode={settings.isRelayMode !== false}
+                        shopName={session?.shopName}
                       />
-                    ) : (
-                      <Status
-                        icon={<Printer size={20} />}
-                        label="Imprimante (Mode Direct)"
-                        value={health?.printer?.online ? 'En ligne' : 'Non connecté'}
-                        ok={health?.printer?.online}
-                      />
+                    </Section>
+                    {onOpenWizard && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (session?.shopId) resetWizardDone(session.shopId);
+                          onOpenWizard();
+                        }}
+                        className="w-full py-3 text-sm font-bold text-indigo-700 border border-indigo-200 rounded-2xl hover:bg-indigo-50"
+                      >
+                        Relancer l&apos;assistant d&apos;installation
+                      </button>
                     )}
-                  </Section>
+                  </div>
                 )}
 
                 {activeTab === 'catalog' && (
@@ -632,50 +643,22 @@ export default function AdminScreen({
 
                 {activeTab === 'relais' && (
                   <div className="space-y-6">
-                    <div className="bg-indigo-600 rounded-3xl p-8 text-white shadow-xl relative overflow-hidden">
-                      <div className="relative z-10">
-                        <div className="flex items-center gap-4 mb-4">
-                          <div className="p-3 bg-white/20 rounded-2xl">
-                            <Zap size={32} className="text-amber-300" />
-                          </div>
-                          <div>
-                            <h4 className="text-2xl font-black uppercase italic tracking-tight">Relais d'Impression</h4>
-                            <p className="text-indigo-100 text-sm font-medium">Configuration & Installation</p>
-                          </div>
-                        </div>
-                        <p className="text-indigo-50/80 leading-relaxed mb-6 max-w-xl">
-                          Pour que vos tickets s'impriment automatiquement depuis n'importe quelle tablette, vous devez installer le logiciel relais sur un appareil connecté à votre imprimante.
-                        </p>
-                        
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                          <a 
-                            href="/downloads/Boutididact-Print-Server.exe" download
-                            className="flex items-center justify-center gap-3 px-4 py-4 bg-white text-indigo-900 rounded-2xl font-black transition-all hover:scale-[1.02] active:scale-95 shadow-lg text-sm text-center"
-                          >
-                            <Monitor size={20} /> Windows (.exe)
-                          </a>
-                          <a 
-                            href="/downloads/Boutididact-Print-Server.apk" download
-                            className="flex items-center justify-center gap-3 px-4 py-4 bg-emerald-500 text-white rounded-2xl font-black transition-all hover:scale-[1.02] active:scale-95 shadow-lg text-sm text-center"
-                          >
-                            <Download size={20} /> Android (APK)
-                          </a>
-                          <a 
-                            href="/relais"
-                            className="flex items-center justify-center gap-3 px-4 py-4 bg-amber-500 text-slate-950 rounded-2xl font-black transition-all hover:scale-[1.02] active:scale-95 shadow-lg text-sm text-center"
-                          >
-                            <ExternalLink size={20} /> iPad / iPhone
-                          </a>
-                        </div>
+                    <div className="bg-indigo-600 rounded-3xl p-6 text-white shadow-xl">
+                      <div className="flex items-center gap-3 mb-2">
+                        <Zap size={28} className="text-amber-300" />
+                        <h4 className="text-xl font-black">Impression automatique</h4>
                       </div>
-                      <div className="absolute -right-20 -top-20 w-64 h-64 bg-white/10 rounded-full blur-3xl" />
+                      <p className="text-indigo-100 text-sm font-medium leading-relaxed">
+                        La borne envoie les tickets au cloud ; un appareil sur le WiFi boutique les imprime sur votre thermique.
+                      </p>
                     </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                      <RelayStep icon="1" title="Installez" desc="Windows (.exe), Android (APK) ou Relais Web sur iPad/iPhone — sur le meme WiFi que l'imprimante." />
-                      <RelayStep icon="2" title="Configurez" desc={`Nom boutique : "${session?.shopName}", IP imprimante, et la clé relais ci-dessous dans l'APK.`} />
-                      <RelayStep icon="3" title="Imprimez" desc="Laissez le relais tourner en arrière-plan. L'impression sera automatique." />
-                    </div>
+                    <RelayPlatformPicker
+                      shopName={session?.shopName}
+                      selected={relayPlatform}
+                      onSelect={setRelayPlatform}
+                      relayKey={getSession()?.relaySecret || ''}
+                    />
 
                     <RelayKeyPanel session={session} />
 
@@ -760,8 +743,8 @@ export default function AdminScreen({
                               <Cloud size={20} />
                             </div>
                             <div>
-                              <h5 className="font-bold text-gray-900">Mode Relais (Cloud)</h5>
-                              <p className="text-xs text-gray-500 font-medium">Recommandé pour Tablettes & Mobile</p>
+                              <h5 className="font-bold text-gray-900">Impression automatique (recommandé)</h5>
+                              <p className="text-xs text-gray-500 font-medium">Cloud → APK ou relais sur le WiFi boutique</p>
                             </div>
                           </div>
                           <button 
@@ -798,7 +781,7 @@ export default function AdminScreen({
                         </div>
                         
                         <div className="pt-4 border-t border-gray-50">
-                          <PrinterTestButton ip={settings.printerIp} port={settings.printerPort} isRelayMode={settings.isRelayMode} shopName={session?.shopName} />
+                          <PrintTestButton ip={settings.printerIp} port={settings.printerPort} isRelayMode={settings.isRelayMode} shopName={session?.shopName} />
                         </div>
                       </div>
                     </Section>
@@ -1417,8 +1400,8 @@ function RelayKeyPanel({ session }) {
         Clé relais (sécurité)
       </div>
       <p className="text-xs text-slate-600 leading-relaxed">
-        Cette clé est obligatoire pour l&apos;APK et le relais web. Elle empêche qu&apos;un tiers imprime sur votre file d&apos;attente.
-        Après connexion, copiez-la dans l&apos;application Android.
+        Recommandée pour sécuriser votre file d&apos;impression. Copiez-la dans l&apos;APK Android ou le relais web après installation.
+        Sans clé, le relais fonctionne si le nom de boutique est correct.
       </p>
       <div className="flex flex-wrap gap-2 items-center">
         <code className="flex-1 min-w-[200px] text-xs bg-white border border-slate-200 rounded-xl px-3 py-2 break-all">
@@ -1436,94 +1419,3 @@ function RelayKeyPanel({ session }) {
   );
 }
 
-function PrinterTestButton({ ip, port, isRelayMode, shopName }) {
-  const [testing, setTesting] = useState(false);
-  const [result, setResult] = useState(null);
-
-  const testPrinter = async () => {
-    if (!ip && !isRelayMode) {
-      setResult({ ok: false, message: 'Veuillez d\'abord saisir une adresse IP.' });
-      return;
-    }
-    setTesting(true);
-    setResult(null);
-    try {
-      if (isRelayMode) {
-        if (!shopName) {
-          setResult({ ok: false, message: 'Connectez-vous à la borne pour lancer un test relais.' });
-          return;
-        }
-        // En mode relais, on envoie un véritable ticket de test au Cloud
-        const res = await fetch(`${API}/api/saas/test-print`, {
-          method: 'POST',
-          headers: authHeaders(),
-          body: JSON.stringify({ shopName }),
-        });
-        const data = await res.json();
-        if (data.ok) {
-          setResult({ ok: true, message: `✅ Commande de TEST envoyée au Cloud !\n\nSi l'APK Boutididact Print est démarré sur le téléphone (même WiFi que l'imprimante), le ticket doit sortir dans quelques secondes.` });
-        } else {
-          setResult({ ok: false, message: `❌ Erreur lors de l'envoi du test : ${data.error || 'Inconnu'}` });
-        }
-      } else {
-        const res = await fetch(`${API}/api/health`, {
-          headers: {
-            'X-Printer-Ip': ip,
-            'X-Printer-Port': port || '9100',
-          },
-        });
-        const data = await res.json();
-        if (data.printer?.online) {
-          setResult({ ok: true, message: `✅ Imprimante joignable sur ${data.printer.ip}:${data.printer.port}` });
-        } else {
-          setResult({
-            ok: false,
-            message: `❌ Imprimante injoignable sur ${data.printer?.ip || ip}:${data.printer?.port || port || 9100}.`,
-          });
-        }
-      }
-    } catch (e) {
-      setResult({ ok: false, message: `Erreur de communication avec le serveur : ${e.message}` });
-    } finally {
-      setTesting(false);
-    }
-  };
-
-  return (
-    <div className="space-y-2">
-      <button
-        onClick={testPrinter}
-        disabled={testing}
-        className={`w-full py-3 rounded-xl font-bold flex items-center justify-center gap-2 transition active:scale-95 ${
-          testing ? 'bg-gray-200 text-gray-400' : 'bg-indigo-100 text-indigo-700 hover:bg-indigo-200 border border-indigo-200'
-        }`}
-      >
-        <Printer size={18} />
-        {testing ? 'Test en cours...' : 'Tester la connexion'}
-      </button>
-      {result && (
-        <div className={`p-4 rounded-xl text-sm font-bold whitespace-pre-line ${
-          result.ok
-            ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-            : 'bg-red-50 text-red-700 border border-red-200'
-        }`}>
-          {result.message}
-        </div>
-      )}
-    </div>
-  );
-}
-
-function RelayStep({ icon, title, desc }) {
-  return (
-    <div className="bg-gray-50 border border-gray-100 p-6 rounded-2xl flex items-start gap-4 h-full">
-      <div className="w-10 h-10 rounded-xl bg-indigo-100 text-indigo-700 flex items-center justify-center font-black text-lg shrink-0">
-        {icon}
-      </div>
-      <div>
-        <h5 className="font-bold text-gray-900 mb-1">{title}</h5>
-        <p className="text-sm text-gray-500 leading-relaxed font-medium">{desc}</p>
-      </div>
-    </div>
-  );
-}
