@@ -22,7 +22,7 @@ import {
 import { getSession } from '../services/authSession';
 
 const STEPS = [
-  { id: 'hiboutik', title: 'Hiboutik', icon: Store },
+  { id: 'hiboutik', title: 'Votre compte', icon: Store },
   { id: 'printer', title: 'Imprimante', icon: Printer },
   { id: 'relay', title: 'Relais', icon: Zap },
   { id: 'test', title: 'Test', icon: CheckCircle },
@@ -68,7 +68,7 @@ export default function SetupWizardScreen({ session, onComplete, onSkip }) {
 
   const next = async () => {
     if (step === 0 && !isHiboutikConfigured(settings)) {
-      alert('Renseignez le compte, l\'utilisateur API et la clé API Hiboutik.');
+      alert('Renseignez le compte, l\'utilisateur API et la clé API (voir e-mail d\'accueil).');
       return;
     }
     if (step === 1 && !settings.printerIp?.trim()) {
@@ -146,10 +146,10 @@ export default function SetupWizardScreen({ session, onComplete, onSkip }) {
               {step === 0 && (
                 <div className="space-y-4">
                   <p className="text-sm text-gray-600 font-medium leading-relaxed">
-                    Identifiants envoyés par e-mail ou disponibles dans votre espace Hiboutik.
+                    Identifiants Boutididact envoyés par e-mail lors de votre inscription.
                   </p>
                   <WizardField
-                    label="Compte Hiboutik"
+                    label="Compte Boutididact"
                     value={settings.hiboutikAccount}
                     onChange={(v) =>
                       setSettings({
@@ -171,14 +171,9 @@ export default function SetupWizardScreen({ session, onComplete, onSkip }) {
                     value={settings.hiboutikApiKey}
                     onChange={(v) => setSettings({ ...settings, hiboutikApiKey: v })}
                   />
-                  <a
-                    href="https://www.hiboutik.com"
-                    target="_blank"
-                    rel="noreferrer"
-                    className="text-xs font-bold text-indigo-600 underline"
-                  >
-                    Où trouver ma clé API ?
-                  </a>
+                  <p className="text-xs text-gray-500 font-medium">
+                    Besoin d&apos;aide ? Contactez le support Boutididact (réponse sous 24 h).
+                  </p>
                 </div>
               )}
 

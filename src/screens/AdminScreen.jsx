@@ -404,11 +404,11 @@ export default function AdminScreen({
         : 'Impossible de joindre le serveur cloud. Vérifiez votre connexion internet.';
     }
     const hb = health.hiboutik || {};
-    if (!hb.configured) return 'Identifiants Hiboutik non transmis au serveur — enregistrez vos réglages.';
-    if (hb.reason === 'not_configured') return 'Configuration Hiboutik incomplète côté serveur.';
+    if (!hb.configured) return 'Identifiants non transmis au serveur — enregistrez vos réglages.';
+    if (hb.reason === 'not_configured') return 'Configuration du compte incomplète.';
     if (hb.message) return hb.message;
-    if (hb.reason) return `Erreur Hiboutik (${hb.reason})`;
-    return 'Connexion Hiboutik impossible.';
+    if (hb.reason) return `Erreur de connexion (${hb.reason})`;
+    return 'Catalogue indisponible — vérifiez vos identifiants dans Réglages.';
   })();
 
   return (
@@ -691,10 +691,16 @@ export default function AdminScreen({
                         />
                         <SettingInput label="Utilisateur API" value={settings.hiboutikUser} onChange={v => setSettings({ ...settings, hiboutikUser: v })} placeholder="ex: admin@mail.com" />
                         <SettingInput label="Clé API" value={settings.hiboutikApiKey} onChange={v => setSettings({ ...settings, hiboutikApiKey: v })} placeholder="Clé fournie par e-mail" type="password" />
-                        <div className="grid grid-cols-2 gap-4">
-                          <SettingInput label="ID Boutique" value={settings.hiboutikStoreId} onChange={v => setSettings({ ...settings, hiboutikStoreId: v })} placeholder="1" />
-                          <SettingInput label="ID Vendeur" value={settings.hiboutikVendorId} onChange={v => setSettings({ ...settings, hiboutikVendorId: v })} placeholder="1" />
-                        </div>
+                        <details className="rounded-xl border border-gray-200 bg-white p-4">
+                          <summary className="text-xs font-black text-gray-500 uppercase tracking-wider cursor-pointer">
+                            Options avancées (facultatif)
+                          </summary>
+                          <div className="grid grid-cols-2 gap-4 mt-4">
+                            <SettingInput label="N° magasin" value={settings.hiboutikStoreId} onChange={v => setSettings({ ...settings, hiboutikStoreId: v })} placeholder="1" />
+                            <SettingInput label="N° vendeur" value={settings.hiboutikVendorId} onChange={v => setSettings({ ...settings, hiboutikVendorId: v })} placeholder="1" />
+                          </div>
+                          <p className="text-[10px] text-gray-400 mt-2 font-medium">Laissez 1 sauf indication de notre équipe.</p>
+                        </details>
                       </div>
                     </Section>
 

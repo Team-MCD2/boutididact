@@ -79,6 +79,28 @@ export function moveBlock(blocks, index, direction) {
   return next;
 }
 
+/** Réordonne par glisser-déposer : déplace l’élément `fromIndex` vers `toIndex`. */
+export function reorderBlocks(blocks, fromIndex, toIndex) {
+  if (fromIndex === toIndex || fromIndex < 0 || toIndex < 0 || fromIndex >= blocks.length) {
+    return blocks;
+  }
+  const next = [...blocks];
+  const [item] = next.splice(fromIndex, 1);
+  next.splice(toIndex, 0, item);
+  return next;
+}
+
+/** Blocs supprimables (sections ajoutées ou optionnelles). */
+export function canRemoveBlock(block) {
+  const meta = BLOCK_CATALOG[block?.type];
+  if (!meta || meta.fixed) return false;
+  return ['custom_text', 'divider', 'spacer', 'qrcode', 'logo'].includes(block.type);
+}
+
+export function removeBlock(blocks, id) {
+  return blocks.filter((b) => b.id !== id);
+}
+
 const padCenter = (str, w) => {
   const s = String(str || '');
   if (s.length >= w) return s.slice(0, w);

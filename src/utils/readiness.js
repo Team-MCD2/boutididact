@@ -47,15 +47,15 @@ export function computeReadiness({ settings: rawSettings, health, session } = {}
   const items = [
     {
       id: 'hiboutik-creds',
-      label: 'Identifiants Hiboutik',
+      label: 'Compte Boutididact',
       ok: hiboutikConfigured,
       hint: hiboutikConfigured ? undefined : 'Admin → Réglages',
     },
     {
       id: 'hiboutik-live',
-      label: 'Catalogue Hiboutik',
+      label: 'Catalogue produits',
       ok: hiboutikOnline,
-      hint: hiboutikOnline ? undefined : 'Vérifiez compte, utilisateur et clé API',
+      hint: hiboutikOnline ? undefined : 'Vérifiez compte, utilisateur et clé API (e-mail d\'accueil)',
     },
     {
       id: 'printer-ip',
