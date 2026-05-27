@@ -137,6 +137,17 @@ export default function AdminScreen({
     if (unlocked) loadLocalData();
   }, [unlocked]);
 
+  useEffect(() => {
+    if (!session?.shopId) return;
+    try {
+      const saved = JSON.parse(localStorage.getItem('boutididact_settings') || '{}');
+      if (saved.adminPin) {
+        setSettings((s) => ({ ...s, adminPin: saved.adminPin }));
+        localStorage.setItem('boutididact_admin_pin', saved.adminPin);
+      }
+    } catch { /* ignore */ }
+  }, [session?.shopId]);
+
   const handleAddSupp = () => {
     if (newSuppName && newSuppPrice !== '') {
       const price = Number(newSuppPrice);
@@ -158,15 +169,20 @@ export default function AdminScreen({
     }
   };
 
+  const syncCatalogToCloud = () => {
+    if (onCatalogChange) return onCatalogChange();
+    return refreshCatalog?.();
+  };
+
   const persistProducts = (products) => {
     localStorage.setItem('ai_products', JSON.stringify(products));
     setLocalProducts(products);
-    refreshCatalog?.();
+    syncCatalogToCloud()?.catch?.(() => refreshCatalog?.());
   };
   const persistCategories = (categories) => {
     localStorage.setItem('ai_categories', JSON.stringify(categories));
     setLocalCategories(categories);
-    refreshCatalog?.();
+    syncCatalogToCloud()?.catch?.(() => refreshCatalog?.());
   };
 
   const upsertProduct = (product) => {
@@ -281,7 +297,8 @@ export default function AdminScreen({
     const currentPin = getAdminPin();
     if (!promptNewPin) {
       if (pin === currentPin) {
-        if (currentPin === '0000') {
+        const hasCustomPin = Boolean(settings.adminPin && settings.adminPin !== '0000');
+        if (currentPin === '0000' && !hasCustomPin) {
           setPromptNewPin(true);
           setPin('');
           return;
@@ -308,17 +325,16 @@ export default function AdminScreen({
       localStorage.setItem('boutididact_settings', JSON.stringify(nextSettings));
       setSettings(nextSettings);
 
-      // Persistance Cloud immédiate pour le PIN
       if (session?.shopId || session?.shopName) {
         fetch(`${API}/api/saas/save-settings`, {
           method: 'POST',
           headers: authHeaders(),
-          body: JSON.stringify({ 
-            shopId: session.shopId, 
-            shopName: session.shopName, 
-            settings: nextSettings 
+          body: JSON.stringify({
+            shopId: session.shopId,
+            shopName: session.shopName,
+            settings: nextSettings,
           }),
-        }).catch(e => console.error('Erreur sync cloud PIN:', e));
+        }).catch((e) => console.error('Erreur sync cloud PIN:', e));
       }
 
       setUnlocked(true);
@@ -508,14 +524,26 @@ export default function AdminScreen({
                       </div>
                     )}
                     {onReload && (
-                      <button
-                        onClick={onReload}
-                        disabled={loading}
-                        className="flex items-center justify-center gap-2 w-full py-3 rounded-2xl bg-gray-100 hover:bg-gray-200 text-gray-800 font-bold text-sm transition disabled:opacity-50"
-                      >
-                        <RefreshCw size={16} className={loading ? 'animate-spin' : ''} />
-                        {loading ? 'Actualisation…' : 'Actualiser le catalogue'}
-                      </button>
+                      <div className="flex flex-col gap-2">
+                        <button
+                          onClick={onReload}
+                          disabled={loading}
+                          className="flex items-center justify-center gap-2 w-full py-3 rounded-2xl bg-gray-100 hover:bg-gray-200 text-gray-800 font-bold text-sm transition disabled:opacity-50"
+                        >
+                          <RefreshCw size={16} className={loading ? 'animate-spin' : ''} />
+                          {loading ? 'Actualisation…' : 'Actualiser le catalogue'}
+                        </button>
+                        {onCatalogChange && (
+                          <button
+                            type="button"
+                            onClick={() => onCatalogChange()}
+                            disabled={loading}
+                            className="w-full py-2.5 rounded-2xl border border-indigo-200 text-indigo-800 font-bold text-xs hover:bg-indigo-50 disabled:opacity-50"
+                          >
+                            Synchroniser le menu vers le cloud (autres tablettes)
+                          </button>
+                        )}
+                      </div>
                     )}
                     <Section title="Test impression">
                       <PrintTestButton

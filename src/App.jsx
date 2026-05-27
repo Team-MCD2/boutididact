@@ -158,6 +158,7 @@ export default function App() {
       isRelayMode: true,
       ...currentSettings,
       ...cloudSettings,
+      adminPin: cloudSettings.adminPin || currentSettings.adminPin || '',
       hiboutikAccount: cloudSettings.hiboutikAccount || (isSameShop ? currentSettings.hiboutikAccount : '') || '',
       hiboutikUser: cloudSettings.hiboutikUser || (isSameShop ? currentSettings.hiboutikUser : '') || '',
       hiboutikApiKey: cloudSettings.hiboutikApiKey || (isSameShop ? currentSettings.hiboutikApiKey : '') || '',
@@ -324,6 +325,11 @@ export default function App() {
         onClose={() => { /* on bloque la fermeture tant que pas configuré */ }}
         onReload={async () => {
           setSetupComplete(isSetupComplete());
+          await catalog.reload();
+          supplementsState.reload();
+        }}
+        onCatalogChange={async () => {
+          await catalog.pushToCloud();
           await catalog.reload();
           supplementsState.reload();
         }}

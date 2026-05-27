@@ -65,33 +65,47 @@ async function syncFromCloud(shopId, shopName) {
     const cloudProducts = data.products || [];
     const cloudCategories = data.categories || [];
     const cloudSupplements = data.supplements || [];
-    if (cloudProducts.length === 0 && cloudCategories.length === 0 && cloudSupplements.length === 0) return false;
+    if (cloudProducts.length === 0 && cloudCategories.length === 0 && cloudSupplements.length === 0) {
+      return false;
+    }
 
-    // Merge cloud into local (cloud wins for same IDs)
     const localProducts = getAIProducts();
     const localCategories = getAICategories();
     const localSupplements = getSupplements();
 
+    // Nouvel appareil : le cloud fait foi (évite un catalogue vide ou partiel)
+    const localEmpty = localProducts.length === 0 && localCategories.length === 0;
+    if (localEmpty) {
+      localStorage.setItem('ai_products', JSON.stringify(cloudProducts));
+      localStorage.setItem('ai_categories', JSON.stringify(cloudCategories));
+      localStorage.setItem('boutididact_supplements', JSON.stringify(cloudSupplements));
+      console.log(`[catalog] Cloud import (nouvel appareil): ${cloudProducts.length} produits`);
+      return true;
+    }
+
+    // Fusion : union par id (ne jamais perdre un produit local ou cloud)
     const productMap = new Map();
-    localProducts.forEach(p => productMap.set(p.id, p));
-    cloudProducts.forEach(p => productMap.set(p.id, p));
+    localProducts.forEach((p) => productMap.set(String(p.id), p));
+    cloudProducts.forEach((p) => productMap.set(String(p.id), p));
     const mergedProducts = Array.from(productMap.values());
 
     const catMap = new Map();
-    localCategories.forEach(c => catMap.set(c.id, c));
-    cloudCategories.forEach(c => catMap.set(c.id, c));
+    localCategories.forEach((c) => catMap.set(String(c.id), c));
+    cloudCategories.forEach((c) => catMap.set(String(c.id), c));
     const mergedCategories = Array.from(catMap.values());
 
     const suppMap = new Map();
-    localSupplements.forEach(s => suppMap.set(s.id, s));
-    cloudSupplements.forEach(s => suppMap.set(s.id, s));
+    localSupplements.forEach((s) => suppMap.set(String(s.id), s));
+    cloudSupplements.forEach((s) => suppMap.set(String(s.id), s));
     const mergedSupplements = Array.from(suppMap.values());
 
     localStorage.setItem('ai_products', JSON.stringify(mergedProducts));
     localStorage.setItem('ai_categories', JSON.stringify(mergedCategories));
     localStorage.setItem('boutididact_supplements', JSON.stringify(mergedSupplements));
-    
-    console.log(`[catalog] Cloud sync: ${cloudProducts.length} produits, ${cloudSupplements.length} suppléments`);
+
+    console.log(
+      `[catalog] Cloud fusion: ${cloudProducts.length} cloud + ${localProducts.length} local → ${mergedProducts.length} produits`,
+    );
     return true;
   } catch (e) {
     console.warn('[catalog] Cloud sync failed:', e.message);
@@ -103,19 +117,29 @@ async function syncFromCloud(shopId, shopName) {
  * Push local AI catalog to cloud for cross-device sync.
  */
 async function syncToCloud(shopId, shopName) {
-  if (!shopId && !shopName) return;
+  if (!shopId && !shopName) return false;
   try {
     const products = getAIProducts();
     const categories = getAICategories();
     const supplements = getSupplements();
-    await fetch(`${API}/api/saas/save-catalog`, {
+    const res = await fetch(`${API}/api/saas/save-catalog`, {
       method: 'POST',
       headers: authHeaders(),
       body: JSON.stringify({ shopId, shopName, products, categories, supplements }),
     });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      console.warn('[catalog] Cloud push failed:', data.message || res.status);
+      return false;
+    }
+    if (data.warning === 'catalog_truncated') {
+      console.warn('[catalog] Catalogue trop volumineux — partie non sauvegardée. Réduisez les descriptions.');
+    }
     console.log(`[catalog] Cloud push: ${products.length} produits, ${supplements.length} suppléments`);
+    return true;
   } catch (e) {
     console.warn('[catalog] Cloud push failed:', e.message);
+    return false;
   }
 }
 
