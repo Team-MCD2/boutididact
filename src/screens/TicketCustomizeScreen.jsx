@@ -6,7 +6,13 @@ import {
   buildSampleTicket,
 } from '../utils/ticketTemplate';
 import { mergeTicketLayout, renderLayoutPreview } from '../utils/ticketLayout';
-import { buildLayoutFromSimpleForm } from '../utils/simpleTicketLayout';
+import {
+  blocksFromSettings,
+  syncBlocksWithForm,
+  buildLayoutFromBlocks,
+} from '../utils/simpleTicketLayout';
+import { DEFAULT_TICKET_BLOCKS } from '../utils/ticketLayout';
+import TicketSectionsPanel from '../components/TicketSectionsPanel';
 import { authHeaders } from '../services/authSession';
 
 const API = import.meta.env.VITE_API_URL || '';
@@ -37,6 +43,7 @@ export default function TicketCustomizeScreen({ onBack }) {
     shopTva: '',
   });
   const [template, setTemplate] = useState({ ...DEFAULT_TICKET_TEMPLATE });
+  const [blocks, setBlocks] = useState(() => DEFAULT_TICKET_BLOCKS.map((b) => ({ ...b })));
   const [adminPin, setAdminPin] = useState('');
   const [adminPinConfirm, setAdminPinConfirm] = useState('');
   const [showPinSection, setShowPinSection] = useState(false);
@@ -45,8 +52,8 @@ export default function TicketCustomizeScreen({ onBack }) {
   const [error, setError] = useState('');
 
   const layout = useMemo(
-    () => buildLayoutFromSimpleForm({ logoData, template }),
-    [logoData, template],
+    () => buildLayoutFromBlocks(syncBlocksWithForm(blocks, { logoData, template })),
+    [blocks, logoData, template],
   );
 
   useEffect(() => {
@@ -71,6 +78,7 @@ export default function TicketCustomizeScreen({ onBack }) {
       shopTva: settings.shopTva || '',
     });
     setTemplate(mergeTicketTemplate(settings));
+    setBlocks(blocksFromSettings(settings));
     setLogoData(readLogoFromLayout(mergedLayout));
     setAdminPin(settings.adminPin || getAdminPin());
     setAdminPinConfirm(settings.adminPin || getAdminPin());
@@ -92,7 +100,9 @@ export default function TicketCustomizeScreen({ onBack }) {
       });
       setTemplate(mergeTicketTemplate(cloud));
       if (cloud.ticketLayout) {
-        setLogoData(readLogoFromLayout(mergeTicketLayout(cloud)));
+        const cloudLayout = mergeTicketLayout(cloud);
+        setBlocks(cloudLayout.blocks);
+        setLogoData(readLogoFromLayout(cloudLayout));
       }
       if (cloud.adminPin) {
         setAdminPin(cloud.adminPin);
@@ -345,6 +355,10 @@ export default function TicketCustomizeScreen({ onBack }) {
               <Toggle label="N° TVA" checked={template.showTva !== false} onChange={(v) => setTemplate({ ...template, showTva: v })} />
               <Toggle label="Détail TVA" checked={template.showTaxDetail !== false} onChange={(v) => setTemplate({ ...template, showTaxDetail: v })} />
             </div>
+          </Section>
+
+          <Section title="Sections du ticket">
+            <TicketSectionsPanel blocks={blocks} setBlocks={setBlocks} />
           </Section>
 
           <Section title="Message de fin">

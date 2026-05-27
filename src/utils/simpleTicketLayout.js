@@ -1,23 +1,39 @@
 /**
- * Construit la mise en page ticket à partir d'un formulaire simple (sans éditeur de blocs).
+ * Mise en page ticket : formulaire simple + sections réordonnables.
  */
 import { DEFAULT_TICKET_BLOCKS, mergeTicketLayout } from './ticketLayout';
 
-export function buildLayoutFromSimpleForm({ logoData = '', template = {} }) {
-  const blocks = DEFAULT_TICKET_BLOCKS.map((b) => {
-    const block = { ...b };
+export function blocksFromSettings(settings = {}) {
+  return mergeTicketLayout(settings).blocks;
+}
+
+/** Met à jour logo / sous-titre / TVA dans la liste de blocs existante. */
+export function syncBlocksWithForm(blocks, { logoData = '', template = {} }) {
+  return blocks.map((block) => {
     if (block.type === 'logo') {
-      block.enabled = Boolean(logoData);
-      block.logoData = logoData || '';
+      const hasLogo = Boolean(logoData);
+      return { ...block, enabled: hasLogo, logoData: logoData || '' };
     }
     if (block.type === 'shop_subtitle') {
-      block.enabled = Boolean(String(template.headerSubtitle || '').trim());
+      return {
+        ...block,
+        enabled: Boolean(String(template.headerSubtitle || '').trim()),
+      };
     }
     if (block.type === 'tax_detail') {
-      block.enabled = template.showTaxDetail !== false;
+      return { ...block, enabled: template.showTaxDetail !== false };
     }
     return block;
   });
+}
 
+export function buildLayoutFromBlocks(blocks) {
   return mergeTicketLayout({ ticketLayout: { blocks } });
+}
+
+/** Ancien helper : layout par défaut + options simples. */
+export function buildLayoutFromSimpleForm({ logoData = '', template = {}, blocks = null }) {
+  const base = blocks || DEFAULT_TICKET_BLOCKS.map((b) => ({ ...b }));
+  const synced = syncBlocksWithForm(base, { logoData, template });
+  return buildLayoutFromBlocks(synced);
 }
